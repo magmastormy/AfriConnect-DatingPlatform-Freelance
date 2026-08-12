@@ -3,9 +3,13 @@
 import { useEffect, useState } from 'react';
 
 export function useOnline(): boolean {
-  const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [online, setOnline] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setOnline(navigator.onLine);
+
     const on = () => setOnline(true);
     const off = () => setOnline(false);
     window.addEventListener('online', on);
@@ -16,5 +20,6 @@ export function useOnline(): boolean {
     };
   }, []);
 
-  return online;
+  // Return true during SSR to avoid hydration mismatch
+  return mounted ? online : true;
 }
