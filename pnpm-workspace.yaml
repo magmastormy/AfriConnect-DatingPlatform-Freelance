@@ -6,8 +6,3 @@ allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
   prisma: true
-onlyBuiltDependencies:
-  - "@prisma/client"
-  - "@prisma/engines"
-  - "prisma"
-  - "@clerk/shared"
