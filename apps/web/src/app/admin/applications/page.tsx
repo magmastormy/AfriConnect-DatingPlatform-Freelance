@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { ApiState, Button, Badge, Select } from '@/components/ui';
 import { ApplicationView } from '@/lib/types';
-import { ApplicationStatus } from '@africonnect/shared';
+import { ApplicationStatus } from '@/lib/shared';
 
 export default function ApplicationsPage() {
   const [apps, setApps] = useState<ApplicationView[]>([]);

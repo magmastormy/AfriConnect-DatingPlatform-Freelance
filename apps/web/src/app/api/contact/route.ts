@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { validateEmail, sanitizeText } from '@/lib/validate';
-import { logger } from '@africonnect/shared';
+import { logger } from '@africonnect/shared/logger';
 
 // Contact inquiry collector. Validates and acknowledges so the form is functional
 // end-to-end. If CONTACT_WEBHOOK_URL is set (deploy), the inquiry is forwarded to

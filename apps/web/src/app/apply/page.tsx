@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { Button, Input, Select, Textarea } from '@/components/ui';
-import { Gender, City, EducationLevel, RelationshipGoal } from '@africonnect/shared';
+import { Gender, City, EducationLevel, RelationshipGoal } from '@/lib/shared';
 import { validateEmail, validatePhone, validateRequired, sanitizeText } from '@/lib/validate';
 
 type Step = 0 | 1 | 2 | 3;

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api, getAccessToken, setTokens, clearTokens, getRefreshToken } from './api';
-import { UserRole, UserStatus } from '@africonnect/shared';
+import { UserRole, UserStatus } from '@/lib/shared';
 
 export interface AuthUser {
   userId: string;

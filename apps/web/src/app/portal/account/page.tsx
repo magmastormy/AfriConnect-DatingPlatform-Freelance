@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Card, ApiState, Button, Input, Select, Badge } from '@/components/ui';
-import { SubscriptionPlan, SubscriptionStatus, City, Gender } from '@africonnect/shared';
+import { SubscriptionPlan, SubscriptionStatus, City, Gender } from '@/lib/shared';
 
 interface Profile {
   firstName: string;

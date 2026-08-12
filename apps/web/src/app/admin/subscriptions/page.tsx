@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { ApiState, Button, Badge, Select } from '@/components/ui';
 import { SubscriptionAdminView } from '@/lib/types';
-import { SubscriptionStatus, SubscriptionPlan } from '@africonnect/shared';
+import { SubscriptionStatus, SubscriptionPlan } from '@/lib/shared';
 
 export default function SubscriptionsPage() {
   const [subs, setSubs] = useState<SubscriptionAdminView[]>([]);

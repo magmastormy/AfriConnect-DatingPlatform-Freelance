@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Card, ApiState, Button, Badge, Select } from '@/components/ui';
 import { RoleDescriptor } from '@/lib/types';
-import { UserRole } from '@africonnect/shared';
+import { UserRole } from '@/lib/shared';
 
 interface AdminUser {
   id: string;

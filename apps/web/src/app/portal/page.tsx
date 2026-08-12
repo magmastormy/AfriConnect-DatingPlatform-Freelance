@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { PortalShell } from '@/components/PortalShell';
-import { SubscriptionStatus } from '@africonnect/shared';
+import { SubscriptionStatus } from '@/lib/shared';
 
 interface Profile {
   firstName: string;

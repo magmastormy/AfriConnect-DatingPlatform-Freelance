@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Card, ApiState, Button, Badge } from '@/components/ui';
 import { EventView } from '@/lib/types';
-import { EventStatus } from '@africonnect/shared';
+import { EventStatus } from '@/lib/shared';
 
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<EventView[]>([]);
