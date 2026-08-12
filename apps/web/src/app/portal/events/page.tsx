@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Card, ApiState, Button, Badge } from '@/components/ui';
 import { EventView } from '@/lib/types';
-import { EventStatus } from '@africonnect/shared';
+import { EventStatus } from '@/lib/shared';
 
 interface Attendee {
   id: string;

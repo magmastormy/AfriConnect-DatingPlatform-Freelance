@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { ApiState, Button, Badge, Select } from '@/components/ui';
 import { MemberView } from '@/lib/types';
-import { UserStatus } from '@africonnect/shared';
+import { UserStatus } from '@/lib/shared';
 
 export default function MembersPage() {
   const [members, setMembers] = useState<MemberView[]>([]);

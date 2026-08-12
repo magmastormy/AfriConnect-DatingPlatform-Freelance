@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { useToast } from '@/components/Toast';
 import { Card, Button, Input, Textarea, Select } from '@/components/ui';
-import { NotificationChannel, UserRole } from '@africonnect/shared';
+import { NotificationChannel, UserRole } from '@/lib/shared';
 import { validateRequired, sanitizeText } from '@/lib/validate';
 
 export default function BroadcastPage() {

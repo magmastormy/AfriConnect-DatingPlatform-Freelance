@@ -10,7 +10,7 @@ import type {
   SubscriptionStatus,
   EventStatus,
   EventType,
-} from '@africonnect/shared';
+} from '@/lib/shared';
 
 export type {
   UserRole,

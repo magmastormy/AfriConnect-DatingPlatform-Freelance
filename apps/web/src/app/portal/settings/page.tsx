@@ -5,7 +5,7 @@ import { api, ApiError, getRefreshToken, setTokens, clearTokens } from '@/lib/ap
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/Toast';
 import { Card, Button, Input, Select } from '@/components/ui';
-import { EducationLevel } from '@africonnect/shared';
+import { EducationLevel } from '@/lib/shared';
 import { validateRequired } from '@/lib/validate';
 
 type Tab = 'preferences' | 'privacy' | 'photos' | 'security';
