@@ -1,9 +1,5 @@
 /** @type {import('next').NextConfig} */
 import crypto from 'crypto';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Per-request nonce so Next.js can whitelist its own inline bootstrap scripts
 // without falling back to 'unsafe-inline'. React escapes all dynamic content,
@@ -36,19 +32,6 @@ const securityHeaders = (nonce) => [
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@africonnect/shared'],
-  webpack: (config, { isServer }) => {
-    // The package barrel re-exports server-only code (fs/cloudinary/express/
-    // pino). On the *client* build, point @africonnect/shared at the
-    // browser-safe entry so those modules are never pulled into the bundle.
-    // The server build keeps the full barrel (route handlers need logger etc.).
-    if (!isServer) {
-      config.resolve.alias['@africonnect/shared'] = path.resolve(
-        __dirname,
-        '../../packages/shared/src/client.ts',
-      );
-    }
-    return config;
-  },
   async headers() {
     // The strict CSP below forbids 'unsafe-eval'. Next.js Fast Refresh
     // (react-refresh) and the dev error overlay both require 'unsafe-eval' in
