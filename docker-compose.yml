@@ -1,0 +1,78 @@
+# Local full-stack for AfriConnect Professionals.
+# Brings up Postgres + API + Web (Next dev) so you can run the whole product
+# with one command. Secrets live in .env (copy from .env.example and fill in).
+#
+#   docker compose up --build
+#
+# Web:  http://localhost:3000   (proxies /<API_MOUNT_PATH>/v1 -> api:4000)
+# API:  http://localhost:4000   (mount: /<API_MOUNT_PATH>/v1)
+# DB:   postgres://africonnect:africonnect@localhost:5432/africonnect
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-africonnect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-africonnect}
+      POSTGRES_DB: ${POSTGRES_DB:-africonnect}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-africonnect} -d ${POSTGRES_DB:-africonnect}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-africonnect}:${POSTGRES_PASSWORD:-africonnect}@db:5432/${POSTGRES_DB:-africonnect}?sslmode=disable
+      WEB_BASE_URL: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      NEXT_PUBLIC_API_MOUNT: ${API_MOUNT_PATH:-api}
+      NEXT_PUBLIC_API_WS: ws://localhost:4000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      API_BASE_URL: http://api:4000
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/.next
+
+volumes:
+  pgdata:

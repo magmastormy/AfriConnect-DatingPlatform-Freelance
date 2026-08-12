@@ -1,0 +1,89 @@
+import express, { Express, Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import path from 'path';
+import { errorHandler, success, ValidationError } from '@africonnect/shared';
+import { config } from './config';
+import { rateLimitMiddleware } from './config/middleware';
+import { honeypotMiddleware } from './config/middleware/honeypot';
+import { buildAuthModule } from './modules/auth';
+import { buildApplicationModule } from './modules/application';
+import { buildProfileModule } from './modules/profile';
+import { buildMatchModule } from './modules/match';
+import { buildChatModule } from './modules/chat';
+import { buildEventModule } from './modules/event';
+import { buildNotificationModule } from './modules/notification';
+import { buildBillingModule } from './modules/billing';
+import { buildAdminModule } from './modules/admin';
+
+/** Compose the Express application from module routers. */
+export function createApp(): Express {
+  const app = express();
+
+  // Adversarial posture: never advertise the stack.
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1); // behind a reverse proxy / LB; needed for real client IP
+
+  // Security & parsing
+  app.use(helmet());
+  app.use(cors({ origin: config.corsOrigins, credentials: true }));
+  app.use(express.json({ limit: '12mb' })); // base64 image uploads ride in JSON bodies
+
+  // Correlation id for structured tracing (Clause 2.7)
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    const cid =
+      (req.headers['x-correlation-id'] as string) ||
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    (req as Request & { correlationId?: string }).correlationId = cid;
+    next();
+  });
+
+  // Bot/scanner trap: reject probing of well-known secrets/scanner paths with a
+  // generic 403 before any real route is consulted.
+  app.use(honeypotMiddleware());
+
+  // Health (kept public; carries no version/environment detail)
+  app.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json(success({ status: 'ok' }));
+  });
+  // Platform healthcheck (Render/Fly) — fixed path, never mounts under the secret segment.
+  app.get('/healthz', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok' });
+  });
+
+  // Tiered global rate limit (Clause 3.4)
+  app.use(rateLimitMiddleware());
+
+  // Obfuscated, versioned API surface. The mount segment is a random secret in
+  // production (API_MOUNT_PATH), so the real endpoints are not enumerable.
+  const mount = `/${config.apiMountPath}/v1`;
+  app.use(`${mount}/auth`, buildAuthModule());
+  app.use(`${mount}/applications`, buildApplicationModule());
+  app.use(`${mount}/profile`, buildProfileModule());
+  app.use(`${mount}/matches`, buildMatchModule());
+  app.use(`${mount}/chat`, buildChatModule());
+  app.use(`${mount}/events`, buildEventModule());
+  app.use(`${mount}/notifications`, buildNotificationModule());
+  app.use(`${mount}/billing`, buildBillingModule());
+  app.use(`${mount}/admin`, buildAdminModule());
+
+  // Served user uploads (chat images). Bounded by auth at the upload endpoint.
+  app.use(
+    '/uploads',
+    express.static(path.join(process.cwd(), 'uploads'), {
+      maxAge: '1h',
+      index: false,
+    }),
+  );
+
+  // Any unrecognised path (including guessed API roots other than the secret
+  // mount) returns a generic 404 — never reveals which routes exist.
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    next(new ValidationError(`No route for ${req.method} ${req.path}`));
+  });
+
+  // Centralized error handler (Clause 2.6) — must be last
+  app.use(errorHandler);
+
+  return app;
+}

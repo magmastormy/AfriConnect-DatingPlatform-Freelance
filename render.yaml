@@ -1,0 +1,44 @@
+# Render.com blueprint for the AfriConnect Professionals API.
+# Web (Next.js) is deployed separately on Vercel (see vercel.json + DEPLOY.md).
+services:
+  - type: web
+    name: africonnect-api
+    runtime: docker
+    dockerfilePath: packages/api/Dockerfile
+    plan: starter
+    region: oregon
+    healthCheckPath: /api/healthz
+    env:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: API_MOUNT_PATH
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: WEB_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VERIFY_SID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CONTACT_WEBHOOK_URL
+        sync: false
+    preDeployCommand: pnpm --filter @africonnect/api exec prisma migrate deploy

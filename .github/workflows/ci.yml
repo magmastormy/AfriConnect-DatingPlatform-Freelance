@@ -1,0 +1,26 @@
+name: Verify
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Verify (build + typecheck + test + lint)
+        run: pnpm install && hermes verify
+        env:
+          # Tests run without a live DB; provide a dummy URL so the client can be generated.
+          DATABASE_URL: postgresql://u:p@localhost:5432/db
