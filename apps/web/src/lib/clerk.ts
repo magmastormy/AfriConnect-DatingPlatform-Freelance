@@ -1,23 +1,50 @@
-// Optional Clerk integration (gated by NEXT_PUBLIC_AUTH_MODE === 'clerk').
-//
-// When enabled, the user authenticates with Clerk in the browser; we then
-// exchange the Clerk session JWT for an AfriConnect backend token via
-// POST /auth/clerk/exchange. This keeps the existing OTP flow intact and lets
-// the product use Clerk's hosted sign-in/up UI without forking the API.
-//
-// NOTE: enable by (1) installing @clerk/nextjs, (2) setting NEXT_PUBLIC_AUTH_MODE=clerk
-// and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, and (3) adding the <ClerkProvider> mount in
-// app/clerk-provider.tsx. Until then this module is inert and OTP remains the active path.
+/**
+ * Clerk configuration (client-safe).
+ *
+ * Clerk is the primary authentication provider for AfriConnect: it owns
+ * sign-in, sign-up and sign-out. The browser authenticates with Clerk, then
+ * the Clerk session JWT is exchanged for AfriConnect backend tokens via
+ * POST /auth/clerk/exchange. Everything downstream of that exchange keeps
+ * using our own AuthUser + access token, so the API contract is unchanged.
+ *
+ * Clerk is considered configured when a publishable key is present. The legacy
+ * phone-OTP flow is retained as an explicit fallback for environments without
+ * Clerk credentials (local development, CI, self-hosted previews) and is
+ * selected by setting NEXT_PUBLIC_AUTH_MODE=otp.
+ */
 
-export const CLERK_ENABLED = process.env.NEXT_PUBLIC_AUTH_MODE === 'clerk';
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
+
+/** Explicit opt-out. Any value other than 'otp' leaves Clerk in charge. */
+const forcedOtp = process.env.NEXT_PUBLIC_AUTH_MODE === 'otp';
+
+/**
+ * True when Clerk should drive authentication. Requires a publishable key —
+ * mounting ClerkProvider without one throws at runtime, so we degrade to the
+ * OTP flow rather than break the whole app.
+ */
+export const CLERK_ENABLED = !forcedOtp && publishableKey.length > 0;
+
+export const CLERK_PUBLISHABLE_KEY = publishableKey;
+
+/** Canonical auth routes. Kept here so links and Clerk props cannot drift. */
+export const SIGN_IN_URL = '/sign-in';
+export const SIGN_UP_URL = '/sign-up';
+/** Where a member lands after authenticating. */
+export const AFTER_SIGN_IN_URL = '/portal';
+/**
+ * A brand-new account goes to onboarding, which creates the profile and then
+ * offers vetting. Vetting is deliberately NOT part of sign-up.
+ */
+export const AFTER_SIGN_UP_URL = '/onboarding';
 
 export interface ClerkExchangeResult {
   accessToken: string;
   refreshToken: string;
   user: {
-    userId: string;
-    role: string;
+    id: string;
     email: string;
+    role: string;
     status: string;
   };
 }

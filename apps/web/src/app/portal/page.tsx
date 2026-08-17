@@ -3,16 +3,18 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { PortalShell } from '@/components/PortalShell';
 import { SubscriptionStatus } from '@/lib/shared';
+import { useAuth } from '@/lib/auth';
+import { can, Capability } from '@/lib/membership';
+import { DiscoverCard } from '@/lib/types';
 
 interface Profile {
-  firstName: string;
-  lastName: string;
-  city: string;
-  profession: string | null;
-  isComplete: boolean;
-  isPaused: boolean;
+  firstName?: string;
+  lastName?: string;
+  city?: string;
+  profession?: string | null;
+  isComplete?: boolean;
+  isPaused?: boolean;
 }
 interface Sub {
   plan: string;
@@ -29,26 +31,34 @@ const CITIES: Record<string, string> = {
 };
 
 export default function PortalDashboard() {
+  const { stage } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sub, setSub] = useState<Sub | null>(null);
   const [dailyCount, setDailyCount] = useState<number | null>(null);
+  const [preview, setPreview] = useState<DiscoverCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Even unvetted members can preview a few seeded members; only the act of
+  // connecting (like / pass) is gated behind vetting.
+  const canConnect = can(stage, Capability.Match);
+
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
-        const [p, s, d] = await Promise.all([
+        const [p, s, d, members] = await Promise.all([
           api.get<Profile>('/profile/me'),
           api.get<Sub | null>('/billing/subscription').catch(() => null),
           api
             .get<{ matches: unknown[] }>('/matches/daily')
             .then((r) => r.matches.length)
             .catch(() => 0),
+          api.get<DiscoverCard[]>('/matches/preview?limit=3').catch(() => []),
         ]);
         setProfile(p);
         setSub(s);
         setDailyCount(d);
+        setPreview(members.slice(0, 3));
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load dashboard');
       } finally {
@@ -59,22 +69,26 @@ export default function PortalDashboard() {
 
   const planLabel = sub ? sub.plan : 'Free';
   const active = sub?.status === SubscriptionStatus.Active;
-  const city = profile ? (CITIES[profile.city] ?? profile.city) : '—';
-  const name = profile ? `${profile.firstName}` : 'Member';
+  const city = profile?.city ? (CITIES[profile.city] ?? profile.city) : '—';
+  const name = profile?.firstName ? `${profile.firstName}` : 'Member';
 
   const steps: { label: string; done: boolean; href: string }[] = [
-    { label: 'Complete your profile', done: !!profile?.isComplete, href: '/portal/account' },
+    {
+      label: 'Complete your profile',
+      done: !!(profile?.firstName && profile?.isComplete),
+      href: '/portal/account',
+    },
     { label: 'Verify your identity', done: false, href: '/portal/account' },
     { label: 'Review today’s introductions', done: (dailyCount ?? 0) > 0, href: '/portal/matches' },
     {
       label: 'Resume your profile to be matched',
-      done: !profile?.isPaused,
+      done: profile?.isPaused === false,
       href: '/portal/account',
     },
   ];
 
   return (
-    <PortalShell>
+    <>
       <div
         className="lede"
         style={{
@@ -103,7 +117,7 @@ export default function PortalDashboard() {
           </div>
           <div className="meta-row">
             <span className="meta-k">Status</span>
-            <span className="meta-v">{profile?.isPaused ? 'Paused' : 'Active'}</span>
+            <span className="meta-v">{profile?.isPaused === true ? 'Paused' : 'Active'}</span>
           </div>
           <div className="meta-row">
             <span className="meta-k">Renews</span>
@@ -122,6 +136,8 @@ export default function PortalDashboard() {
         <p className="notice">{error}</p>
       ) : loading ? (
         <p className="standfirst">Loading your home…</p>
+      ) : !profile?.firstName ? (
+        <p className="standfirst">Please complete your profile to get started.</p>
       ) : null}
 
       <section style={{ marginTop: 32 }}>
@@ -161,6 +177,53 @@ export default function PortalDashboard() {
 
       <section style={{ marginTop: 32 }}>
         <h2 className="section-title">
+          <span className="rule" /> Members near you
+        </h2>
+        {preview.length === 0 ? (
+          <p className="muted">More members are joining every day — check back soon.</p>
+        ) : (
+          <>
+            <div className="member-grid">
+              {preview.map((m) => (
+                <div className="member-card" key={m.userId}>
+                  <div
+                    className="member-photo"
+                    style={m.photos.length ? { backgroundImage: `url(${m.photos[0]})` } : undefined}
+                  >
+                    {m.verified && <span className="badge badge-good member-flag">Verified</span>}
+                  </div>
+                  <div className="member-body">
+                    <strong>
+                      {m.displayName ?? 'Member'} · {m.age}
+                    </strong>
+                    <span className="muted">
+                      {m.city}
+                      {m.profession ? ` · ${m.profession}` : ''}
+                    </span>
+                    {canConnect ? (
+                      <Link href="/portal/discover" className="btn btn-subtle member-action">
+                        View &amp; connect
+                      </Link>
+                    ) : (
+                      <Link href="/get-vetted" className="btn btn-subtle member-action">
+                        Get vetted to connect
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {!canConnect && (
+              <p className="muted" style={{ marginTop: '0.75rem' }}>
+                You can see who’s here, but connecting opens once you’re vetted.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      <section style={{ marginTop: 32 }}>
+        <h2 className="section-title">
           <span className="rule" /> Getting settled
         </h2>
         <ul className="ledger">
@@ -188,6 +251,6 @@ export default function PortalDashboard() {
           </Link>
         </section>
       )}
-    </PortalShell>
+    </>
   );
 }

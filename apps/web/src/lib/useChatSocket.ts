@@ -23,7 +23,10 @@ export function useChatSocket({ conversationId, onMessage, onPresence }: Options
   const cbRef = useRef({ onMessage, onPresence });
   cbRef.current = { onMessage, onPresence };
 
-  const mount = conversationId;
+  // Reconnect key. Named distinctly from the API `mount` segment resolved inside
+  // the effect below, which previously shadowed this and made the dependency
+  // array read as if it tracked the mount path rather than the conversation.
+  const conversationKey = conversationId;
 
   useEffect(() => {
     const token = getAccessToken();
@@ -63,7 +66,7 @@ export function useChatSocket({ conversationId, onMessage, onPresence }: Options
       ws.close();
       wsRef.current = null;
     };
-  }, [mount]);
+  }, [conversationKey]);
 
   const sendRaw = useCallback((payload: unknown) => {
     const ws = wsRef.current;

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { HomeEventsPreview } from './HomeEventsPreview';
 
 export const metadata = {
   title: 'A vetted community for African professionals',
@@ -210,12 +211,15 @@ export default function LandingPage() {
         </table>
       </section>
 
+      {/* LIVE EVENTS PREVIEW */}
+      <HomeEventsPreview />
+
       {/* CTA */}
       <section style={{ padding: '0 1.5rem' }}>
         <div className="cta-ink">
-          <h2>Apply to AfriConnect Professionals.</h2>
-          <Link href="/apply" className="btn btn-on-ink">
-            Start your application
+          <h2>Join AfriConnect Professionals.</h2>
+          <Link href="/sign-up" className="btn btn-on-ink">
+            Create your account
           </Link>
         </div>
       </section>

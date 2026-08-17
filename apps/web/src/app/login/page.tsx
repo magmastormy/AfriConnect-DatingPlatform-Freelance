@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export default function LoginRedirect() {
-  redirect('/auth');
+/** Legacy alias for the canonical /sign-in route. */
+export default function LoginAliasPage() {
+  redirect('/sign-in');
 }

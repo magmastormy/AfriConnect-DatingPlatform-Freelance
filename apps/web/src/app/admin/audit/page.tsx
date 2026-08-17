@@ -22,7 +22,7 @@ export default function AuditPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         setEntries(await api.get<AuditEntry[]>('/admin/audit'));
       } catch (e) {
@@ -43,35 +43,37 @@ export default function AuditPage() {
       </div>
       <ApiState loading={loading} error={error} empty={entries.length === 0}>
         <Card>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Admin</th>
-                <th>Scope</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e) => (
-                <tr key={e.id}>
-                  <td>{new Date(e.createdAt).toLocaleString()}</td>
-                  <td>{e.adminId.slice(0, 8)}</td>
-                  <td>
-                    <Badge tone="neutral">{e.scope}</Badge>
-                  </td>
-                  <td>{e.action}</td>
-                  <td>
-                    {e.entity}
-                    {e.entityId ? `:${e.entityId.slice(0, 8)}` : ''}
-                  </td>
-                  <td>{e.ipAddress ?? '—'}</td>
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Admin</th>
+                  <th>Scope</th>
+                  <th>Action</th>
+                  <th>Entity</th>
+                  <th>IP</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <tr key={e.id}>
+                    <td>{new Date(e.createdAt).toLocaleString()}</td>
+                    <td>{e.adminId.slice(0, 8)}</td>
+                    <td>
+                      <Badge tone="neutral">{e.scope}</Badge>
+                    </td>
+                    <td>{e.action}</td>
+                    <td>
+                      {e.entity}
+                      {e.entityId ? `:${e.entityId.slice(0, 8)}` : ''}
+                    </td>
+                    <td>{e.ipAddress ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       </ApiState>
     </div>

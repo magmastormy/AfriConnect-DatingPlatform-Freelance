@@ -107,3 +107,55 @@ export function ApiState({
   if (empty) return <div className="state">Nothing here yet.</div>;
   return <>{children}</>;
 }
+
+export function SearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="field" style={{ flex: 1, minWidth: 200 }}>
+      <span>{placeholder ?? 'Search'}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.currentTarget.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
+export function Pagination({
+  page,
+  total,
+  limit,
+  onPageChange,
+}: {
+  page: number;
+  total: number;
+  limit: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / limit));
+  if (pages <= 1) return null;
+  const go = (p: number) => {
+    if (p >= 1 && p <= pages && p !== page) onPageChange(p);
+  };
+  return (
+    <div className="pagination">
+      <button className="btn btn-subtle" onClick={() => go(page - 1)} disabled={page <= 1}>
+        Prev
+      </button>
+      <span className="pagination-info">
+        Page {page} of {pages}
+      </span>
+      <button className="btn btn-subtle" onClick={() => go(page + 1)} disabled={page >= pages}>
+        Next
+      </button>
+    </div>
+  );
+}

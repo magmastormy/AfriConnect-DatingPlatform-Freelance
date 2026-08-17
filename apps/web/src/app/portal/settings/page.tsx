@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api, ApiError, getRefreshToken, setTokens, clearTokens } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/Toast';
 import { Card, Button, Input, Select } from '@/components/ui';
+import { FileUpload } from '@/components/FileUpload';
 import { EducationLevel } from '@/lib/shared';
-import { validateRequired } from '@/lib/validate';
 
-type Tab = 'preferences' | 'privacy' | 'photos' | 'security';
+type Tab = 'preferences' | 'privacy' | 'photos' | 'nearby' | 'security';
 
 interface Preferences {
   ageMin: number;
@@ -42,12 +43,13 @@ export default function SettingsPage() {
     photoVisibility: 'matches',
   });
   const [photos, setPhotos] = useState<string[]>([]);
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [district, setDistrict] = useState('');
+  const [nearbyEnabled, setNearbyEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const p = await api.get<Record<string, unknown>>('/profile/me');
         setPrefs({
@@ -66,6 +68,8 @@ export default function SettingsPage() {
           photoVisibility: (p.photoVisibility as Privacy['photoVisibility']) ?? 'matches',
         });
         if (Array.isArray(p.photos)) setPhotos(p.photos.map((x: { url: string }) => x.url));
+        if (typeof p.district === 'string') setDistrict(p.district);
+        setNearbyEnabled(Boolean(p.nearbyEnabled));
       } catch (e) {
         toast(e instanceof ApiError ? e.message : 'Failed to load settings', 'error');
       } finally {
@@ -111,20 +115,26 @@ export default function SettingsPage() {
     }
   }
 
-  async function addPhoto() {
-    const err = validateRequired(photoUrl, 'Photo URL');
-    if (err) {
-      toast(err, 'error');
-      return;
-    }
+  async function addPhoto(url: string) {
     setBusy(true);
     try {
-      await api.post('/profile/me/photos', { url: photoUrl, isPrimary: photos.length === 0 });
-      setPhotos((p) => [...p, photoUrl]);
-      setPhotoUrl('');
+      await api.post('/profile/me/photos', { url, isPrimary: photos.length === 0 });
+      setPhotos((p) => [...p, url]);
       toast('Photo added', 'success');
     } catch (e) {
       toast(e instanceof ApiError ? e.message : 'Add failed', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveNearby() {
+    setBusy(true);
+    try {
+      await api.put('/profile/me/nearby', { district, nearbyEnabled });
+      toast('Nearby settings saved', 'success');
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : 'Save failed', 'error');
     } finally {
       setBusy(false);
     }
@@ -150,10 +160,31 @@ export default function SettingsPage() {
     }
   }
 
+  async function signOutEverywhere() {
+    setBusy(true);
+    try {
+      await api.post('/auth/logout', { refreshToken: getRefreshToken() ?? '' });
+    } catch (e) {
+      // The server-side revoke failed (offline, expired token, 5xx). We still sign
+      // out locally: leaving the user logged in after they asked to sign out is the
+      // worse failure mode. Surface it so they know the remote session may persist.
+      toast(
+        e instanceof ApiError
+          ? `Signed out locally, but the server session may remain: ${e.message}`
+          : 'Signed out locally, but the server session may remain.',
+        'error',
+      );
+    } finally {
+      clearTokens();
+      window.location.href = '/login';
+    }
+  }
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'preferences', label: 'Match Preferences' },
     { id: 'privacy', label: 'Privacy' },
     { id: 'photos', label: 'Photos' },
+    { id: 'nearby', label: 'Nearby' },
     { id: 'security', label: 'Security' },
   ];
 
@@ -233,44 +264,46 @@ export default function SettingsPage() {
 
           {tab === 'privacy' && (
             <Card title="Privacy Controls">
-              <label
-                className="field"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <input
-                  type="checkbox"
-                  checked={privacy.showEmployer}
+              <div className="grid2">
+                <label
+                  className="field"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={privacy.showEmployer}
+                    onChange={(e) =>
+                      setPrivacy({ ...privacy, showEmployer: e.currentTarget.checked })
+                    }
+                  />
+                  <span>Show my employer to matches</span>
+                </label>
+                <label
+                  className="field"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={privacy.showAge}
+                    onChange={(e) => setPrivacy({ ...privacy, showAge: e.currentTarget.checked })}
+                  />
+                  <span>Show my age to matches</span>
+                </label>
+                <Select
+                  label="Photo visibility"
+                  value={privacy.photoVisibility}
                   onChange={(e) =>
-                    setPrivacy({ ...privacy, showEmployer: e.currentTarget.checked })
+                    setPrivacy({
+                      ...privacy,
+                      photoVisibility: e.currentTarget.value as Privacy['photoVisibility'],
+                    })
                   }
-                />
-                <span>Show my employer to matches</span>
-              </label>
-              <label
-                className="field"
-                style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <input
-                  type="checkbox"
-                  checked={privacy.showAge}
-                  onChange={(e) => setPrivacy({ ...privacy, showAge: e.currentTarget.checked })}
-                />
-                <span>Show my age to matches</span>
-              </label>
-              <Select
-                label="Photo visibility"
-                value={privacy.photoVisibility}
-                onChange={(e) =>
-                  setPrivacy({
-                    ...privacy,
-                    photoVisibility: e.currentTarget.value as Privacy['photoVisibility'],
-                  })
-                }
-              >
-                <option value="all">Everyone</option>
-                <option value="matches">My matches only</option>
-                <option value="none">No one</option>
-              </Select>
+                >
+                  <option value="all">Everyone</option>
+                  <option value="matches">My matches only</option>
+                  <option value="none">No one</option>
+                </Select>
+              </div>
               <Button disabled={busy} onClick={savePrivacy}>
                 Save privacy
               </Button>
@@ -278,32 +311,97 @@ export default function SettingsPage() {
           )}
 
           {tab === 'photos' && (
-            <Card title="Photos">
-              <div className="row-actions" style={{ flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <Card title={`Photos (${photos.length}/3)`}>
+              <div
+                className="row-actions"
+                style={{ flexWrap: 'wrap', marginBottom: '1rem', gap: '0.75rem' }}
+              >
                 {photos.length === 0 && <p style={{ color: 'var(--muted)' }}>No photos yet.</p>}
                 {photos.map((url, i) => (
-                  <div key={url} className="match" style={{ width: '100%' }}>
-                    <div className="avatar">{i + 1}</div>
-                    <div className="meta">
-                      <div>{url.slice(0, 40)}…</div>
-                      {i === 0 && <span className="badge badge-good">Primary</span>}
-                    </div>
+                  <div key={url} style={{ position: 'relative' }}>
+                    <img
+                      src={url}
+                      alt=""
+                      style={{
+                        width: 96,
+                        height: 96,
+                        objectFit: 'cover',
+                        borderRadius: 12,
+                        border: i === 0 ? '2px solid var(--accent)' : '1px solid var(--line)',
+                      }}
+                    />
+                    {i === 0 && (
+                      <span
+                        className="badge badge-good"
+                        style={{ position: 'absolute', top: 4, left: 4 }}
+                      >
+                        Primary
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
-              <div className="row-actions">
-                <Input
-                  label=""
-                  value={photoUrl}
-                  onChange={(e) => setPhotoUrl(e.currentTarget.value)}
-                  placeholder="https://… image URL"
+              {photos.length < 3 ? (
+                <FileUpload
+                  label="Add a photo"
+                  accept="image/*"
+                  folder="photos"
+                  onChange={addPhoto}
                 />
-                <Button disabled={busy} onClick={addPhoto}>
-                  Add photo
-                </Button>
-              </div>
+              ) : (
+                <p style={{ color: 'var(--muted)' }}>Maximum of 3 photos reached.</p>
+              )}
               <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
-                Photos are stored encrypted at rest (AES-256-GCM) per POPIA.
+                Photos are stored encrypted at rest (AES-256-GCM) per POPIA. Your first photo is
+                your primary; the grid of up to 3 is what others see on discovery cards.
+              </p>
+            </Card>
+          )}
+
+          {tab === 'nearby' && (
+            <Card title="WeChat-Nearby">
+              <p style={{ color: 'var(--muted)', marginBottom: '1rem' }}>
+                Nearby surfaces your profile to other vetted members in the{' '}
+                <strong>same district</strong> who have Nearby turned on — like WeChat&apos;s
+                people-nearby, but scoped to your neighbourhood. Turn it on to be discoverable.{' '}
+                <strong>Browsing</strong> Nearby is a <strong>Premium</strong> feature.
+              </p>
+              <div className="grid2">
+                <Input
+                  label="District / neighbourhood"
+                  value={district}
+                  placeholder="e.g. Sandton, Camps Bay"
+                  onChange={(e) => setDistrict(e.currentTarget.value)}
+                />
+                <label
+                  className="field"
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginTop: '0.5rem',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={nearbyEnabled}
+                    onChange={(e) => setNearbyEnabled(e.currentTarget.checked)}
+                  />{' '}
+                  <span>Show me in Nearby to other verified members in my district</span>
+                </label>
+              </div>
+              <Button disabled={busy} onClick={saveNearby}>
+                Save nearby settings
+              </Button>
+              <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginTop: '1rem' }}>
+                Not Premium yet?{' '}
+                <Link
+                  href="/portal/account"
+                  className="btn btn-subtle"
+                  style={{ display: 'inline', padding: '0.25rem 0.5rem' }}
+                >
+                  Upgrade in Account
+                </Link>
               </p>
             </Card>
           )}
@@ -318,19 +416,7 @@ export default function SettingsPage() {
                 <Button disabled={busy} onClick={refreshSession}>
                   Refresh session token
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    api
-                      .post('/auth/logout', {
-                        refreshToken: getRefreshToken() ?? '',
-                      })
-                      .then(() => {
-                        clearTokens();
-                        window.location.href = '/login';
-                      })
-                  }
-                >
+                <Button variant="ghost" disabled={busy} onClick={signOutEverywhere}>
                   Sign out everywhere
                 </Button>
               </div>

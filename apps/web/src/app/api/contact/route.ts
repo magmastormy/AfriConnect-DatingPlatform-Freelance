@@ -7,6 +7,8 @@ import { logger } from '@africonnect/shared/logger';
 // it (e.g. Resend/SendGrid inbound or a Slack/Discord webhook); otherwise it is
 // logged for the team to action. No external credentials are required locally.
 const WEBHOOK = process.env.CONTACT_WEBHOOK_URL;
+/** Upper bound on the outbound webhook call so a slow sink cannot stall the response. */
+const WEBHOOK_TIMEOUT_MS = 5_000;
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -40,16 +42,27 @@ export async function POST(req: Request) {
   };
 
   if (WEBHOOK) {
+    // Bounded: a hanging webhook must never stall the visitor's request, and a
+    // non-2xx response must not be mistaken for a successful forward. The
+    // inquiry is logged below regardless, so a failed forward is degraded, not lost.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
     try {
-      await fetch(WEBHOOK, {
+      const res = await fetch(WEBHOOK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: `New inquiry from ${clean.name} <${clean.email}>\n\n${clean.message}`,
         }),
+        signal: controller.signal,
       });
+      if (!res.ok) {
+        logger.warn({ status: res.status }, '[contact] webhook rejected the forward; logged only');
+      }
     } catch (err) {
       logger.warn({ err }, '[contact] webhook forward failed; logged only');
+    } finally {
+      clearTimeout(timer);
     }
   }
   logger.info({ name: clean.name, email: clean.email }, '[contact] inquiry received');

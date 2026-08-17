@@ -4,24 +4,24 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
 import { ApiState, Button, Badge } from '@/components/ui';
-import { DailyMatch } from '@/lib/types';
+import { DailyMatch, MutualMatch } from '@/lib/types';
 
 type Tab = 'daily' | 'mutual';
 
 export default function MatchesPage() {
   const [tab, setTab] = useState<Tab>('daily');
   const [daily, setDaily] = useState<DailyMatch[]>([]);
-  const [mutual, setMutual] = useState<{ id: string; matchedUserId: string }[]>([]);
+  const [mutual, setMutual] = useState<MutualMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const d = await api.get<{ matches: DailyMatch[] }>('/matches/daily');
         setDaily(d.matches);
-        const m = await api.get<{ id: string; matchedUserId: string }[]>('/matches/mutual');
+        const m = await api.get<MutualMatch[]>('/matches/mutual');
         setMutual(m);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load matches');
@@ -105,13 +105,23 @@ export default function MatchesPage() {
         {tab === 'mutual' &&
           mutual.map((m) => (
             <div className="match" key={m.id}>
-              <div className="avatar">★</div>
+              {m.photo ? (
+                <img className="avatar" src={m.photo} alt={m.name} />
+              ) : (
+                <div className="avatar">★</div>
+              )}
               <div className="meta">
                 <div>
-                  <strong>It&apos;s a match!</strong>
+                  <strong>{m.name}</strong>
+                  {m.profession ? (
+                    <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                      {' '}
+                      · {m.profession}
+                    </span>
+                  ) : null}
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '0.88rem' }}>
-                  You can now message each other.
+                  You matched — start the conversation.
                 </div>
               </div>
               <Link href="/portal/messages" className="btn btn-primary">

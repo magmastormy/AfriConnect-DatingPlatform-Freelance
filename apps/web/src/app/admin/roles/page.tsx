@@ -22,7 +22,7 @@ export default function RolesPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const [r, a] = await Promise.all([
           api.get<RoleDescriptor[]>('/admin/roles'),
@@ -60,30 +60,32 @@ export default function RolesPage() {
       </div>
       <ApiState loading={loading} error={error}>
         <Card title="Role → Scope matrix">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Role</th>
-                <th>Label</th>
-                <th>Scopes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.map((r) => (
-                <tr key={r.role}>
-                  <td>{r.role}</td>
-                  <td>{r.label}</td>
-                  <td>
-                    {r.scopes.map((s) => (
-                      <Badge key={s} tone="neutral">
-                        {s}
-                      </Badge>
-                    ))}
-                  </td>
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Label</th>
+                  <th>Scopes</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {matrix.map((r) => (
+                  <tr key={r.role}>
+                    <td>{r.role}</td>
+                    <td>{r.label}</td>
+                    <td>
+                      {r.scopes.map((s) => (
+                        <Badge key={s} tone="neutral">
+                          {s}
+                        </Badge>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
         <Card title="Assign admin role">

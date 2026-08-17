@@ -35,7 +35,7 @@ export default function MessagesPage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const list = await api.get<Conversation[]>('/chat/conversations');
         setConversations(list);
@@ -50,7 +50,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!active) return;
-    (async () => {
+    void (async () => {
       try {
         const m = await api.get<ChatMessage[]>(`/chat/conversations/${active}`);
         setMessages(m);
@@ -309,7 +309,7 @@ export default function MessagesPage() {
                 hidden
                 onChange={(e) => {
                   const f = e.currentTarget.files?.[0];
-                  if (f) uploadImage(f);
+                  if (f) void uploadImage(f);
                 }}
               />
               <Button variant="ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
@@ -323,7 +323,7 @@ export default function MessagesPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    send();
+                    void send();
                   }
                 }}
               />

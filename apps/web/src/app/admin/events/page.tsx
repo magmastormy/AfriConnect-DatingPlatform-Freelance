@@ -13,7 +13,7 @@ export default function AdminEventsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         setEvents(await api.get<EventView[]>('/admin/events'));
       } catch (e) {
@@ -49,7 +49,15 @@ export default function AdminEventsPage() {
             key={ev.id}
             title={ev.title}
             action={
-              <Badge tone={ev.status === EventStatus.Published ? 'good' : 'warn'}>
+              <Badge
+                tone={
+                  ev.status === EventStatus.Published
+                    ? 'good'
+                    : ev.status === EventStatus.Cancelled
+                      ? 'bad'
+                      : 'warn'
+                }
+              >
                 {ev.status}
               </Badge>
             }
@@ -65,7 +73,7 @@ export default function AdminEventsPage() {
               {ev.featured && <Badge tone="warn">Featured</Badge>}
             </div>
             <div className="row-actions">
-              {ev.status === EventStatus.Draft ? (
+              {ev.status === EventStatus.Draft || ev.status === EventStatus.Pending ? (
                 <Button
                   disabled={busyId === ev.id}
                   onClick={() => moderate(ev.id, { status: EventStatus.Published })}

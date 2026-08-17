@@ -100,6 +100,37 @@ export interface SubscriptionAdminView {
   currentPeriodEnd: string | null;
 }
 
+export interface NotificationView {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  channel: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface SearchApplicationHit {
+  id: string;
+  firstName: string;
+  lastName: string;
+  status: ApplicationStatus;
+  createdAt: string;
+}
+
+export interface SearchSubscriptionHit {
+  userId: string;
+  email: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+}
+
+export interface GlobalSearchResult {
+  members: MemberView[];
+  applications: SearchApplicationHit[];
+  subscriptions: SearchSubscriptionHit[];
+}
+
 export interface EventView {
   id: string;
   title: string;
@@ -113,6 +144,82 @@ export interface EventView {
   ticketPrice: number;
   status: EventStatus;
   featured: boolean;
+}
+
+/** A member returned by the WeChat-Nearby (district-scoped, premium) endpoint. */
+export interface NearbyProfileView {
+  userId: string;
+  displayName: string | null;
+  firstName: string;
+  lastName: string;
+  age: number;
+  bio: string | null;
+  headline: string | null;
+  photos: string[];
+  city: City;
+  district: string | null;
+  profession: string | null;
+  employer: string | null;
+  educationLevel: EducationLevel | null;
+  isPremium: boolean;
+  verified: boolean;
+}
+
+/** RedNote-style drill-down card returned by GET /profile/:userId (tier-gated). */
+export interface ProfileRedNoteView {
+  userId: string;
+  fullName: string;
+  displayName: string | null;
+  location: { city: City; district: string | null };
+  nationality: string | null;
+  profession: string | null;
+  industry: string[];
+  educationLevel: EducationLevel | null;
+  gender: Gender | null;
+  dateOfBirth: string | null;
+  bio: string | null;
+  headline: string | null;
+  photos: string[];
+  isPremium: boolean;
+  verified: boolean;
+  /** True when a free+vetted viewer is inspecting a premium+vetted member. */
+  restricted: boolean;
+}
+
+/** Vetting application as seen by an admin reviewer. */
+export interface ApplicationAdminView {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  nationality: string;
+  gender: Gender;
+  dateOfBirth: string;
+  city: City;
+  profession: string;
+  employer: string;
+  educationLevel: EducationLevel;
+  institution: string;
+  linkedInUrl?: string;
+  proofOfWorkType?: string;
+  proofOfWorkUrl?: string;
+  idDocumentUrl: string;
+  selfieUrl: string;
+  degreeCertificateUrl?: string;
+  status: ApplicationStatus;
+  createdAt: string;
+  reviewedBy: string | null;
+}
+
+export interface MutualMatch {
+  id: string;
+  userId: string;
+  status: string;
+  createdAt: string;
+  name: string;
+  profession: string | null;
+  photo: string | null;
+  city: string | null;
 }
 
 export interface ConversationView {
@@ -147,4 +254,17 @@ export interface AdminDashboard {
   revenueZar: number;
   mrrZar: number;
   subscriptionsActive: number;
+}
+
+// ── Platform settings (admin CRM) ─────────────────────────────────────────────
+export interface PlatformSettingsView {
+  freeViewMaxExtraPhotos: number;
+  freePremiumConnectionLimit: number;
+  restrictedHiddenFields: string[];
+}
+
+export interface UpdateSettingsInput {
+  freeViewMaxExtraPhotos?: number;
+  freePremiumConnectionLimit?: number;
+  restrictedHiddenFields?: string[];
 }
