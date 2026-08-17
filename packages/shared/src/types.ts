@@ -120,6 +120,7 @@ export enum MatchAction {
 
 export enum EventStatus {
   Draft = 'draft',
+  Pending = 'pending',
   Published = 'published',
   Cancelled = 'cancelled',
   Completed = 'completed',

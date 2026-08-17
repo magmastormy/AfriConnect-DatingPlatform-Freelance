@@ -1,7 +1,11 @@
 import { config } from '@config/index';
 
 /** Plain + HTML bodies for the email verification link (PRIMARY channel). */
-export function verificationEmail(verifyUrl: string): { subject: string; html: string; text: string } {
+export function verificationEmail(verifyUrl: string): {
+  subject: string;
+  html: string;
+  text: string;
+} {
   return {
     subject: 'Verify your AfriConnect email',
     text:
@@ -9,7 +13,7 @@ export function verificationEmail(verifyUrl: string): { subject: string; html: s
       'Please verify your email to activate your account by opening this link:\n' +
       `${verifyUrl}\n\n` +
       'This link expires in 30 minutes. If you did not request this, you can ignore the email.\n\n' +
-      '— The AfriConnect team',
+      '—The AfriConnect team',
     html:
       '<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:480px;margin:0 auto">' +
       '<h2>Verify your AfriConnect email</h2>' +

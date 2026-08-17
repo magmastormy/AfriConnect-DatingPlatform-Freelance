@@ -1,9 +1,6 @@
 import crypto from 'crypto';
 import { IAuthRepository } from './auth.repository';
-import {
-  IEmailProvider,
-  ISmsProvider,
-} from '@africonnect/shared';
+import { IEmailProvider, ISmsProvider } from '@africonnect/shared';
 import { OtpStore, InMemoryOtpStore, generateOtpCode } from './otpStore';
 import {
   VERIFY_TOKEN_LENGTH,
@@ -56,7 +53,10 @@ export class VerificationService {
 
     const tmpl = verificationEmail(buildVerificationUrl(token));
     const result = await this.email.send({ to: email, ...tmpl });
-    logger.info({ email, provider: this.email.name, messageId: result.id }, 'Verification email sent');
+    logger.info(
+      { email, provider: this.email.name, messageId: result.id },
+      'Verification email sent',
+    );
     return { delivered: result.delivered };
   }
 

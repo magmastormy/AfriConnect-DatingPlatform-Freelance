@@ -15,10 +15,13 @@ import { NotificationRepository } from '@modules/notification/notification.repos
 
 export function buildAdminModule(): Router {
   const repo = new AdminRepository(prisma);
-  const applicationService = new ApplicationService(new ApplicationRepository(prisma));
-  const eventService = new EventService(new EventRepository(prisma));
-  const billingService = new BillingService(new BillingRepository(prisma));
   const notificationService = new NotificationService(new NotificationRepository(prisma));
+  const applicationService = new ApplicationService(
+    new ApplicationRepository(prisma),
+    notificationService,
+  );
+  const eventService = new EventService(new EventRepository(prisma));
+  const billingService = new BillingService(new BillingRepository(prisma), notificationService);
 
   const service: IAdminService = new AdminService(
     repo,

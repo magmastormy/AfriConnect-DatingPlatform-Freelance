@@ -9,7 +9,9 @@ describe('LocalMediaStorage (dev fallback for Cloudinary)', () => {
     const res = await store.upload(buf, 'png', 'chat');
     expect(res.url.startsWith('/uploads/chat/')).toBe(true);
 
-    const written = await readFile(path.join(process.cwd(), 'uploads', res.url.replace('/uploads/', '')));
+    const written = await readFile(
+      path.join(process.cwd(), 'uploads', res.url.replace('/uploads/', '')),
+    );
     expect(written.equals(buf)).toBe(true);
 
     await store.remove(res.publicId);

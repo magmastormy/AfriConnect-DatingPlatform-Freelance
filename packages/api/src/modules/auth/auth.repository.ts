@@ -9,7 +9,16 @@ export interface IAuthRepository {
   findUserByPhone(phone: string): Promise<User | null>;
   findUserByClerkId(clerkId: string): Promise<User | null>;
   attachClerkId(userId: string, clerkId: string): Promise<void>;
-  createUserFromClerk(clerkId: string, email: string): Promise<User>;
+  createUserFromClerk(
+    clerkId: string,
+    email: string,
+    profileData?: {
+      firstName?: string;
+      lastName?: string;
+      fullName?: string;
+      imageUrl?: string;
+    },
+  ): Promise<User>;
   storeRefreshToken(
     userId: string,
     tokenHash: string,
@@ -68,11 +77,20 @@ export class AuthRepository implements IAuthRepository {
     await this.prisma.user.update({ where: { id: userId }, data: { clerkId } });
   }
 
-  async createUserFromClerk(clerkId: string, email: string): Promise<User> {
+  async createUserFromClerk(
+    clerkId: string,
+    email: string,
+    profileData?: {
+      firstName?: string;
+      lastName?: string;
+      fullName?: string;
+      imageUrl?: string;
+    },
+  ): Promise<User> {
     // Provision a Clerk-sourced account but mark it pending so the member must
     // complete their profile (real phone, etc.) before they can match or chat.
     // A placeholder phone would otherwise break matching/OTP verification.
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: email || `${clerkId}@clerk.local`,
         phone: `pending_${clerkId.slice(0, 16)}`,
@@ -81,6 +99,40 @@ export class AuthRepository implements IAuthRepository {
         status: 'pending',
       },
     });
+
+    // If Clerk provided profile data, create a basic profile record
+    if (profileData && (profileData.firstName || profileData.lastName || profileData.fullName)) {
+      try {
+        await this.prisma.profile.create({
+          data: {
+            userId: user.id,
+            firstName: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
+            lastName:
+              profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
+            city: 'johannesburg', // Default city, user will update during onboarding
+            gender: 'non_binary', // Default, user will update during onboarding
+            bio: '',
+            dateOfBirth: new Date('1990-01-01'), // Default, user will update
+            interests: [], // Empty array, user will add during onboarding
+            dealbreakers: [], // Empty array, user will add during onboarding
+            isComplete: false,
+            isPaused: false,
+            photos: profileData.imageUrl
+              ? JSON.stringify([{ url: profileData.imageUrl, order: 0, isPrimary: true }])
+              : undefined,
+          },
+        });
+        logger.info(
+          { userId: user.id, hasProfileData: true },
+          'Created initial profile from Clerk data',
+        );
+      } catch (error) {
+        // If profile creation fails, log but don't fail the user creation
+        logger.warn({ error, userId: user.id }, 'Failed to create initial profile from Clerk data');
+      }
+    }
+
+    return user;
   }
 
   async storeRefreshToken(
@@ -137,11 +189,7 @@ export class AuthRepository implements IAuthRepository {
     await this.prisma.user.update({ where: { id: userId }, data: { emailVerified: verified } });
   }
 
-  async createVerificationToken(
-    userId: string,
-    tokenHash: string,
-    expiresAt: Date,
-  ): Promise<void> {
+  async createVerificationToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
     try {
       await this.prisma.verificationToken.create({
         data: { userId, tokenHash, expiresAt },

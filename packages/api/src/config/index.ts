@@ -1,8 +1,18 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
-dotenv.config();
+// ─── Environment loading ───────────────────────────────────────────────────
+// Tests must be hermetic. The config validation suites assert that boot FAILS
+// when a required variable is absent, so they delete keys from process.env and
+// re-require this module. If dotenv ran here it would silently repopulate those
+// keys from the developer's local .env, and the assertions would pass or fail
+// depending on whose machine executed them (a real .env with MEDIA_PROVIDER=r2
+// made every "throws when R2_* is missing" test fail). Under NODE_ENV=test the
+// process.env supplied by the test is the single source of truth.
+if (process.env.NODE_ENV !== 'test') {
+  dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
+  dotenv.config();
+}
 
 export const config = {
   env: process.env.NODE_ENV || 'development',
@@ -42,12 +52,18 @@ export const config = {
   emailProvider: (process.env.EMAIL_PROVIDER || 'console').toLowerCase(),
   resendApiKey: process.env.RESEND_API_KEY || '',
   emailFrom: process.env.EMAIL_FROM || 'AfriConnect <no-reply@afri-connect.co.za>',
-  // ── Media storage (Cloudinary) ────────────────────────────────────────────
-  // MEDIA_PROVIDER=cloudinary uses Cloudinary; "local" (default) writes to
-  // ./uploads and serves them via the static /uploads route so local dev needs
-  // no external account.
+  // ── Media storage (Cloudinary/R2) ──────────────────────────────────────────
+  // MEDIA_PROVIDER=cloudinary uses Cloudinary; MEDIA_PROVIDER=r2 uses Cloudflare R2;
+  // "local" (default) writes to ./uploads and serves them via the static /uploads route.
   mediaProvider: (process.env.MEDIA_PROVIDER || 'local').toLowerCase(),
   cloudinaryUrl: process.env.CLOUDINARY_URL || '',
+  // ── Cloudflare R2 (alternative media storage) ─────────────────────────────
+  // R2 is AWS S3-compatible object storage. Required when MEDIA_PROVIDER=r2.
+  r2AccessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+  r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+  r2AccountId: process.env.R2_ACCOUNT_ID || '',
+  r2BucketName: process.env.R2_BUCKET_NAME || '',
+  r2CdnDomain: process.env.R2_CDN_DOMAIN || '', // Optional custom CDN domain
   // ── SMS (Twilio, secondary verification fallback) ────────────────────────
   // SMS_PROVIDER=twilio uses Twilio; "console" (default) logs the OTP. SMS is a
   // fallback only — email verification remains the primary path.
@@ -70,3 +86,19 @@ if (config.stripeSecretKey && !config.stripeSecretKey.startsWith('sk_test_')) {
 }
 
 export type AppConfig = typeof config;
+
+// ─── R2 provider validation (fail fast if R2 is enabled but config is missing)
+if (config.mediaProvider === 'r2') {
+  const missing: string[] = [];
+  if (!config.r2AccessKeyId) missing.push('R2_ACCESS_KEY_ID');
+  if (!config.r2SecretAccessKey) missing.push('R2_SECRET_ACCESS_KEY');
+  if (!config.r2AccountId) missing.push('R2_ACCOUNT_ID');
+  if (!config.r2BucketName) missing.push('R2_BUCKET_NAME');
+
+  if (missing.length > 0) {
+    throw new Error(
+      `R2 media provider requires: ${missing.join(', ')}. ` +
+        `Set all required environment variables before starting.`,
+    );
+  }
+}

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { config } from '../index';
 
 // Paths that legitimate clients never hit but bots/scanners always probe.
 // Any request matching is trapped and rejected with a generic 403 — no route,
@@ -33,6 +34,14 @@ const HONEYPOT_UA = [
 // Obfuscated-API scanners often probe well-known prefixes. Anything that looks
 // like a guessed API root (but isn't the configured mount) is also trapped.
 function looksLikeApiProbe(path: string): boolean {
+  const apiMountPattern = new RegExp(`/${config.apiMountPath}/v1`, 'i');
+
+  // Allow requests to the actual configured API mount path
+  if (apiMountPattern.test(path)) {
+    return false;
+  }
+
+  // Block other API-like paths
   return (
     /\/(api|v1|v2|api\/v1|rest|graphql|swagger|openapi)\b/i.test(path) && !path.includes('/uploads')
   );

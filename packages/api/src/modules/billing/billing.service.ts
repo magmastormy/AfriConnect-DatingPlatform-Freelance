@@ -2,9 +2,16 @@ import Stripe from 'stripe';
 import { IBillingRepository } from './billing.repository';
 import { CreateCheckoutInput, SubscriptionView, SubscriptionAdminView } from './billing.types';
 import { config } from '@config/index';
-import { SubscriptionStatus, SubscriptionPlan, asEnum } from '@africonnect/shared';
+import {
+  SubscriptionStatus,
+  SubscriptionPlan,
+  asEnum,
+  AdminScope,
+  NotificationChannel,
+} from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
 import { InternalError } from '@africonnect/shared';
+import { INotificationService } from '@modules/notification/notification.service';
 
 const PLAN_TO_PRICE: Partial<Record<SubscriptionPlan, string>> = {
   // Map each plan to its Stripe Price ID. Populated from the Stripe dashboard.
@@ -44,7 +51,10 @@ function getStripe(): Stripe | null {
 }
 
 export class BillingService implements IBillingService {
-  constructor(private readonly repo: IBillingRepository) {}
+  constructor(
+    private readonly repo: IBillingRepository,
+    private readonly notifications: INotificationService,
+  ) {}
 
   async createCheckout(
     userId: string,
@@ -63,6 +73,7 @@ export class BillingService implements IBillingService {
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
       });
+      await this.notifyPayment(userId, input.plan);
       return { url: input.successUrl, mock: true };
     }
 
@@ -133,6 +144,25 @@ export class BillingService implements IBillingService {
     logger.info({ userId, plan, months }, 'Subscription granted by admin');
   }
 
+  /** Dispatches a billing alert without failing the payment reconciliation. */
+  private async notifyPayment(userId: string, plan: SubscriptionPlan): Promise<void> {
+    try {
+      await this.notifications.notifyAdmins(
+        {
+          userId,
+          type: 'billing.payment',
+          title: 'New subscription payment',
+          body: `${plan} subscription activated for ${userId}`,
+          channel: NotificationChannel.InApp,
+          data: { userId, plan },
+        },
+        [AdminScope.Billing],
+      );
+    } catch (err) {
+      logger.warn({ err, userId }, 'Failed to dispatch payment notification');
+    }
+  }
+
   async handleWebhook(rawBody: string, signature: string | undefined): Promise<void> {
     const stripe = getStripe();
     if (!stripe) return; // dev mode without Stripe: nothing to reconcile
@@ -167,6 +197,7 @@ export class BillingService implements IBillingService {
             currentPeriodStart: new Date(),
             currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           });
+          await this.notifyPayment(userId, plan);
         }
         break;
       }

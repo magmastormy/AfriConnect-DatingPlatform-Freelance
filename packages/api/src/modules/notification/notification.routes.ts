@@ -20,6 +20,8 @@ export function notificationRoutes(
 ): Router {
   const router = Router();
   router.get('/', authorize(), controller.list);
+  router.get('/unread-count', authorize(), controller.unreadCount);
+  router.put('/read-all', authorize(), controller.markAllRead);
   router.put('/:id/read', authorize(), controller.markRead);
   router.post('/admin', authorize(UserRole.Admin, UserRole.SuperAdmin), controller.bulk);
   return router;

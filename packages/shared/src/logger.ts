@@ -20,6 +20,7 @@ export const logger = pino({
       '*.idDocumentUrl',
       '*.degreeCertificateUrl',
       '*.selfieUrl',
+      '*.proofOfWorkUrl',
     ],
     remove: true,
   },

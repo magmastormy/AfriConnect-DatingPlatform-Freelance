@@ -21,8 +21,8 @@ export class EventController {
 
   attendees = asyncHandler(async (req: Request, res: Response) => {
     // Only anonymized first name + profession are exposed (MVP star system).
-    const rsvps = await this.service.listRsvps(req.params.id);
-    res.status(200).json(success(rsvps));
+    const attendees = await this.service.listAttendees(req.params.id);
+    res.status(200).json(success(attendees));
   });
 
   rsvp = asyncHandler(async (req: Request, res: Response) => {
@@ -50,6 +50,17 @@ export class EventController {
     const body = createEventSchema.parse(req.body);
     const event = await this.service.create(body, req.user!.userId);
     res.status(201).json(success(event));
+  });
+
+  createMine = asyncHandler(async (req: Request, res: Response) => {
+    const body = createEventSchema.parse(req.body);
+    const event = await this.service.submit(body, req.user!.userId);
+    res.status(201).json(success(event));
+  });
+
+  listMine = asyncHandler(async (req: Request, res: Response) => {
+    const events = await this.service.listMine(req.user!.userId);
+    res.status(200).json(success(events));
   });
 
   update = asyncHandler(async (req: Request, res: Response) => {

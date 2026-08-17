@@ -13,7 +13,8 @@
     "./logger": "./src/logger.ts",
     "./constants": "./src/constants.ts",
     "./crypto": "./src/crypto/pii.ts",
-    "./http": "./src/http/envelope.ts"
+    "./http": "./src/http/envelope.ts",
+    "./integrations/media": "./src/integrations/media.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -22,6 +23,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.691.0",
     "cloudinary": "^2.5.1",
     "pino": "^9.4.0",
     "resend": "^4.0.0",

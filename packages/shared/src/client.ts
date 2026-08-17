@@ -16,3 +16,16 @@
 
 export * from './types';
 export * from './errors/AppError';
+
+// Domain enumerations safe to ship to the browser (no server-only deps).
+// Curated re-export: we deliberately do NOT expose ./constants wholesale because
+// it references process.env for CORS config.
+export {
+  NATIONALITIES,
+  INDUSTRIES,
+  PROOF_OF_WORK_TYPES,
+  PROOF_OF_WORK_HINTS,
+  FREE_PREMIUM_CONNECTION_LIMIT,
+  FREE_VIEW_MAX_EXTRA_PHOTOS,
+} from './constants';
+export type { Nationality, Industry, ProofOfWorkType } from './constants';

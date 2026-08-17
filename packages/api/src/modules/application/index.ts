@@ -3,11 +3,14 @@ import { ApplicationService, IApplicationService } from './application.service';
 import { ApplicationRepository } from './application.repository';
 import { ApplicationController } from './application.controller';
 import { applicationRoutes } from './application.routes';
+import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationRepository } from '@modules/notification/notification.repository';
 import { prisma } from '@config/prisma';
 
 export function buildApplicationModule(): Router {
   const repo = new ApplicationRepository(prisma);
-  const service: IApplicationService = new ApplicationService(repo);
+  const notifications = new NotificationService(new NotificationRepository(prisma));
+  const service: IApplicationService = new ApplicationService(repo, notifications);
   const controller = new ApplicationController(service);
   return applicationRoutes(controller, service);
 }

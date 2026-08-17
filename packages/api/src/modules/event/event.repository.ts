@@ -8,6 +8,7 @@ export interface IEventRepository {
   getById(id: string): Promise<Event | null>;
   create(data: Record<string, unknown>, adminId: string): Promise<Event>;
   update(id: string, data: Record<string, unknown>): Promise<Event>;
+  listByCreator(userId: string): Promise<Event[]>;
   rsvp(eventId: string, userId: string): Promise<RSVP>;
   cancelRsvp(eventId: string, userId: string): Promise<void>;
   listRsvps(eventId: string): Promise<RSVP[]>;
@@ -54,6 +55,13 @@ export class EventRepository implements IEventRepository {
     }
   }
 
+  async listByCreator(userId: string): Promise<Event[]> {
+    return this.prisma.event.findMany({
+      where: { createdBy: userId },
+      orderBy: { startTime: 'desc' },
+    });
+  }
+
   async rsvp(eventId: string, userId: string): Promise<RSVP> {
     const event = await this.getById(eventId);
     if (!event) throw new NotFoundError('Event not found', { eventId });
@@ -80,6 +88,8 @@ export class EventRepository implements IEventRepository {
   async listRsvps(eventId: string): Promise<RSVP[]> {
     return this.prisma.rSVP.findMany({
       where: { eventId, status: { in: ['confirmed', 'waitlist'] } },
+      orderBy: [{ createdAt: 'asc' }],
+      include: { user: { include: { profile: true } } },
     });
   }
 

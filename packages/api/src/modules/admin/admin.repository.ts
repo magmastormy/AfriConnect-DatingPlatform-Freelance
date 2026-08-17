@@ -3,13 +3,14 @@ import {
   InternalError,
   UserRole,
   UserStatus,
+  ApplicationStatus,
   SubscriptionPlan,
   SubscriptionStatus,
   AdminScope,
   asEnum,
 } from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
-import { MemberView, MemberDetail, AdminAuditView } from './admin.types';
+import { MemberView, MemberDetail, AdminAuditView, GlobalSearchResult } from './admin.types';
 
 export interface ListMembersFilter {
   status?: UserStatus;
@@ -51,6 +52,7 @@ export interface IAdminRepository {
     ipAddress?: string | null;
   }): Promise<void>;
   listAudit(limit: number): Promise<AdminAuditView[]>;
+  search(q: string): Promise<GlobalSearchResult>;
 }
 
 const MEMBER_SELECT = {
@@ -96,7 +98,7 @@ export class AdminRepository implements IAdminRepository {
       ]);
 
       const revenueZar = succeededPayments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
-      // MRR ≈ sum of active monthly-equivalent plan prices (ZAR) still in period.
+      // MRR — sum of active monthly-equivalent plan prices (ZAR) still in period.
       const planMonthlyZar: Record<string, number> = {
         digital_access: 0,
         premium: 299,
@@ -263,6 +265,61 @@ export class AdminRepository implements IAdminRepository {
       ipAddress: a.ipAddress,
       createdAt: a.createdAt,
     }));
+  }
+
+  async search(q: string): Promise<GlobalSearchResult> {
+    const term = q.trim();
+    if (!term) return { members: [], applications: [], subscriptions: [] };
+    const [members, applications, subscriptions] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          OR: [
+            { profile: { firstName: { contains: term, mode: 'insensitive' } } },
+            { profile: { lastName: { contains: term, mode: 'insensitive' } } },
+          ],
+        },
+        select: MEMBER_SELECT,
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.application.findMany({
+        where: {
+          OR: [
+            { firstName: { contains: term, mode: 'insensitive' } },
+            { lastName: { contains: term, mode: 'insensitive' } },
+            { status: { equals: term.toLowerCase() as ApplicationStatus } },
+          ],
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.subscription.findMany({
+        where: {
+          OR: [
+            { plan: { equals: term.toLowerCase() as SubscriptionPlan } },
+            { status: { equals: term.toLowerCase() as SubscriptionStatus } },
+          ],
+        },
+        take: 5,
+      }),
+    ]);
+
+    return {
+      members: members.map((m) => this.toMemberView(m)),
+      applications: applications.map((a) => ({
+        id: a.id,
+        firstName: a.firstName,
+        lastName: a.lastName,
+        status: asEnum<ApplicationStatus>(a.status),
+        createdAt: a.createdAt,
+      })),
+      subscriptions: subscriptions.map((s) => ({
+        userId: s.userId,
+        email: '',
+        plan: asEnum<SubscriptionPlan>(s.plan),
+        status: asEnum<SubscriptionStatus>(s.status),
+      })),
+    };
   }
 
   private memberWhere(filter: ListMembersFilter): Prisma.UserWhereInput {

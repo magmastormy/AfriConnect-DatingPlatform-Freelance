@@ -74,5 +74,20 @@ export function adminRoutes(controller: AdminController, _service: IAdminService
     controller.listAudit,
   );
 
+  // ── Global search (any administrator) ─────────────────────────────────────
+  router.get(
+    '/search',
+    authorize(
+      UserRole.Admin,
+      UserRole.AdminVetting,
+      UserRole.AdminEvents,
+      UserRole.AdminBilling,
+      UserRole.AdminSupport,
+      UserRole.AdminContent,
+      UserRole.SuperAdmin,
+    ),
+    controller.search,
+  );
+
   return router;
 }

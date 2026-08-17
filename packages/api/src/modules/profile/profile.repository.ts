@@ -5,6 +5,7 @@ import { PROFILE_MAX_PHOTOS } from '@africonnect/shared';
 
 export interface IProfileRepository {
   findByUserId(userId: string): Promise<Profile | null>;
+  findByUserIds(userIds: string[]): Promise<Profile[]>;
   create(userId: string, data: Record<string, unknown>): Promise<Profile>;
   update(userId: string, data: Record<string, unknown>): Promise<Profile>;
   addPhoto(
@@ -12,8 +13,49 @@ export interface IProfileRepository {
     photo: { url: string; order: number; isPrimary: boolean },
   ): Promise<Profile>;
   removePhoto(userId: string, url: string): Promise<Profile>;
+  updateNearby(
+    userId: string,
+    data: {
+      district?: string | null;
+      nearbyEnabled?: boolean;
+      latitude?: number | null;
+      longitude?: number | null;
+    },
+  ): Promise<Profile>;
   setPaused(userId: string, paused: boolean): Promise<Profile>;
   findMatches(criteria: unknown, pagination: { skip: number; take: number }): Promise<Profile[]>;
+  /** Loads a profile together with its owner's subscription/status for tier gating. */
+  findProfileWithUser(userId: string): Promise<
+    | (Profile & {
+        user: {
+          status: string;
+          role: string;
+          subscriptions: { plan: string; status: string } | null;
+        };
+      })
+    | null
+  >;
+}
+
+/** A user's effective membership tier (free vs premium) derived from subscription. */
+export interface TierContext {
+  isPremium: boolean;
+  isVetted: boolean;
+}
+
+export function tierFromUser(user: {
+  status: string;
+  role: string;
+  subscriptions: { plan: string; status: string } | null;
+}): TierContext {
+  const isVetted = (user.role === 'member' || user.role === 'premium') && user.status === 'active';
+  const sub = user.subscriptions;
+  const isPremium = Boolean(
+    sub &&
+    (sub.plan === 'premium' || sub.plan === 'platinum') &&
+    (sub.status === 'active' || sub.status === 'trialing'),
+  );
+  return { isPremium, isVetted };
 }
 
 const COMPLETENESS_FIELDS = [
@@ -34,6 +76,16 @@ export class ProfileRepository implements IProfileRepository {
     } catch (error) {
       logger.error({ error, userId }, 'ProfileRepository: findByUserId failed');
       throw new InternalError('Database operation failed', { userId });
+    }
+  }
+
+  async findByUserIds(userIds: string[]): Promise<Profile[]> {
+    if (!userIds.length) return [];
+    try {
+      return await this.prisma.profile.findMany({ where: { userId: { in: userIds } } });
+    } catch (error) {
+      logger.error({ error, count: userIds.length }, 'ProfileRepository: findByUserIds failed');
+      throw new InternalError('Database operation failed');
     }
   }
 
@@ -100,6 +152,30 @@ export class ProfileRepository implements IProfileRepository {
     return this.update(userId, { photos });
   }
 
+  async updateNearby(
+    userId: string,
+    data: {
+      district?: string | null;
+      nearbyEnabled?: boolean;
+      latitude?: number | null;
+      longitude?: number | null;
+    },
+  ): Promise<Profile> {
+    const existing = await this.findByUserId(userId);
+    if (!existing) throw new NotFoundError('Profile not found', { userId });
+    // Dropping Nearby (opt-out) forgets the shared location entirely so no
+    // stale coordinates linger in the database.
+    if (data.nearbyEnabled === false) {
+      return this.update(userId, {
+        nearbyEnabled: false,
+        district: null,
+        latitude: null,
+        longitude: null,
+      });
+    }
+    return this.update(userId, data);
+  }
+
   async setPaused(userId: string, paused: boolean): Promise<Profile> {
     return this.update(userId, { isPaused: paused });
   }
@@ -113,6 +189,43 @@ export class ProfileRepository implements IProfileRepository {
       skip,
       take,
     });
+  }
+
+  async findProfileWithUser(userId: string): Promise<
+    | (Profile & {
+        user: {
+          status: string;
+          role: string;
+          subscriptions: { plan: string; status: string } | null;
+        };
+      })
+    | null
+  > {
+    try {
+      return (await this.prisma.profile.findUnique({
+        where: { userId },
+        include: {
+          user: {
+            select: {
+              status: true,
+              role: true,
+              subscriptions: { select: { plan: true, status: true } },
+            },
+          },
+        },
+      })) as unknown as
+        | (Profile & {
+            user: {
+              status: string;
+              role: string;
+              subscriptions: { plan: string; status: string } | null;
+            };
+          })
+        | null;
+    } catch (error) {
+      logger.error({ error, userId }, 'ProfileRepository: findProfileWithUser failed');
+      throw new InternalError('Database operation failed', { userId });
+    }
   }
 
   private calculateCompleteness(data: Record<string, unknown>): number {

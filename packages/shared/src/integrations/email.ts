@@ -47,7 +47,10 @@ export class ResendEmailProvider implements IEmailProvider {
   readonly name = 'resend';
   private client: { emails: { send: (args: Record<string, unknown>) => Promise<{ id?: string }> } };
 
-  constructor(apiKey: string, private readonly from: string) {
+  constructor(
+    apiKey: string,
+    private readonly from: string,
+  ) {
     if (!apiKey) {
       throw new InternalError('RESEND_API_KEY is required for the resend email provider');
     }

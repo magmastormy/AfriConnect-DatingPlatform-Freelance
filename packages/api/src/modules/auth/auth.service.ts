@@ -19,6 +19,7 @@ import { assertWithinLimit } from '@config/rateLimiter';
 import { config } from '@config/index';
 import { logger } from '@africonnect/shared';
 import { UserRole, UserStatus, asEnum } from '@africonnect/shared';
+import { verifyClerkToken } from './clerkVerify';
 
 /** OTP store for verification challenges. Injected so it can be swapped for
  *  a distributed (Redis) implementation in production without touching logic. */
@@ -42,39 +43,6 @@ export interface IAuthService {
   ): Promise<{ accessToken: string; refreshToken: string }>;
   logout(refreshToken: string): Promise<void>;
   verifyClerk(clerkToken: string, ctx: SessionContext): Promise<AuthResult>;
-}
-
-// ─── Clerk session-token verification (optional auth path) ───────────────────
-// Dependency-free JWKS RSA-SHA256 verification so we don't need @clerk/backend
-// at runtime. The Clerk public key is fetched from the issuer's JWKS endpoint.
-async function verifyClerkToken(token: string): Promise<{ sub: string; email: string }> {
-  const jwksUrl = process.env.CLERK_JWKS_URL || 'https://api.clerk.dev/.well-known/jwks.json';
-  const [headerB64, payloadB64, signatureB64] = token.split('.');
-  if (!headerB64 || !payloadB64 || !signatureB64)
-    throw new AuthenticationError('Malformed Clerk token');
-  const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString());
-  const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
-  if (payload.exp * 1000 < Date.now()) throw new AuthenticationError('Clerk token expired');
-
-  const jwks = (await fetch(jwksUrl).then((r) => r.json())) as { keys: Record<string, unknown>[] };
-  const key = jwks.keys.find((k) => (k as { kid?: string }).kid === header.kid) as
-    Record<string, unknown> | undefined;
-  if (!key) throw new AuthenticationError('Unknown Clerk key');
-  const jwk = await crypto.subtle.importKey(
-    'jwk',
-    key,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['verify'],
-  );
-  const ok = await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5',
-    jwk,
-    Buffer.from(signatureB64, 'base64url'),
-    Buffer.from(`${headerB64}.${payloadB64}`),
-  );
-  if (!ok) throw new AuthenticationError('Invalid Clerk token signature');
-  return { sub: payload.sub, email: payload.email || '' };
 }
 
 export class AuthService implements IAuthService {
@@ -181,14 +149,30 @@ export class AuthService implements IAuthService {
   }
 
   async verifyClerk(clerkToken: string, ctx: SessionContext): Promise<AuthResult> {
-    const { sub, email } = await verifyClerkToken(clerkToken);
+    // Hardened JWKS + issuer verification lives in ./clerkVerify. It throws
+    // AuthenticationError on any failure and never logs the raw token.
+    const { sub, email, firstName, lastName, fullName, imageUrl } =
+      await verifyClerkToken(clerkToken);
+    logger.debug(
+      { subject: sub, hasProfileData: !!(firstName || lastName || fullName) },
+      'Clerk token verified',
+    );
     let user = await this.repo.findUserByClerkId(sub);
     if (!user && email) {
       user = await this.repo.findUserByEmail(email);
       if (user) await this.repo.attachClerkId(user.id, sub);
     }
     if (!user) {
-      user = await this.repo.createUserFromClerk(sub, email);
+      logger.info(
+        { sub, email, firstName, lastName, fullName, hasImage: !!imageUrl },
+        'Creating new user from Clerk with profile data',
+      );
+      user = await this.repo.createUserFromClerk(sub, email, {
+        firstName,
+        lastName,
+        fullName,
+        imageUrl,
+      });
     }
     if (user.status === UserStatus.Banned) throw new AuthorizationError('Account is banned');
     if (user.status === UserStatus.Suspended) throw new AuthorizationError('Account is suspended');

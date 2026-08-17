@@ -4,15 +4,22 @@ import {
   NotificationView,
   BulkNotificationInput,
 } from './notification.types';
-import { logger, asEnum } from '@africonnect/shared';
+import { logger, asEnum, AdminScope, SCOPE_ROLES } from '@africonnect/shared';
 import { Pagination, toPagination } from '@africonnect/shared';
 
 export interface INotificationService {
   create(input: CreateNotificationInput): Promise<NotificationView>;
   list(userId: string, page?: number, limit?: number): Promise<NotificationView[]>;
   markRead(id: string, userId: string): Promise<void>;
+  unreadCount(userId: string): Promise<number>;
+  markAllRead(userId: string): Promise<void>;
   /** Admin broadcast: fans out a notification to every active segmented member. */
   bulk(input: BulkNotificationInput): Promise<{ queued: number }>;
+  /**
+   * Fan out an in-app alert to every active admin holding one of the given
+   * scopes (used for vetting/payment events that need human intervention).
+   */
+  notifyAdmins(input: CreateNotificationInput, scopes?: AdminScope[]): Promise<number>;
 }
 
 export class NotificationService implements INotificationService {
@@ -32,6 +39,14 @@ export class NotificationService implements INotificationService {
 
   async markRead(id: string, userId: string): Promise<void> {
     await this.repo.markRead(id, userId);
+  }
+
+  async unreadCount(userId: string): Promise<number> {
+    return this.repo.unreadCount(userId);
+  }
+
+  async markAllRead(userId: string): Promise<void> {
+    await this.repo.markAllRead(userId);
   }
 
   async bulk(input: BulkNotificationInput): Promise<{ queued: number }> {
@@ -54,6 +69,29 @@ export class NotificationService implements INotificationService {
     const queued = await this.repo.bulkCreate(rows);
     logger.info({ type: input.type, queued }, 'Bulk notification broadcast dispatched');
     return { queued };
+  }
+
+  async notifyAdmins(input: CreateNotificationInput, scopes?: AdminScope[]): Promise<number> {
+    const targets = scopes && scopes.length ? scopes : (Object.values(AdminScope) as AdminScope[]);
+    const roles = Array.from(new Set(targets.flatMap((s) => SCOPE_ROLES[s]))).map((r) =>
+      r.toString(),
+    );
+    const users = await this.repo.getUsersByRoles(roles);
+    if (!users.length) return 0;
+    const now = new Date();
+    const rows = users.map((u) => ({
+      userId: u.userId,
+      type: input.type,
+      title: input.title,
+      body: input.body,
+      channel: input.channel,
+      data: input.data ?? null,
+      isRead: false,
+      sentAt: now,
+    }));
+    const queued = await this.repo.bulkCreate(rows);
+    logger.info({ type: input.type, queued, scopes: targets }, 'Scoped admin alert dispatched');
+    return queued;
   }
 
   private toView(n: {

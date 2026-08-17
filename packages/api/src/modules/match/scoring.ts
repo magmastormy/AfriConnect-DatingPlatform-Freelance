@@ -43,7 +43,7 @@ export function scoreCompatibility(
     const minRank = EDUCATION_RANK[viewer.preferences.educationMin];
     if (EDUCATION_RANK[candidate.educationLevel] >= minRank) score += MATCH_SCORE_EDUCATION;
   } else {
-    score += MATCH_SCORE_EDUCATION; // no preference → neutral credit
+    score += MATCH_SCORE_EDUCATION; // no preference — neutral credit
   }
 
   if (
@@ -54,7 +54,7 @@ export function scoreCompatibility(
     score += MATCH_SCORE_PROFESSION;
   }
 
-  if (viewer.preferences.ageMin && viewer.preferences.ageMax) {
+  if (viewer.preferences.ageMin && viewer.preferences.ageMax && candidate.dateOfBirth) {
     const age = ageFromDob(candidate.dateOfBirth);
     if (age >= viewer.preferences.ageMin && age <= viewer.preferences.ageMax) {
       score += MATCH_SCORE_AGE;
@@ -101,8 +101,8 @@ export function applyPenalties(
   return Math.min(100, Math.max(0, s));
 }
 
-export function passesThreshold(score: number): boolean {
-  return score >= MIN_COMPATIBILITY_THRESHOLD;
+export function passesThreshold(score: number, threshold: number = MIN_COMPATIBILITY_THRESHOLD): boolean {
+  return score >= threshold;
 }
 
 export function rankCandidates(

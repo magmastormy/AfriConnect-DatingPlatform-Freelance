@@ -8,10 +8,18 @@
     "baseUrl": ".",
     "paths": {
       "@africonnect/shared": ["../shared/src/index.ts"],
+      "@africonnect/shared/errors": ["../shared/src/errors/AppError.ts"],
       "@modules/*": ["src/modules/*"],
-      "@config/*": ["src/config/*"]
+      "@config/*": ["src/config/*"],
+      "@config/jwt": ["src/config/jwt.ts"],
+      "@config/index": ["src/config/index.ts"],
+      "@config/prisma": ["src/config/prisma.ts"],
+      "@config/providers": ["src/config/providers.ts"],
+      "@config/rateLimiter": ["src/config/rateLimiter.ts"],
+      "@config/middleware": ["src/config/middleware/index.ts"],
+      "@config/middleware/device": ["src/config/middleware/device.ts"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "prisma/**"]
 }

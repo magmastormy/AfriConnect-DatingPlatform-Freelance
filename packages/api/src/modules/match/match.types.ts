@@ -13,7 +13,7 @@ export interface MatchCandidate {
   gender: Gender;
   city: City;
   educationLevel: EducationLevel;
-  dateOfBirth: Date;
+  dateOfBirth: Date | null;
   relationshipGoals?: RelationshipGoal;
   interests?: string[];
   profession?: string;
@@ -32,6 +32,8 @@ export interface MatchPreferences {
   ageMin?: number;
   ageMax?: number;
   city?: City;
+  /** Optional discovery radius (km); the MatchingEngine falls back to a default. */
+  distanceKm?: number;
   relationshipGoals?: RelationshipGoal[];
   interests?: string[];
 }
@@ -72,6 +74,23 @@ export interface DiscoverCard {
 export interface ExpressInterestInput {
   targetId: string;
   action: MatchAction;
+}
+
+/** A recommendation card returned by GET /matches/recommend (full algorithm pipeline). */
+export interface RecommendCard extends DiscoverCard {
+  distanceKm: number | null;
+  contentScore: number;
+  cfScore: number;
+  coldStart: boolean;
+  /** Per-candidate score breakdown for explainability/debugging. */
+  breakdown: {
+    base: number;
+    popularityAdjustment: number;
+    premiumBoost: number;
+    newUserBoost: number;
+    diversityApplied: boolean;
+    fairnessAdjusted: boolean;
+  };
 }
 
 /** Persisted record returned by the repository's action upsert. */

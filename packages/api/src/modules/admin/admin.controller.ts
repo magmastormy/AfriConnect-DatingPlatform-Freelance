@@ -47,7 +47,7 @@ export class AdminController {
       page: q.page,
       limit: q.limit,
     });
-    res.status(200).json(success(items, { page: q.page, limit: q.limit, total }));
+    res.status(200).json(success({ items, total }, { page: q.page, limit: q.limit, total }));
   });
 
   getMember = asyncHandler(async (req: Request, res: Response) => {
@@ -159,5 +159,12 @@ export class AdminController {
     const limit = Math.min(Number(req.query.limit) || 100, 500);
     const logs = await this.service.listAudit(limit);
     res.status(200).json(success(logs));
+  });
+
+  // ── Global search (members / applications / subscriptions) ──────────────────
+  search = asyncHandler(async (req: Request, res: Response) => {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const result = await this.service.search(q);
+    res.status(200).json(success(result));
   });
 }

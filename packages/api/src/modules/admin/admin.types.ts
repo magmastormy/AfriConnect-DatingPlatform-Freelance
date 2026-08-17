@@ -6,6 +6,8 @@ import {
   SubscriptionStatus,
   SubscriptionPlan,
   City,
+  Gender,
+  EducationLevel,
 } from '@africonnect/shared';
 
 /** Top-level operational dashboard for any administrator. */
@@ -51,9 +53,21 @@ export interface ApplicationAdminView {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email: string; // PII-encrypted at rest
+  nationality: string;
+  gender: Gender;
+  dateOfBirth: Date;
   city: City;
   profession: string;
+  employer: string;
+  educationLevel: EducationLevel;
+  institution: string;
+  linkedInUrl?: string;
+  proofOfWorkType?: string;
+  proofOfWorkUrl?: string;
+  idDocumentUrl: string;
+  selfieUrl: string;
+  degreeCertificateUrl?: string;
   status: ApplicationStatus;
   createdAt: Date;
   reviewedBy: string | null;
@@ -66,6 +80,28 @@ export interface SubscriptionAdminView {
   status: SubscriptionStatus;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: Date | null;
+}
+
+/** Lightweight hit shape for the admin global search dropdown. */
+export interface SearchApplicationHit {
+  id: string;
+  firstName: string;
+  lastName: string;
+  status: ApplicationStatus;
+  createdAt: Date;
+}
+
+export interface SearchSubscriptionHit {
+  userId: string;
+  email: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+}
+
+export interface GlobalSearchResult {
+  members: MemberView[];
+  applications: SearchApplicationHit[];
+  subscriptions: SearchSubscriptionHit[];
 }
 
 export interface AdminAuditView {

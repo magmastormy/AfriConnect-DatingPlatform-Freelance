@@ -18,6 +18,16 @@ export class NotificationController {
     res.status(200).json(success({ marked: true }));
   });
 
+  unreadCount = asyncHandler(async (req: Request, res: Response) => {
+    const count = await this.service.unreadCount(req.user!.userId);
+    res.status(200).json(success({ count }));
+  });
+
+  markAllRead = asyncHandler(async (req: Request, res: Response) => {
+    await this.service.markAllRead(req.user!.userId);
+    res.status(200).json(success({ marked: true }));
+  });
+
   bulk = asyncHandler(async (req: Request, res: Response) => {
     const body = bulkNotifySchema.parse(req.body);
     const { queued } = await this.service.bulk(body);

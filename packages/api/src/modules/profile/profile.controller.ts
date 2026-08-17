@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { IProfileService } from './profile.service';
 import {
-  createProfileSchema,
+  updateProfileSchema,
   updatePreferencesSchema,
   updatePrivacySchema,
   addPhotoSchema,
+  updateNearbySchema,
 } from './profile.schema';
 import { asyncHandler, success, ValidationError } from '@africonnect/shared';
 
@@ -17,7 +18,7 @@ export class ProfileController {
   });
 
   upsert = asyncHandler(async (req: Request, res: Response) => {
-    const body = createProfileSchema.parse(req.body);
+    const body = updateProfileSchema.parse(req.body);
     const profile = await this.service.upsert(req.user!.userId, body);
     res.status(200).json(success(profile));
   });
@@ -51,5 +52,19 @@ export class ProfileController {
     const paused = Boolean(req.body?.paused);
     const profile = await this.service.pause(req.user!.userId, paused);
     res.status(200).json(success(profile));
+  });
+
+  updateNearby = asyncHandler(async (req: Request, res: Response) => {
+    const body = updateNearbySchema.parse(req.body);
+    const profile = await this.service.updateNearby(req.user!.userId, body);
+    res.status(200).json(success(profile));
+  });
+
+  // ── RedNote drill-down (vetted surfaces only) ────────────────────────────────
+  getRedNote = asyncHandler(async (req: Request, res: Response) => {
+    const targetId = req.params.userId;
+    if (!targetId) throw new ValidationError('Target user id required');
+    const view = await this.service.getRedNote(req.user!.userId, targetId);
+    res.status(200).json(success(view));
   });
 }

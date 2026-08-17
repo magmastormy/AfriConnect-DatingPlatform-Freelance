@@ -4,13 +4,25 @@ import {
   ReviewApplicationInput,
   ApplicationView,
 } from './application.types';
-import { AuthedUser, ApplicationStatus, NotFoundError, asEnum } from '@africonnect/shared';
+import {
+  AuthedUser,
+  ApplicationStatus,
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+  ProofOfWorkType,
+  asEnum,
+  AdminScope,
+  NotificationChannel,
+  logger,
+} from '@africonnect/shared';
 import { encryptPii } from '@africonnect/shared';
+import { INotificationService } from '@modules/notification/notification.service';
 
 export interface IApplicationService {
   submit(
     input: CreateApplicationInput,
-    user?: AuthedUser,
+    user: AuthedUser,
   ): Promise<{ id: string; status: ApplicationStatus }>;
   getOwn(userId: string): Promise<ApplicationView>;
   listForAdmin(filter?: { status?: ApplicationStatus }): Promise<ApplicationView[]>;
@@ -20,22 +32,83 @@ export interface IApplicationService {
   review(id: string, input: ReviewApplicationInput, admin: AuthedUser): Promise<ApplicationView>;
 }
 
-export class ApplicationService implements IApplicationService {
-  constructor(private readonly repo: IApplicationRepository) {}
+/** Statuses that still occupy the single active application slot. */
+const OPEN_STATUSES: ApplicationStatus[] = [
+  ApplicationStatus.Submitted,
+  ApplicationStatus.UnderReview,
+  ApplicationStatus.Approved,
+];
 
+export class ApplicationService implements IApplicationService {
+  constructor(
+    private readonly repo: IApplicationRepository,
+    private readonly notifications: INotificationService,
+  ) {}
+
+  /**
+   * Creates the caller's vetting application.
+   *
+   * One open application per account: resubmission is only allowed after a
+   * rejection or an on-hold decision, so the review queue cannot be flooded
+   * and reviewers never see two live records for one member.
+   */
   async submit(
     input: CreateApplicationInput,
-    user?: AuthedUser,
+    user: AuthedUser,
   ): Promise<{ id: string; status: ApplicationStatus }> {
+    const existing = await this.repo.findByUserId(user.userId);
+    if (existing && OPEN_STATUSES.includes(asEnum<ApplicationStatus>(existing.status))) {
+      throw new ConflictError('You already have an application in progress', {
+        status: existing.status,
+      });
+    }
+
+    // Email/phone are optional in the 2-step flow; fall back to the linked
+    // account's contact details so vetting still has the PII it requires.
+    const contact = await this.repo.getUserContact(user.userId);
+    const email = input.email ?? contact.email;
+    const phone = input.phone ?? contact.phone;
+    if (!email || !phone) {
+      throw new ValidationError('Unable to resolve account email/phone for this application');
+    }
+
     // Encrypt PII columns at rest (AGENTS.md Clause 3.1).
     const created = await this.repo.create({
       ...input,
-      userId: user?.userId ?? null,
-      email: encryptPii(input.email),
-      phone: encryptPii(input.phone),
+      userId: user.userId,
+      email: encryptPii(email),
+      phone: encryptPii(phone),
       status: ApplicationStatus.Submitted,
     });
+
+    // Surface the new submission to vetting admins as an in-app alert
+    // (AGENTS.md: events needing admin intervention must notify).
+    await this.notifyVetting(created.id, input, user);
+
     return { id: created.id, status: asEnum<ApplicationStatus>(created.status) };
+  }
+
+  /** Dispatches a vetting alert without failing the submission if it errors. */
+  private async notifyVetting(
+    applicationId: string,
+    input: CreateApplicationInput,
+    user: AuthedUser,
+  ): Promise<void> {
+    try {
+      await this.notifications.notifyAdmins(
+        {
+          userId: user.userId,
+          type: 'vetting.pending',
+          title: 'New vetting application',
+          body: `${input.firstName} ${input.lastName} submitted an application for review`,
+          channel: NotificationChannel.InApp,
+          data: { applicationId, userId: user.userId },
+        },
+        [AdminScope.Vetting],
+      );
+    } catch (err) {
+      logger.warn({ err, applicationId }, 'Failed to dispatch vetting notification');
+    }
   }
 
   async getOwn(userId: string): Promise<ApplicationView> {
@@ -71,20 +144,46 @@ export class ApplicationService implements IApplicationService {
     firstName: string;
     lastName: string;
     email: string;
+    nationality: unknown;
+    gender: unknown;
+    dateOfBirth: Date;
     city: unknown;
     profession: string;
+    employer: string;
+    educationLevel: unknown;
+    institution: string;
+    linkedInUrl?: string | null;
+    proofOfWorkType?: string | null;
+    proofOfWorkUrl?: string | null;
+    idDocumentUrl: string;
+    selfieUrl: string;
+    degreeCertificateUrl?: string | null;
     status: unknown;
     createdAt: Date;
+    reviewedBy?: string | null;
   }): ApplicationView {
     return {
       id: a.id,
       firstName: a.firstName,
       lastName: a.lastName,
       email: a.email,
+      nationality: (a.nationality as ApplicationView['nationality']) ?? '',
+      gender: asEnum<ApplicationView['gender']>(a.gender),
+      dateOfBirth: a.dateOfBirth,
       city: asEnum<ApplicationView['city']>(a.city),
       profession: a.profession,
+      employer: a.employer,
+      educationLevel: asEnum<ApplicationView['educationLevel']>(a.educationLevel),
+      institution: a.institution,
+      linkedInUrl: a.linkedInUrl ?? undefined,
+      proofOfWorkType: (a.proofOfWorkType as ProofOfWorkType) ?? undefined,
+      proofOfWorkUrl: a.proofOfWorkUrl ?? undefined,
+      idDocumentUrl: a.idDocumentUrl,
+      selfieUrl: a.selfieUrl,
+      degreeCertificateUrl: a.degreeCertificateUrl ?? undefined,
       status: asEnum<ApplicationView['status']>(a.status),
       createdAt: a.createdAt,
+      reviewedBy: a.reviewedBy ?? null,
     };
   }
 }

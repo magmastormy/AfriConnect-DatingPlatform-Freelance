@@ -37,7 +37,9 @@ function fakeRepo(state: RepoState): IAuthRepository {
   return {
     findUserByEmail: async (email) => {
       const u = state.byEmail[email];
-      return u ? ({ id: u.id, emailVerified: u.emailVerified, phoneVerified: u.phoneVerified } as never) : null;
+      return u
+        ? ({ id: u.id, emailVerified: u.emailVerified, phoneVerified: u.phoneVerified } as never)
+        : null;
     },
     findUserByPhone: async (phone) => {
       const u = Object.values(state.byEmail).find((x) => x.id === phone);
@@ -101,7 +103,7 @@ describe('VerificationService — email-primary, SMS-fallback', () => {
 
   it('sends an SMS OTP as the secondary fallback and verifies it', async () => {
     const state: RepoState = {
-      byEmail: { 'p1': { id: 'p1', emailVerified: false, phoneVerified: false } },
+      byEmail: { p1: { id: 'p1', emailVerified: false, phoneVerified: false } },
       tokens: {},
     };
     // phone lookup returns the same id 'p1'
@@ -118,11 +120,13 @@ describe('VerificationService — email-primary, SMS-fallback', () => {
 
   it('rejects a wrong SMS code', async () => {
     const state: RepoState = {
-      byEmail: { 'p1': { id: 'p1', emailVerified: false, phoneVerified: false } },
+      byEmail: { p1: { id: 'p1', emailVerified: false, phoneVerified: false } },
       tokens: {},
     };
     const svc = new VerificationService(fakeRepo(state), fakeEmail(), fakeSms());
     await svc.requestSmsFallback('p1');
-    await expect(svc.confirmSmsFallback('p1', '000000')).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(svc.confirmSmsFallback('p1', '000000')).rejects.toBeInstanceOf(
+      AuthenticationError,
+    );
   });
 });

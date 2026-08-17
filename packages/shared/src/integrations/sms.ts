@@ -36,7 +36,11 @@ export class TwilioSmsProvider implements ISmsProvider {
     };
   };
 
-  constructor(accountSid: string, authToken: string, private readonly fromNumber: string) {
+  constructor(
+    accountSid: string,
+    authToken: string,
+    private readonly fromNumber: string,
+  ) {
     if (!accountSid || !authToken || !fromNumber) {
       throw new InternalError(
         'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER are required for the twilio sms provider',

@@ -8,6 +8,7 @@ import {
   AdminAuditView,
   RoleDescriptor,
   RoleAssignment,
+  GlobalSearchResult,
 } from './admin.types';
 import { IApplicationService } from '@modules/application/application.service';
 import { IEventService } from '@modules/event/event.service';
@@ -129,6 +130,7 @@ export interface IAdminService {
   moderateEvent(id: string, input: EventModerationInput, admin: AuthedUser): Promise<unknown>;
   broadcast(input: BroadcastInput, admin: AuthedUser): Promise<{ queued: number }>;
   listAudit(limit?: number): Promise<AdminAuditView[]>;
+  search(q: string): Promise<GlobalSearchResult>;
 }
 
 export class AdminService implements IAdminService {
@@ -146,17 +148,7 @@ export class AdminService implements IAdminService {
 
   async listApplications(status?: ApplicationStatus): Promise<ApplicationAdminView[]> {
     const apps = await this.applications.listForAdmin(status ? { status } : undefined);
-    return apps.map((a) => ({
-      id: a.id,
-      firstName: a.firstName,
-      lastName: a.lastName,
-      email: a.email,
-      city: a.city,
-      profession: a.profession,
-      status: a.status,
-      createdAt: a.createdAt,
-      reviewedBy: null,
-    }));
+    return apps as ApplicationAdminView[];
   }
 
   async reviewApplication(
@@ -191,17 +183,7 @@ export class AdminService implements IAdminService {
       ipAddress: null,
     });
 
-    return {
-      id: updated.id,
-      firstName: updated.firstName,
-      lastName: updated.lastName,
-      email: updated.email,
-      city: updated.city,
-      profession: updated.profession,
-      status: updated.status,
-      createdAt: updated.createdAt,
-      reviewedBy: admin.userId,
-    };
+    return updated as ApplicationAdminView;
   }
 
   async listMembers(filter: ListMembersFilter) {
@@ -354,6 +336,10 @@ export class AdminService implements IAdminService {
 
   async listAudit(limit = 100): Promise<AdminAuditView[]> {
     return this.repo.listAudit(limit);
+  }
+
+  async search(q: string): Promise<GlobalSearchResult> {
+    return this.repo.search(q);
   }
 
   /** Prevents an admin from acting on their own account for destructive ops. */

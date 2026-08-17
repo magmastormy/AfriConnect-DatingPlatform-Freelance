@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Aiven free PostgreSQL requires TLS — ensure DATABASE_URL ends with ?sslmode=require
   url      = env("DATABASE_URL")
 }
 
@@ -40,6 +41,10 @@ model User {
   dailyQueues     DailyMatchQueue[]
   adminAuditLogs  AdminAudit[]
   verificationTokens VerificationToken[]
+  // Analytics relations (Change C) — parent side of the ProfileView edges.
+  // No columns are added here; the FKs live on analytics_profile_views.
+  profileViewsGiven   ProfileView[] @relation("ProfileViewer")
+  profileViewsReceived ProfileView[] @relation("ProfileViewed")
 
   @@map("auth_users")
 }
@@ -92,10 +97,10 @@ model Application {
   nationality          String
   profession           String
   employer             String
-  linkedInUrl          String
+  linkedInUrl          String? // optional now: proof-of-work is an alternative (Change B)
   educationLevel       EducationLevel
   institution          String
-  relationshipGoals    RelationshipGoal
+  relationshipGoals    RelationshipGoal? // no longer collected in the 2-step flow
   city                 City
   status               ApplicationStatus @default(submitted)
   adminNotes           String?
@@ -104,8 +109,10 @@ model Application {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   idDocumentUrl        String
-  degreeCertificateUrl String
+  degreeCertificateUrl String? // optional now: degree cert is no longer mandatory
   selfieUrl            String
+  proofOfWorkUrl       String? // NEW (Change B): proof-of-work upload, alt to LinkedIn
+  proofOfWorkType     String? // one of PROOF_OF_WORK_TYPES (resume|work_badge|selfie_company|linkedin)
   user                 User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status])
@@ -121,8 +128,11 @@ model Profile {
   firstName          String
   lastName           String
   displayName        String?
-  dateOfBirth        DateTime
+  // Nullable so a member can save a partial profile from the account page
+  // (account-first onboarding) before they capture a full date of birth.
+  dateOfBirth        DateTime?
   gender             Gender
+  nationality        String? // launch-market limited (ZA / ZW); shown on RedNote cards
   city               City
   bio                String?  @db.Text
   headline           String?  @db.Text // short tagline shown on discovery cards
@@ -131,6 +141,7 @@ model Profile {
   heightCm           Int?
   educationLevel     EducationLevel?
   institution        String?
+  industries         String[]    @default([]) // multi-select during onboarding
   interests          String[]
   dealbreakers       String[]
   photos             Json?
@@ -139,6 +150,15 @@ model Profile {
   isPaused           Boolean  @default(false)
   isComplete         Boolean  @default(false)
   completenessScore  Int      @default(0)
+  // WeChat-Nearby (district-scoped discovery, premium feature). `district` is a
+  // free-text suburb/neighbourhood within `city`; `nearbyEnabled` is the member's
+  // opt-in. Only profiles with nearbyEnabled=true are returned to nearby viewers.
+  district           String?
+  nearbyEnabled      Boolean  @default(false)
+  // Precise geolocation captured from the browser when a member opts into
+  // WeChat-Nearby. Cleared (set null) when they drop their location.
+  latitude           Float?
+  longitude          Float?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -147,6 +167,8 @@ model Profile {
   @@index([gender])
   @@index([educationLevel])
   @@index([isPaused, isComplete])
+  @@index([city, district, nearbyEnabled])
+  @@index([nearbyEnabled, latitude, longitude])
   @@map("profile_profiles")
 }
 
@@ -437,6 +459,7 @@ enum MatchAction {
 
 enum EventStatus {
   draft
+  pending
   published
   cancelled
   completed
@@ -519,4 +542,41 @@ model AdminAudit {
   @@index([adminId])
   @@index([entity, entityId])
   @@map("admin_audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module: ANALYTICS  (prefix: analytics_)  — Change C (profile-view tracking)
+// ─────────────────────────────────────────────────────────────────────────────
+model ProfileView {
+  id           String   @id @default(uuid())
+  viewerId     String // the member who viewed
+  viewedUserId String // the member whose profile/card was viewed
+  createdAt    DateTime @default(now())
+
+  viewer  User @relation("ProfileViewer",  fields: [viewerId],     references: [id], onDelete: Cascade)
+  viewed  User @relation("ProfileViewed",  fields: [viewedUserId], references: [id], onDelete: Cascade)
+
+  @@index([viewerId, createdAt])
+  @@index([viewedUserId, createdAt])
+  @@map("analytics_profile_views")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module: SETTINGS  (prefix: settings_)  — Platform gating/CRM configuration
+// ─────────────────────────────────────────────────────────────────────────────
+// Singleton row (id fixed to 1) holding the operator-tunable knobs that drive
+// discovery gating: how many extra photos a restricted (free+vetted) viewer may
+// see of a premium+vetted member, the free→premium connection cap, and which
+// profile fields are withheld from restricted viewers. Managed from the admin
+// "CRM of settings" console; the API caches the row and falls back to shared
+// constants if the table is unreachable.
+model PlatformSettings {
+  id                          Int       @id @default(1)
+  freeViewMaxExtraPhotos     Int       @default(1)
+  freePremiumConnectionLimit Int       @default(5)
+  restrictedHiddenFields     String[]  @default(["nationality", "profession", "educationLevel", "dateOfBirth"])
+  updatedAt                  DateTime  @updatedAt
+  updatedBy                  String?
+
+  @@map("platform_settings")
 }

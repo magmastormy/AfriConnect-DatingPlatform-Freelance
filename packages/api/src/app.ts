@@ -2,7 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
-import { errorHandler, success, ValidationError } from '@africonnect/shared';
+import { errorHandler, success, NotFoundError } from '@africonnect/shared';
 import { config } from './config';
 import { rateLimitMiddleware } from './config/middleware';
 import { honeypotMiddleware } from './config/middleware/honeypot';
@@ -15,6 +15,10 @@ import { buildEventModule } from './modules/event';
 import { buildNotificationModule } from './modules/notification';
 import { buildBillingModule } from './modules/billing';
 import { buildAdminModule } from './modules/admin';
+import { buildSettingsModule } from './modules/settings';
+import { buildUploadModule } from './modules/upload';
+import { buildAnalyticsModule } from './modules/analytics';
+import { buildDiscoverModule } from './modules/discover';
 
 /** Compose the Express application from module routers. */
 export function createApp(): Express {
@@ -66,6 +70,10 @@ export function createApp(): Express {
   app.use(`${mount}/notifications`, buildNotificationModule());
   app.use(`${mount}/billing`, buildBillingModule());
   app.use(`${mount}/admin`, buildAdminModule());
+  app.use(`${mount}/settings`, buildSettingsModule());
+  app.use(`${mount}/upload`, buildUploadModule());
+  app.use(`${mount}/analytics`, buildAnalyticsModule());
+  app.use(`${mount}/discover`, buildDiscoverModule());
 
   // Served user uploads (chat images). Bounded by auth at the upload endpoint.
   app.use(
@@ -78,8 +86,11 @@ export function createApp(): Express {
 
   // Any unrecognised path (including guessed API roots other than the secret
   // mount) returns a generic 404 — never reveals which routes exist.
+  // NOTE: must be NotFoundError (404). Using ValidationError here produced a
+  // misleading 400 Bad Request for every unknown route, which broke client-side
+  // `status === 404` branches and contradicted the contract above.
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    next(new ValidationError(`No route for ${req.method} ${req.path}`));
+    next(new NotFoundError(`No route for ${req.method} ${req.path}`));
   });
 
   // Centralized error handler (Clause 2.6) — must be last

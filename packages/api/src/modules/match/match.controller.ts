@@ -43,4 +43,17 @@ export class MatchController {
     const cards = await this.service.discover(req.user!.userId, limit);
     res.status(200).json(success(cards));
   });
+
+  recommend = asyncHandler(async (req: Request, res: Response) => {
+    const limit = req.query.limit ? Math.min(50, Number(req.query.limit)) : undefined;
+    const radiusKm = req.query.radiusKm ? Number(req.query.radiusKm) : undefined;
+    const cards = await this.service.recommend(req.user!.userId, { limit, radiusKm });
+    res.status(200).json(success(cards));
+  });
+
+  preview = asyncHandler(async (req: Request, res: Response) => {
+    const limit = req.query.limit ? Math.min(50, Number(req.query.limit)) : undefined;
+    const cards = await this.service.getPreview(limit);
+    res.status(200).json(success(cards));
+  });
 }
