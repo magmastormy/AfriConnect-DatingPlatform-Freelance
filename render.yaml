@@ -7,7 +7,7 @@ services:
     dockerfilePath: packages/api/Dockerfile
     plan: starter
     region: oregon
-    healthCheckPath: /api/healthz
+    healthCheckPath: /healthz
     env:
       - key: NODE_ENV
         value: production
@@ -15,11 +15,12 @@ services:
         value: "4000"
       - key: API_MOUNT_PATH
         sync: false
-      - key: JWT_SECRET
+      - key: JWT_ACCESS_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
       - key: DATABASE_URL
+        # Use your Aiven free PostgreSQL "Service URI" (must end in ?sslmode=require)
         sync: false
       - key: WEB_BASE_URL
         sync: false

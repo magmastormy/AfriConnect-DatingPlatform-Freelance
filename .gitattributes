@@ -1,0 +1,19 @@
+# Normalize line endings to LF on checkout/commit so the repo stops mixing
+# CRLF and LF. A full renormalization only happens if you later run
+# `git add --renormalize .`; adding this file alone just sets policy.
+* text=auto eol=lf
+
+# Keep binary assets out of text normalization.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.sfnt binary
+*.pdf binary

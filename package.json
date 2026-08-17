@@ -13,11 +13,14 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev",
     "dev:api": "pnpm --filter @africonnect/api run dev",
     "dev:web": "pnpm --filter @africonnect/web run dev",
     "prisma:generate": "pnpm --filter @africonnect/api run prisma:generate",
     "prisma:migrate": "pnpm --filter @africonnect/api run prisma:migrate",
+    "prisma:deploy": "pnpm --filter @africonnect/api run prisma:deploy",
     "prisma:studio": "pnpm --filter @africonnect/api run prisma:studio",
+    "prisma:validate": "pnpm --filter @africonnect/api run prisma:validate",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {

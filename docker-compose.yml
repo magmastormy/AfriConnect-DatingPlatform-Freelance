@@ -1,45 +1,27 @@
 # Local full-stack for AfriConnect Professionals.
-# Brings up Postgres + API + Web (Next dev) so you can run the whole product
-# with one command. Secrets live in .env (copy from .env.example and fill in).
+# Brings up the API + Web (Next dev) so you can run the whole product with one
+# command. The database is Aiven's FREE PostgreSQL (no Docker, no local Postgres):
+# set DATABASE_URL in .env to your Aiven Service URI (with ?sslmode=require) and
+# the API connects to it directly.
 #
+#   cp .env.example .env     # then paste your Aiven Service URI into DATABASE_URL
 #   docker compose up --build
 #
 # Web:  http://localhost:3000   (proxies /<API_MOUNT_PATH>/v1 -> api:4000)
 # API:  http://localhost:4000   (mount: /<API_MOUNT_PATH>/v1)
-# DB:   postgres://africonnect:africonnect@localhost:5432/africonnect
+# DB:   Aiven free PostgreSQL (set DATABASE_URL in .env)
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-africonnect}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-africonnect}
-      POSTGRES_DB: ${POSTGRES_DB:-africonnect}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-africonnect} -d ${POSTGRES_DB:-africonnect}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: .
       dockerfile: packages/api/Dockerfile
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     env_file:
       - .env
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-africonnect}:${POSTGRES_PASSWORD:-africonnect}@db:5432/${POSTGRES_DB:-africonnect}?sslmode=disable
       WEB_BASE_URL: http://localhost:3000
       CORS_ORIGINS: http://localhost:3000
     ports:
@@ -73,6 +55,3 @@ services:
       - .:/app
       - /app/node_modules
       - /app/apps/web/.next
-
-volumes:
-  pgdata:
