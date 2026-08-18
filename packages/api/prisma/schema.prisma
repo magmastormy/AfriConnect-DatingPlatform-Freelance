@@ -45,6 +45,7 @@ model User {
   // No columns are added here; the FKs live on analytics_profile_views.
   profileViewsGiven   ProfileView[] @relation("ProfileViewer")
   profileViewsReceived ProfileView[] @relation("ProfileViewed")
+  vettingSessions    VettingSession[] @relation("UserVettingSessions")
 
   @@map("auth_users")
 }
@@ -380,6 +381,29 @@ model NotificationPreference {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notify_preferences")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module: VETTING (KYC)  (prefix: vetting_)  — Smile ID identity verification
+// ─────────────────────────────────────────────────────────────────────────────
+// Tracks a KYC verification session started for a member. The webhook (live) or
+// the /vetting/sandbox simulator (testing) resolves the session to a decision,
+// which flips the member to the Verified stage. externalRef stores the provider's
+// job/tracking id so the asynchronous callback can be mapped back to the user.
+model VettingSession {
+  id         String   @id @default(uuid())
+  userId     String
+  provider   String   @default("smile")
+  externalRef String?
+  mode       String   @default("sandbox") // sandbox | live
+  status     String   @default("pending") // pending | approved | rejected
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation("UserVettingSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([externalRef])
+  @@map("vetting_sessions")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import {
 } from '@/lib/shared';
 import { validateRequired, sanitizeText } from '@/lib/validate';
 import { MembershipStage } from '@/lib/membership';
+import { SmileVerify } from '@/components/SmileVerify';
 
 /**
  * Verification flow (post-sign-up, and re-reachable at /get-vetted).
@@ -293,6 +294,10 @@ export function OnboardingForm() {
 
   return (
     <div className="vet">
+      <SmileVerify />
+      <div className="vet-divider">
+        <span>or complete the application manually</span>
+      </div>
       <header className="vet-head">
         <p className="kicker">Verification</p>
         <h1>Get verified</h1>

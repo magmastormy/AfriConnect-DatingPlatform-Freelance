@@ -518,6 +518,24 @@ a:hover { color: var(--brand-ink); }
 }
 .vet-status p { color: var(--muted); margin: 0 auto 1.25rem; max-width: 48ch; }
 
+/* Cross-device KYC: divider + QR scan block */
+.vet-divider {
+  display: flex; align-items: center; gap: 0.75rem;
+  color: var(--muted); font-size: 0.78rem; text-transform: uppercase;
+  letter-spacing: 0.08em; margin: 1.75rem 0;
+}
+.vet-divider::before, .vet-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+.vet-scan { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; margin-top: 0.5rem; }
+.vet-qr {
+  background: #fff; padding: 12px; border-radius: 14px;
+  box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,0.12));
+  line-height: 0;
+}
+.vet-qr svg, .vet-qr img { display: block; border-radius: 6px; }
+.vet-linkrow { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: center; }
+
 /* ---------- Public content pages (discover / matches / events) ---------- */
 .page { max-width: var(--maxw); margin: 0 auto; padding: clamp(2rem, 6vw, 4rem) 1.5rem; }
 .page-head { margin-bottom: 1.75rem; }

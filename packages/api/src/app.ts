@@ -1,4 +1,14 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
+
+// Stash the raw request bytes so signature-verified webhooks (e.g. Smile ID)
+// can verify over the exact bytes the provider signed.
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: Buffer;
+    }
+  }
+}
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
@@ -19,6 +29,7 @@ import { buildSettingsModule } from './modules/settings';
 import { buildUploadModule } from './modules/upload';
 import { buildAnalyticsModule } from './modules/analytics';
 import { buildDiscoverModule } from './modules/discover';
+import { buildVettingModule } from './modules/vetting';
 
 /** Compose the Express application from module routers. */
 export function createApp(): Express {
@@ -31,7 +42,14 @@ export function createApp(): Express {
   // Security & parsing
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
-  app.use(express.json({ limit: '12mb' })); // base64 image uploads ride in JSON bodies
+  app.use(
+    express.json({
+      limit: '12mb',
+      verify: (req, _res, buf) => {
+        (req as Request & { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  ); // base64 image uploads ride in JSON bodies; raw bytes stashed for webhooks
 
   // Correlation id for structured tracing (Clause 2.7)
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -74,6 +92,7 @@ export function createApp(): Express {
   app.use(`${mount}/upload`, buildUploadModule());
   app.use(`${mount}/analytics`, buildAnalyticsModule());
   app.use(`${mount}/discover`, buildDiscoverModule());
+  app.use(`${mount}/vetting`, buildVettingModule());
 
   // Served user uploads (chat images). Bounded by auth at the upload endpoint.
   app.use(

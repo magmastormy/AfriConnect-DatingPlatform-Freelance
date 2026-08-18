@@ -73,6 +73,18 @@ export const config = {
   twilioFromNumber: process.env.TWILIO_FROM_NUMBER || '',
   adminEmail: process.env.ADMIN_EMAIL || 'admin@afri-connect.co.za',
   adminSetupToken: process.env.ADMIN_SETUP_TOKEN || '',
+  // ── KYC / identity verification (Smile ID) ────────────────────────────────
+  // SMILE_SANDBOX defaults to true, so the whole cross-device flow runs in
+  // testing with no credentials: the hosted URL points at our own /vetting/sandbox
+  // simulator and the user flips to "verified" locally. Set SMILE_SANDBOX=false
+  // (together with SMILE_PARTNER_ID + SMILE_API_KEY + SMILE_API_SECRET) to route
+  // real jobs to Smile ID (ID + SmartSelfie liveness + government-DB checks).
+  smile: {
+    partnerId: process.env.SMILE_PARTNER_ID || '',
+    apiKey: process.env.SMILE_API_KEY || '',
+    apiSecret: process.env.SMILE_API_SECRET || '',
+    sandbox: (process.env.SMILE_SANDBOX ?? 'true').toLowerCase() !== 'false',
+  },
 } as const;
 
 // ─── Stripe test-mode enforcement (billing must never run live) ────────────

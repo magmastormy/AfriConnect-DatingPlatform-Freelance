@@ -232,6 +232,20 @@ export const api = {
     request<{ marked: boolean }>('PUT', `/notifications/${id}/read`),
   markAllNotificationsRead: () => request<{ marked: boolean }>('PUT', '/notifications/read-all'),
 
+  // ── KYC / identity verification (Smile ID) ──────────────────────────────
+  /** Starts a cross-device KYC session; returns a QR-able hosted URL. */
+  createVettingSession: () =>
+    request<{ sessionId: string; mode: string; hostedUrl: string }>(
+      'POST',
+      '/vetting/smile/session',
+    ),
+  /** Polled by the desktop to detect when the phone-side check completes. */
+  getVettingStatus: () =>
+    request<{ status: string; mode: string | null; verified: boolean }>('GET', '/vetting/smile/status'),
+  /** Testing-only: completes the sandbox simulator opened by the QR scan. */
+  completeVettingSandbox: (sessionId: string) =>
+    request<{ approved: boolean }>('POST', '/vetting/smile/sandbox/complete', { sessionId }),
+
   // ── Admin global search (members / applications / subscriptions) ────────
   globalSearch: (q: string) =>
     request<GlobalSearchResult>('GET', `/admin/search?q=${encodeURIComponent(q)}`),
