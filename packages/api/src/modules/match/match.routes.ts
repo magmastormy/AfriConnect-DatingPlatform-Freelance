@@ -13,8 +13,13 @@ export function matchRoutes(controller: MatchController, _service: IMatchService
   const vetted = [authorize(), requireVetted()];
 
   router.get('/daily', vetted, controller.daily);
-  router.get('/recommend', vetted, controller.recommend);
+  // Default, engine-driven discovery surface. GET /matches/discover runs the
+  // full hybrid MatchingEngine (content + CF + diversity + business rules) and
+  // is the canonical way clients should fetch candidate cards.
   router.get('/discover', vetted, controller.discover);
+  // Alias that additionally supports an explicit ?radiusKm= override. Backed by
+  // the same engine as /discover.
+  router.get('/recommend', vetted, controller.recommend);
   // Preview is reachable by any authenticated member (no vetting gate) so that
   // unverified accounts can sample a capped set of seeded members.
   router.get('/preview', [authorize()], controller.preview);

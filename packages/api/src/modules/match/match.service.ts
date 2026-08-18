@@ -38,7 +38,7 @@ export interface IMatchService {
     input: ExpressInterestInput,
   ): Promise<{ status: string; mutual: boolean; score?: number | null }>;
   getMutual(userId: string): Promise<unknown[]>;
-  discover(userId: string, limit?: number): Promise<DiscoverCard[]>;
+  discover(userId: string, limit?: number): Promise<RecommendCard[]>;
   getPreview(limit?: number): Promise<DiscoverCard[]>;
   /** Full hybrid recommender (content + CF + diversity + business rules). */
   recommend(userId: string, opts?: { limit?: number; radiusKm?: number }): Promise<RecommendCard[]>;
@@ -229,138 +229,44 @@ export class MatchService implements IMatchService {
     });
   }
 
-  async discover(userId: string, limit = 20): Promise<DiscoverCard[]> {
-    const viewer = await this.profileRepo.findByUserId(userId);
-    if (!viewer) throw new NotFoundError('Complete your profile before discovering');
-    if (viewer.isPaused) throw new ValidationError('Your profile is currently paused');
-
-    const prefs = (viewer.preferences as MatchPreferences) ?? {};
-    const viewerInterests = prefs.interests ?? [];
-    const viewerDeal = (viewer as { dealbreakers?: string[] }).dealbreakers ?? [];
-
-    const excludeIds = await this.repo.getExcludedIds(userId);
-    const where: Prisma.ProfileWhereInput = {
-      isPaused: false,
-      isComplete: true,
-      NOT: { userId: { in: excludeIds } },
-      gender: prefs.genderPreference ?? undefined,
-      city: prefs.city ?? undefined,
-    };
-
-    const candidates = await this.repo.findMatchableCandidates(where, {
-      skip: 0,
-      take: limit * 3,
-    });
-
-    const viewerPrefs: MatchPreferences = { ...prefs, interests: viewerInterests };
-    return candidates
-      .map((c) => {
-        const candidate = toCandidate(c);
-        const base = scoreCompatibility(
-          { preferences: viewerPrefs, dealbreakers: viewerDeal },
-          candidate,
-        );
-        const final = applyPenalties(base, {});
-        const shared = (candidate.interests ?? []).filter((i) => viewerInterests.includes(i));
-        const photos = Array.isArray(c.photos)
-          ? (c.photos as { url: string }[]).map((p) => p.url).filter(Boolean)
-          : [];
-        const user = (
-          c as {
-            user?: {
-              emailVerified: boolean;
-              phoneVerified: boolean;
-              subscriptions?: { plan: string } | null;
-            };
-          }
-        ).user;
-        const verified = Boolean(user?.emailVerified && user?.phoneVerified);
-        const isPremium = Boolean(user?.subscriptions?.plan && user.subscriptions.plan !== 'free');
-        return {
-          userId: candidate.userId,
-          displayName: c.displayName ?? null,
-          headline: (c as { headline?: string | null }).headline ?? null,
-          city: candidate.city,
-          educationLevel: candidate.educationLevel,
-          profession: candidate.profession ?? null,
-          employer: (c as { employer?: string | null }).employer ?? null,
-          age: candidate.dateOfBirth ? ageFromDob(candidate.dateOfBirth) : 0,
-          score: final,
-          sharedInterests: shared,
-          photos,
-          verified,
-          isPremium,
-        } as DiscoverCard;
-      })
-      .filter((card) => passesThreshold(card.score))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-  }
-
   /**
-   * Unvetted members preview a small, capped sample of seeded (complete +
-   * verified) members to encourage profile completion. Unlike `discover`, this
-   * is NOT personalised by the viewer's preferences and is hard-capped at
-   * DISCOVER_PREVIEW_LIMIT so an unverified account can never browse the full
-   * discovery pool. The act of connecting remains gated by vetting elsewhere.
+   * Default discovery surface (GET /matches/discover).
+   *
+   * Migrated onto the hybrid MatchingEngine (breakdown §9 pipeline) — content
+   * + collaborative filtering, cold-start fallback, popularity damping, business
+   * rules, MMR diversity, fairness re-rank. Returns `RecommendCard` (a superset
+   * of `DiscoverCard`) so existing web clients keep working while gaining the
+   * richer explainability fields. No ML/AI involved.
    */
-  async getPreview(limit?: number): Promise<DiscoverCard[]> {
-    const cap = Math.min(limit ?? DISCOVER_PREVIEW_LIMIT, DISCOVER_PREVIEW_LIMIT);
-
-    const candidates = await this.repo.findMatchableCandidates(
-      { isPaused: false, isComplete: true },
-      { skip: 0, take: cap },
-    );
-
-    return candidates.map((c) => {
-      const candidate = toCandidate(c);
-      const photos = Array.isArray(c.photos)
-        ? (c.photos as { url: string }[]).map((p) => p.url).filter(Boolean)
-        : [];
-      const user = (
-        c as {
-          user?: {
-            emailVerified: boolean;
-            phoneVerified: boolean;
-            subscriptions?: { plan: string } | null;
-          };
-        }
-      ).user;
-      const verified = Boolean(user?.emailVerified && user?.phoneVerified);
-      const isPremium = Boolean(user?.subscriptions?.plan && user.subscriptions.plan !== 'free');
-      return {
-        userId: candidate.userId,
-        displayName: c.displayName ?? null,
-        headline: (c as { headline?: string | null }).headline ?? null,
-        city: candidate.city,
-        educationLevel: candidate.educationLevel,
-        profession: candidate.profession ?? null,
-        employer: (c as { employer?: string | null }).employer ?? null,
-        age: candidate.dateOfBirth ? ageFromDob(candidate.dateOfBirth) : 0,
-        score: 0,
-        sharedInterests: [],
-        photos,
-        verified,
-        isPremium,
-      } as DiscoverCard;
-    });
+  async discover(userId: string, limit = 20): Promise<RecommendCard[]> {
+    return this.runEngine(userId, { limit });
   }
 
   /**
-   * Hybrid recommendation endpoint (breakdown §9 pipeline). Runs the pure
-   * MatchingEngine over a geo-filtered candidate pool, blending content-based
-   * scoring with collaborative filtering, then applies diversity (MMR),
-   * business rules and fairness re-ranking. No ML/AI is involved.
+   * Alias of `discover` that additionally accepts an explicit discovery radius.
+   * Both endpoints are backed by the same engine; `/discover` is the canonical
+   * (default) surface and `/recommend` is kept for callers that want to tune the
+   * radius at request time.
    */
   async recommend(
     userId: string,
     opts: { limit?: number; radiusKm?: number } = {},
   ): Promise<RecommendCard[]> {
+    return this.runEngine(userId, opts);
+  }
+
+  /**
+   * Shared engine runner for `discover` and `recommend`. Loads the viewer, the
+   * collaborative-filtering interaction sample, candidate metadata (Elo, age,
+   * like-count) and the geo-filtered candidate pool, then delegates ranking to
+   * the pure `MatchingEngine`. Returns `RecommendCard[]`.
+   */
+  private async runEngine(
+    userId: string,
+    opts: { limit?: number; radiusKm?: number } = {},
+  ): Promise<RecommendCard[]> {
     const viewer = await this.profileRepo.findByUserId(userId);
-    if (!viewer) throw new NotFoundError('Complete your profile before viewing matches');
-    if (!viewer.isComplete) {
-      throw new ValidationError('Complete your profile before viewing matches');
-    }
+    if (!viewer) throw new NotFoundError('Complete your profile before discovering');
     if (viewer.isPaused) throw new ValidationError('Your profile is currently paused');
 
     const prefs = (viewer.preferences as MatchPreferences) ?? {};
@@ -410,6 +316,7 @@ export class MatchService implements IMatchService {
 
     const meta = await this.repo.getCandidateMeta(candidates.map((c) => c.userId));
     const profileById = new Map(candidates.map((c) => [c.userId, c]));
+    const viewerInterests = prefs.interests ?? [];
 
     const engineCandidates: EngineCandidate[] = candidates.map((c) => {
       const m = meta.get(c.userId) ?? { accountAgeDays: 0, likedByCount: 0, elo: ELO_INITIAL };
@@ -448,7 +355,6 @@ export class MatchService implements IMatchService {
     const engine = new MatchingEngine(buildDefaultConfig({ radiusKm, topN }));
     const ranked = engine.recommend(engineViewer, engineCandidates, matrix);
 
-    const viewerInterests = prefs.interests ?? [];
     return ranked.map((r) => {
       const c = r.candidate;
       const p = profileById.get(c.userId);
@@ -483,6 +389,55 @@ export class MatchService implements IMatchService {
           fairnessAdjusted: r.breakdown.fairnessAdjusted,
         },
       } as RecommendCard;
+    });
+  }
+
+  /**
+   * Unvetted members preview a small, capped sample of seeded (complete +
+   * verified) members to encourage profile completion. Unlike `discover`, this
+   * is NOT personalised by the viewer's preferences and is hard-capped at
+   * DISCOVER_PREVIEW_LIMIT so an unverified account can never browse the full
+   * discovery pool. The act of connecting remains gated by vetting elsewhere.
+   */
+  async getPreview(limit?: number): Promise<DiscoverCard[]> {
+    const cap = Math.min(limit ?? DISCOVER_PREVIEW_LIMIT, DISCOVER_PREVIEW_LIMIT);
+
+    const candidates = await this.repo.findMatchableCandidates(
+      { isPaused: false, isComplete: true },
+      { skip: 0, take: cap },
+    );
+
+    return candidates.map((c) => {
+      const candidate = toCandidate(c);
+      const photos = Array.isArray(c.photos)
+        ? (c.photos as { url: string }[]).map((p) => p.url).filter(Boolean)
+        : [];
+      const user = (
+        c as {
+          user?: {
+            emailVerified: boolean;
+            phoneVerified: boolean;
+            subscriptions?: { plan: string } | null;
+          };
+        }
+      ).user;
+      const verified = Boolean(user?.emailVerified && user?.phoneVerified);
+      const isPremium = Boolean(user?.subscriptions?.plan && user.subscriptions.plan !== 'free');
+      return {
+        userId: candidate.userId,
+        displayName: c.displayName ?? null,
+        headline: (c as { headline?: string | null }).headline ?? null,
+        city: candidate.city,
+        educationLevel: candidate.educationLevel,
+        profession: candidate.profession ?? null,
+        employer: (c as { employer?: string | null }).employer ?? null,
+        age: candidate.dateOfBirth ? ageFromDob(candidate.dateOfBirth) : 0,
+        score: 0,
+        sharedInterests: [],
+        photos,
+        verified,
+        isPremium,
+      } as DiscoverCard;
     });
   }
 }
