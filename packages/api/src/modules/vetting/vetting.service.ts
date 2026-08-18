@@ -9,6 +9,7 @@ import {
   UserStatus,
 } from '@africonnect/shared';
 import { INotificationService } from '@modules/notification/notification.service';
+import { recordWebhookEvent } from '@webhooks/dedupe';
 import { startSmileSession, verifySmileWebhook } from './vetting.smile';
 import type { VettingMode, VettingSessionStatus } from './vetting.types';
 
@@ -78,6 +79,12 @@ export class VettingService implements IVettingService {
   /** Live webhook entry point. Verifies the provider signature, then resolves. */
   async handleWebhook(rawBody: Buffer, signature: string, timestamp: string): Promise<void> {
     const decision = await verifySmileWebhook(rawBody, signature, timestamp);
+    // Idempotency: Smile retries deliveries. Dedupe on the provider job id, or
+    // fall back to the signature+timestamp (unique per delivery) when no job id
+    // is present, so a redelivery cannot re-approve/reject a session.
+    const dedupeId = decision.jobId || `sig:${signature}:${timestamp}`;
+    const isNew = await recordWebhookEvent('smile', dedupeId);
+    if (!isNew) return;
     // Smile's callback carries the `user_id` we passed when starting the session
     // (not the opaque web token), so resolve the latest pending live session by user.
     const session = await prisma.vettingSession.findFirst({

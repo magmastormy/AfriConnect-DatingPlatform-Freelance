@@ -87,6 +87,11 @@ export class ChatService implements IChatService {
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {
+    const conv = await this.repo.findConversation(conversationId);
+    if (!conv) throw new NotFoundError('Conversation not found', { conversationId });
+    if (conv.participant1Id !== userId && conv.participant2Id !== userId) {
+      throw new ConflictError('You are not a participant in this conversation');
+    }
     await this.repo.markRead(conversationId, userId);
   }
 }

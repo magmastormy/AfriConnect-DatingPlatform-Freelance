@@ -605,3 +605,23 @@ model PlatformSettings {
 
   @@map("platform_settings")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module: WEBHOOKS  (prefix: webhook_)  — idempotency ledger
+// ─────────────────────────────────────────────────────────────────────────────
+// Records every provider webhook event id we have processed so a redelivery
+// (Stripe and Smile ID both retry) cannot double-apply a side effect — e.g.
+// granting a subscription twice or flipping a member to Verified twice. The
+// (provider, eventId) unique constraint makes the check atomic across the
+// horizontal fleet.
+model WebhookEvent {
+  id        String   @id @default(uuid())
+  provider  String // 'stripe' | 'smile'
+  eventId   String // provider event id (Stripe event.id, Smile job_id / signature)
+  status    String   @default("processed") // processed | ignored
+  createdAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([createdAt])
+  @@map("webhook_events")
+}

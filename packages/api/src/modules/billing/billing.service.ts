@@ -12,6 +12,7 @@ import {
 import { logger } from '@africonnect/shared';
 import { InternalError } from '@africonnect/shared';
 import { INotificationService } from '@modules/notification/notification.service';
+import { recordWebhookEvent } from '@webhooks/dedupe';
 
 const PLAN_TO_PRICE: Partial<Record<SubscriptionPlan, string>> = {
   // Map each plan to its Stripe Price ID. Populated from the Stripe dashboard.
@@ -181,6 +182,12 @@ export class BillingService implements IBillingService {
       logger.error({ err }, 'Stripe webhook signature verification failed');
       throw new InternalError('Invalid webhook signature');
     }
+
+    // Idempotency: a redelivered event (Stripe retries) must not double-apply a
+    // side effect (double grant / double notify). The WebhookEvent ledger makes
+    // this safe across the horizontal fleet.
+    const isNew = await recordWebhookEvent('stripe', event.id);
+    if (!isNew) return;
 
     switch (event.type) {
       case 'checkout.session.completed': {
