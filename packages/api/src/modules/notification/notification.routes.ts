@@ -11,6 +11,7 @@ export const bulkNotifySchema = z.object({
   body: z.string().min(1),
   channel: z.nativeEnum(NotificationChannel),
   role: z.nativeEnum(UserRole).optional(),
+  link: z.string().max(500).optional(),
   data: z.record(z.unknown()).optional(),
 });
 

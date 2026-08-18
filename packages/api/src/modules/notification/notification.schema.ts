@@ -7,6 +7,7 @@ export const createNotificationSchema = z.object({
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(2000),
   channel: z.nativeEnum(NotificationChannel),
+  link: z.string().max(500).optional(),
   data: z.record(z.unknown()).optional(),
 });
 

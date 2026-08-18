@@ -6,6 +6,8 @@ export interface CreateNotificationInput {
   title: string;
   body: string;
   channel: NotificationChannel;
+  /** Optional in-app destination; the bell renders it as a CTA when present. */
+  link?: string;
   data?: Record<string, unknown>;
 }
 
@@ -16,6 +18,8 @@ export interface BulkNotificationInput {
   channel: NotificationChannel;
   /** Optional role segment; omit to target all active members. */
   role?: UserRole;
+  /** Optional in-app destination; the bell renders it as a CTA when present. */
+  link?: string;
   data?: Record<string, unknown>;
 }
 
@@ -27,4 +31,5 @@ export interface NotificationView {
   channel: NotificationChannel;
   isRead: boolean;
   createdAt: Date;
+  link?: string;
 }

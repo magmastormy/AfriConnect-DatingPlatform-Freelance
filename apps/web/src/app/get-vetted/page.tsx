@@ -1,8 +1,12 @@
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { OnboardingForm } from '../onboarding/OnboardingForm';
 
-/**
- * Legacy redirect. Vetting now happens in the portal after account creation.
- */
+export const metadata: Metadata = {
+  title: 'Get verified',
+  description: 'Verify your professional identity to join the AfriConnect community.',
+  robots: { index: false, follow: false },
+};
+
 export default function GetVettedPage() {
-  redirect('/onboarding');
+  return <OnboardingForm />;
 }

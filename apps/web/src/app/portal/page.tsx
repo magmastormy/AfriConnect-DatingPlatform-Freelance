@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { SubscriptionStatus } from '@/lib/shared';
 import { useAuth } from '@/lib/auth';
-import { can, Capability } from '@/lib/membership';
+import { can, Capability, MembershipStage } from '@/lib/membership';
 import { DiscoverCard } from '@/lib/types';
 
 interface Profile {
@@ -78,7 +78,7 @@ export default function PortalDashboard() {
       done: !!(profile?.firstName && profile?.isComplete),
       href: '/portal/account',
     },
-    { label: 'Verify your identity', done: false, href: '/portal/account' },
+    { label: 'Verify your identity', done: stage === MembershipStage.Verified, href: '/get-vetted' },
     { label: 'Review today’s introductions', done: (dailyCount ?? 0) > 0, href: '/portal/matches' },
     {
       label: 'Resume your profile to be matched',

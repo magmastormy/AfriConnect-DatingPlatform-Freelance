@@ -455,6 +455,69 @@ a:hover { color: var(--brand-ink); }
 .stage-banner p { margin: 0; color: var(--warn-fg); font-size: 0.9rem; }
 .stage-banner strong { display: block; color: var(--ink); font-size: 0.95rem; }
 
+/* ============================================================
+   VERIFICATION FLOW — get-vetted / onboarding
+   Token-based, calm single-column card with a 2-step bar.
+   ============================================================ */
+.vet { max-width: 640px; margin: clamp(1.5rem, 5vw, 3.5rem) auto; padding: 0 1.25rem; }
+.vet-head { margin-bottom: 1.5rem; }
+.vet-head .kicker { margin: 0; }
+.vet-head h1 {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(1.6rem, 4vw, 2.1rem); letter-spacing: -0.02em;
+  margin: 0.15rem 0 0.4rem;
+}
+.vet-head p { color: var(--muted); margin: 0; max-width: 52ch; }
+
+.vet-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+}
+.vet-stepbar { display: flex; gap: 8px; margin-bottom: 0.5rem; }
+.vet-step { height: 4px; flex: 1; border-radius: 999px; background: var(--line-strong); transition: background 0.2s ease; }
+.vet-step.is-on { background: var(--brand); }
+.vet-steplabel {
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 1.25rem;
+}
+.vet-section { border-top: 1px solid var(--line); padding-top: 1.25rem; margin-top: 1.25rem; }
+.vet-section:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.vet-section h2 { font-size: 0.95rem; font-weight: 700; margin: 0 0 1rem; color: var(--ink); }
+.vet-hint { color: var(--muted); font-size: 0.82rem; margin: 0.5rem 0 0; line-height: 1.5; }
+.vet-chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.vet-chip {
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.42rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.vet-chip:hover { border-color: var(--brand); }
+.vet-chip.is-on { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.vet-actions { display: flex; align-items: center; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+.vet-actions-center { justify-content: center; }
+
+/* Status cards (verified / application received) */
+.vet-status { text-align: center; padding: clamp(1.75rem, 4vw, 2.5rem) clamp(1.25rem, 3vw, 2rem); }
+.vet-status-mark {
+  width: 48px; height: 48px; margin: 0 auto 1rem;
+  display: grid; place-items: center;
+  border-radius: 50%; font-size: 1.3rem;
+}
+.vet-status-mark.good { background: var(--good-bg); color: var(--good-fg); }
+.vet-status-mark.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.vet-status h1 {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 1.5rem; letter-spacing: -0.02em; margin: 0 0 0.5rem;
+}
+.vet-status p { color: var(--muted); margin: 0 auto 1.25rem; max-width: 48ch; }
+
 /* ---------- Public content pages (discover / matches / events) ---------- */
 .page { max-width: var(--maxw); margin: 0 auto; padding: clamp(2rem, 6vw, 4rem) 1.5rem; }
 .page-head { margin-bottom: 1.75rem; }
@@ -1232,6 +1295,9 @@ a:hover { color: var(--brand-ink); }
 .notif-title { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-weight: 600; font-size: 0.85rem; }
 .notif-body { color: var(--muted); font-size: 0.8rem; margin: 0.15rem 0; }
 .notif-time { color: var(--muted); font-size: 0.72rem; }
+.notif-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.2rem; }
+.notif-cta { color: var(--brand); font-size: 0.78rem; font-weight: 700; }
+.notif-item.has-cta:hover .notif-cta { text-decoration: underline; }
 
 .search-results { left: 0; right: auto; width: min(420px, 92vw); }
 .search-group { padding: 0.25rem 0; }

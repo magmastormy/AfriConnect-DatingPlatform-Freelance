@@ -20,10 +20,15 @@ import { validateRequired, sanitizeText } from '@/lib/validate';
 import { MembershipStage } from '@/lib/membership';
 
 /**
- * Post-sign-up onboarding, repurposed into a 2-step vetting flow (Change B):
- *   1. Professional identity (+ LinkedIn URL OR proof-of-work upload)
- *   2. Identity verification (ID document + selfie upload)
- * Submits the profile (upsert) and a vetting application.
+ * Verification flow (post-sign-up, and re-reachable at /get-vetted).
+ *
+ * Two calm steps:
+ *   1. About you & work (professional identity + proof of work)
+ *   2. Identity check (ID document + selfie upload)
+ *
+ * Submits the profile (upsert) and a vetting application. Members with an
+ * application in review see a status card instead of the form; verified
+ * members see a done card.
  */
 interface Identity {
   firstName: string;
@@ -47,6 +52,8 @@ const PROOF_LABELS: Record<ProofOfWorkType, string> = {
   selfie_company: 'Workplace selfie',
   linkedin: 'LinkedIn URL',
 };
+
+const STEP_LABELS = ['About you & work', 'Identity check'];
 
 export function OnboardingForm() {
   const router = useRouter();
@@ -225,7 +232,7 @@ export function OnboardingForm() {
     return (
       <div className="gate">
         <h2>Create your account first</h2>
-        <p>Onboarding continues once you have an account.</p>
+        <p>Verification continues once you have an account.</p>
         <div className="gate-actions">
           <Link className="btn btn-primary" href="/sign-up">
             Create account
@@ -238,189 +245,205 @@ export function OnboardingForm() {
     );
   }
 
+  // Already approved — nothing to fill in.
   if (stage === MembershipStage.Verified) {
     return (
-      <div className="card" style={{ maxWidth: 760, margin: '2rem auto' }}>
-        <h1 style={{ marginTop: 0 }}>You are already verified</h1>
-        <p style={{ color: 'var(--muted)' }}>
-          Your profile is complete and your application has been approved. You can keep refining
-          your profile from the account page.
-        </p>
-        <div className="row-actions" style={{ marginTop: '1rem' }}>
-          <Link className="btn btn-primary" href="/portal">
-            Go to portal
-          </Link>
+      <div className="vet">
+        <div className="vet-card vet-status">
+          <div className="vet-status-mark good" aria-hidden>
+            ✓
+          </div>
+          <h1>You’re verified</h1>
+          <p>
+            Your application has been approved. You can connect with members, join events, and
+            keep refining your profile from the account page.
+          </p>
+          <div className="vet-actions vet-actions-center">
+            <Link className="btn btn-primary" href="/portal">
+              Go to portal
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Application is with the vetting team — show a status card, not the form.
+  if (stage === MembershipStage.PendingReview) {
+    return (
+      <div className="vet">
+        <div className="vet-card vet-status">
+          <div className="vet-status-mark warn" aria-hidden>
+            …
+          </div>
+          <h1>Application received</h1>
+          <p>
+            Our team is reviewing your verification. We’ll notify you here the moment there’s a
+            decision — usually within a few days. No action needed from you.
+          </p>
+          <div className="vet-actions vet-actions-center">
+            <Link className="btn btn-primary" href="/portal">
+              Back to portal
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="card" style={{ maxWidth: 760, margin: '2rem auto' }}>
-      <h1 style={{ marginTop: 0 }}>Get verified</h1>
-      <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-        Two quick steps: tell us about your professional self, then verify your identity.
-      </p>
+    <div className="vet">
+      <header className="vet-head">
+        <p className="kicker">Verification</p>
+        <h1>Get verified</h1>
+        <p>Two short steps to join the verified community: your details, then a quick ID check.</p>
+      </header>
 
-      <div className="tabs" style={{ marginBottom: '1rem' }}>
-        <button data-active={step === 0} onClick={() => setStep(0)}>
-          1 · Professional identity
-        </button>
-        <button data-active={step === 1} onClick={() => setStep(1)}>
-          2 · Verification
-        </button>
-      </div>
+      <div className="vet-card">
+        <div className="vet-stepbar" aria-hidden>
+          <span className={`vet-step ${step === 0 ? 'is-on' : ''}`} />
+          <span className={`vet-step ${step === 1 ? 'is-on' : ''}`} />
+        </div>
+        <p className="vet-steplabel">
+          Step {step + 1} of 2 — {STEP_LABELS[step]}
+        </p>
 
-      {error && <div className="notice">{error}</div>}
+        {error && <div className="notice">{error}</div>}
 
-      {step === 0 && (
-        <div>
-          <div className="grid2">
-            <Input
-              label="First name"
-              value={identity.firstName}
-              onChange={(e) => set('firstName', e.currentTarget.value)}
-            />
-            <Input
-              label="Last name"
-              value={identity.lastName}
-              onChange={(e) => set('lastName', e.currentTarget.value)}
-            />
-            <Input
-              label="Date of birth"
-              type="date"
-              value={identity.dateOfBirth}
-              onChange={(e) => set('dateOfBirth', e.currentTarget.value)}
-            />
-            <Select
-              label="Gender"
-              value={identity.gender}
-              onChange={(e) => set('gender', e.currentTarget.value as Gender)}
-            >
-              <option value="">Select…</option>
-              {Object.values(Gender).map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </Select>
-            <Select
-              label="Nationality"
-              value={identity.nationality}
-              onChange={(e) => set('nationality', e.currentTarget.value)}
-            >
-              <option value="">Select…</option>
-              {NATIONALITIES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </Select>
-            <Select
-              label="City"
-              value={identity.city}
-              onChange={(e) => set('city', e.currentTarget.value as City)}
-            >
-              <option value="">Select…</option>
-              {Object.values(City).map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Profession"
-              value={identity.profession}
-              onChange={(e) => set('profession', e.currentTarget.value)}
-            />
-            <Input
-              label="Employer"
-              value={identity.employer}
-              onChange={(e) => set('employer', e.currentTarget.value)}
-            />
-            <Select
-              label="Education level"
-              value={identity.educationLevel}
-              onChange={(e) => set('educationLevel', e.currentTarget.value as EducationLevel)}
-            >
-              <option value="">Select…</option>
-              {Object.values(EducationLevel).map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </Select>
-            <Input
-              label="Institution"
-              value={identity.institution}
-              onChange={(e) => set('institution', e.currentTarget.value)}
-            />
-          </div>
+        {step === 0 && (
+          <div>
+            <section className="vet-section">
+              <h2>About you</h2>
+              <div className="grid2">
+                <Input
+                  label="First name"
+                  value={identity.firstName}
+                  onChange={(e) => set('firstName', e.currentTarget.value)}
+                />
+                <Input
+                  label="Last name"
+                  value={identity.lastName}
+                  onChange={(e) => set('lastName', e.currentTarget.value)}
+                />
+                <Input
+                  label="Date of birth"
+                  type="date"
+                  value={identity.dateOfBirth}
+                  onChange={(e) => set('dateOfBirth', e.currentTarget.value)}
+                />
+                <Select
+                  label="Gender"
+                  value={identity.gender}
+                  onChange={(e) => set('gender', e.currentTarget.value as Gender)}
+                >
+                  <option value="">Select…</option>
+                  {Object.values(Gender).map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  label="Nationality"
+                  value={identity.nationality}
+                  onChange={(e) => set('nationality', e.currentTarget.value)}
+                >
+                  <option value="">Select…</option>
+                  {NATIONALITIES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  label="City"
+                  value={identity.city}
+                  onChange={(e) => set('city', e.currentTarget.value as City)}
+                >
+                  <option value="">Select…</option>
+                  {Object.values(City).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </section>
 
-          {/* Industry — multi-select tickboxes */}
-          <div className="field" style={{ marginTop: 4 }}>
-            <span>
-              Industry{' '}
-              {identity.industries.length > 0 && `(${identity.industries.length} selected)`}
-            </span>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: 8,
-                marginTop: 8,
-              }}
-            >
-              {INDUSTRIES.map((industry) => {
-                const checked = identity.industries.includes(industry);
-                return (
-                  <label
-                    key={industry}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 10px',
-                      border: `1px solid ${checked ? 'var(--accent)' : 'var(--line)'}`,
-                      borderRadius: 10,
-                      background: checked ? 'var(--accent-soft)' : 'var(--surface)',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleIndustry(industry)}
-                    />
-                    {industry}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+            <section className="vet-section">
+              <h2>Work &amp; education</h2>
+              <div className="grid2">
+                <Input
+                  label="Profession"
+                  value={identity.profession}
+                  onChange={(e) => set('profession', e.currentTarget.value)}
+                />
+                <Input
+                  label="Employer"
+                  value={identity.employer}
+                  onChange={(e) => set('employer', e.currentTarget.value)}
+                />
+                <Select
+                  label="Education level"
+                  value={identity.educationLevel}
+                  onChange={(e) => set('educationLevel', e.currentTarget.value as EducationLevel)}
+                >
+                  <option value="">Select…</option>
+                  {Object.values(EducationLevel).map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  label="Institution"
+                  value={identity.institution}
+                  onChange={(e) => set('institution', e.currentTarget.value)}
+                />
+              </div>
 
-          <Textarea
-            label="Short bio"
-            value={identity.bio}
-            onChange={(e) => set('bio', e.currentTarget.value)}
-            placeholder="What you do, what you care about, what you are looking for."
-          />
+              <div className="field">
+                <span>
+                  Industries{identity.industries.length > 0 && ` (${identity.industries.length})`}
+                </span>
+                <div className="vet-chip-grid">
+                  {INDUSTRIES.map((industry) => {
+                    const checked = identity.industries.includes(industry);
+                    return (
+                      <button
+                        key={industry}
+                        type="button"
+                        className={`vet-chip ${checked ? 'is-on' : ''}`}
+                        aria-pressed={checked}
+                        onClick={() => toggleIndustry(industry)}
+                      >
+                        {industry}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-          {/* Proof of work — pick a method, then supply the matching artifact */}
-          <div className="field" style={{ marginTop: 4 }}>
-            <span>Proof of work</span>
-            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginTop: 4 }}>
-              Choose how you&apos;ll prove your professional identity. One method is required.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {PROOF_OF_WORK_TYPES.map((type) => {
-                const active = proofOfWorkType === type;
-                return (
+              <Textarea
+                label="Short bio"
+                value={identity.bio}
+                onChange={(e) => set('bio', e.currentTarget.value)}
+                placeholder="What you do, what you care about, what you are looking for."
+              />
+            </section>
+
+            <section className="vet-section">
+              <h2>Proof of work</h2>
+              <p className="vet-hint">
+                Choose how you’ll prove your professional identity. One method is required.
+              </p>
+              <div className="vet-chip-grid" style={{ marginTop: 12 }}>
+                {PROOF_OF_WORK_TYPES.map((type) => (
                   <button
                     key={type}
                     type="button"
-                    className={active ? 'btn btn-primary' : 'btn btn-ghost'}
+                    className={`vet-chip ${proofOfWorkType === type ? 'is-on' : ''}`}
+                    aria-pressed={proofOfWorkType === type}
                     onClick={() => {
                       setProofOfWorkType(type);
                       // Switching method clears the previously supplied artifact.
@@ -429,82 +452,87 @@ export function OnboardingForm() {
                   >
                     {PROOF_LABELS[type]}
                   </button>
-                );
-              })}
-            </div>
-            {proofOfWorkType && (
-              <div style={{ marginTop: 12 }}>
-                <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
-                  {PROOF_OF_WORK_HINTS[proofOfWorkType]}
-                </p>
-                {proofOfWorkType === 'linkedin' ? (
-                  <Input
-                    label="LinkedIn URL"
-                    value={identity.linkedInUrl}
-                    onChange={(e) => set('linkedInUrl', e.currentTarget.value)}
-                    placeholder="https://linkedin.com/in/…"
-                  />
-                ) : (
-                  <FileUpload
-                    label="Upload proof"
-                    accept="image/*,application/pdf"
-                    folder="proof"
-                    value={proofOfWorkUrl}
-                    onChange={setProofOfWorkUrl}
-                  />
-                )}
+                ))}
               </div>
-            )}
-          </div>
+              {proofOfWorkType && (
+                <div style={{ marginTop: 14 }}>
+                  <p className="vet-hint">{PROOF_OF_WORK_HINTS[proofOfWorkType]}</p>
+                  {proofOfWorkType === 'linkedin' ? (
+                    <Input
+                      label="LinkedIn URL"
+                      value={identity.linkedInUrl}
+                      onChange={(e) => set('linkedInUrl', e.currentTarget.value)}
+                      placeholder="https://linkedin.com/in/…"
+                    />
+                  ) : (
+                    <FileUpload
+                      label="Upload proof"
+                      accept="image/*,application/pdf"
+                      folder="proof"
+                      value={proofOfWorkUrl}
+                      onChange={setProofOfWorkUrl}
+                    />
+                  )}
+                </div>
+              )}
+            </section>
 
-          <div className="row-actions" style={{ marginTop: '1rem' }}>
-            <Button
-              onClick={() => {
-                const e = validateStep1();
-                if (e) {
-                  setError(e);
-                } else {
-                  setError(null);
-                  setStep(1);
-                }
-              }}
-              disabled={saving}
-            >
-              Continue
-            </Button>
+            <div className="vet-actions">
+              <Button
+                onClick={() => {
+                  const e = validateStep1();
+                  if (e) {
+                    setError(e);
+                  } else {
+                    setError(null);
+                    setStep(1);
+                  }
+                }}
+                disabled={saving}
+              >
+                Continue
+              </Button>
+              <Link className="btn btn-ghost" href="/portal">
+                Do this later
+              </Link>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {step === 1 && (
-        <div>
-          <FileUpload
-            label="ID document"
-            accept="image/*,application/pdf"
-            folder="vetting"
-            value={idDocumentUrl}
-            onChange={setIdDocumentUrl}
-          />
-          <FileUpload
-            label="Selfie (hold your ID)"
-            accept="image/*"
-            folder="vetting"
-            value={selfieUrl}
-            onChange={setSelfieUrl}
-          />
-          <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
-            Images are encrypted at rest and visible only to our vetting team.
-          </p>
-          <div className="row-actions" style={{ marginTop: '1rem' }}>
-            <Button variant="ghost" onClick={() => setStep(0)} disabled={saving}>
-              Back
-            </Button>
-            <Button onClick={submit} disabled={saving}>
-              {saving ? 'Submitting…' : 'Submit application'}
-            </Button>
+        {step === 1 && (
+          <div>
+            <section className="vet-section">
+              <h2>Identity check</h2>
+              <FileUpload
+                label="ID document"
+                accept="image/*,application/pdf"
+                folder="vetting"
+                value={idDocumentUrl}
+                onChange={setIdDocumentUrl}
+              />
+              <FileUpload
+                label="Selfie (hold your ID)"
+                accept="image/*"
+                folder="vetting"
+                value={selfieUrl}
+                onChange={setSelfieUrl}
+              />
+              <p className="vet-hint">
+                Images are encrypted at rest and visible only to our vetting team.
+              </p>
+            </section>
+
+            <div className="vet-actions">
+              <Button variant="ghost" onClick={() => setStep(0)} disabled={saving}>
+                Back
+              </Button>
+              <Button onClick={submit} disabled={saving}>
+                {saving ? 'Submitting…' : 'Submit application'}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

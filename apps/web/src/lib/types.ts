@@ -108,6 +108,8 @@ export interface NotificationView {
   channel: string;
   isRead: boolean;
   createdAt: string;
+  /** In-app destination; renders as a CTA button in the notification bell. */
+  link?: string;
 }
 
 export interface SearchApplicationHit {

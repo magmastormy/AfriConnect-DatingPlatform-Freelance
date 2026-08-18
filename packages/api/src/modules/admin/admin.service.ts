@@ -58,6 +58,8 @@ export interface BroadcastInput {
   body: string;
   channel: unknown;
   role?: UserRole;
+  /** Optional in-app destination rendered as a CTA button in the bell. */
+  link?: string;
   data?: Record<string, unknown>;
 }
 
@@ -324,6 +326,7 @@ export class AdminService implements IAdminService {
       body: input.body,
       channel: asEnum(input.channel),
       role: input.role,
+      link: input.link,
       data: input.data,
     });
     await this.audit(admin, 'notification.broadcast', 'notification', null, AdminScope.Content, {

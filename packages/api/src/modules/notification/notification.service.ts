@@ -61,6 +61,7 @@ export class NotificationService implements INotificationService {
       type: input.type,
       title: input.title,
       body: input.body,
+      link: input.link ?? null,
       channel: input.channel,
       data: input.data ?? null,
       isRead: false,
@@ -84,6 +85,7 @@ export class NotificationService implements INotificationService {
       type: input.type,
       title: input.title,
       body: input.body,
+      link: input.link ?? null,
       channel: input.channel,
       data: input.data ?? null,
       isRead: false,
@@ -102,6 +104,7 @@ export class NotificationService implements INotificationService {
     channel: unknown;
     isRead: boolean;
     createdAt: Date;
+    link?: string | null;
   }): NotificationView {
     return {
       id: n.id,
@@ -111,6 +114,7 @@ export class NotificationService implements INotificationService {
       channel: asEnum<NotificationView['channel']>(n.channel),
       isRead: n.isRead,
       createdAt: n.createdAt,
+      link: n.link ?? undefined,
     };
   }
 }

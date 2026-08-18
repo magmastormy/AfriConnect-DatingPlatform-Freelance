@@ -85,7 +85,34 @@ export class ApplicationService implements IApplicationService {
     // (AGENTS.md: events needing admin intervention must notify).
     await this.notifyVetting(created.id, input, user);
 
+    // Let the member know the application is with us, with a destination.
+    await this.notifyMember(user.userId, {
+      type: 'vetting.submitted',
+      title: 'Application received',
+      body: 'Thanks — our team is reviewing your verification. We’ll notify you here as soon as there’s a decision.',
+      link: '/portal',
+    });
+
     return { id: created.id, status: asEnum<ApplicationStatus>(created.status) };
+  }
+
+  /** Best-effort in-app message to a member; never fails the caller. */
+  private async notifyMember(
+    userId: string,
+    n: { type: string; title: string; body: string; link?: string },
+  ): Promise<void> {
+    try {
+      await this.notifications.create({
+        userId,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        channel: NotificationChannel.InApp,
+        link: n.link,
+      });
+    } catch (err) {
+      logger.warn({ err, userId, type: n.type }, 'Failed to dispatch member notification');
+    }
   }
 
   /** Dispatches a vetting alert without failing the submission if it errors. */
@@ -136,6 +163,30 @@ export class ApplicationService implements IApplicationService {
     admin: AuthedUser,
   ): Promise<ApplicationView> {
     const updated = await this.repo.updateStatus(id, input.status, input.adminNotes, admin.userId);
+    const status = asEnum<ApplicationStatus>(updated.status);
+
+    // Keep the member in the loop with a destination that matches their state.
+    if (updated.userId) {
+      if (status === ApplicationStatus.Approved) {
+        await this.notifyMember(updated.userId, {
+          type: 'vetting.approved',
+          title: 'You’re verified',
+          body: 'Your application was approved — welcome to AfriConnect. You can now connect with members and join events.',
+          link: '/portal',
+        });
+      } else if (
+        status === ApplicationStatus.Rejected ||
+        status === ApplicationStatus.OnHold
+      ) {
+        await this.notifyMember(updated.userId, {
+          type: 'vetting.declined',
+          title: 'Update on your application',
+          body: 'Your application wasn’t approved this time. You can update your details and resubmit.',
+          link: '/get-vetted',
+        });
+      }
+    }
+
     return this.toView(updated);
   }
 

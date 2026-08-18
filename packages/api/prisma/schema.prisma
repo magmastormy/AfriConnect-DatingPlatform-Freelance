@@ -357,6 +357,7 @@ model Notification {
   type      String
   title     String
   body      String               @db.Text
+  link      String?              @db.Text
   data      Json?
   channel   NotificationChannel
   isRead    Boolean              @default(false)

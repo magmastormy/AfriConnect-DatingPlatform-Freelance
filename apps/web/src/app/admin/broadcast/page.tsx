@@ -12,6 +12,7 @@ export default function BroadcastPage() {
   const [type, setType] = useState('announcement');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [link, setLink] = useState('');
   const [channel, setChannel] = useState<NotificationChannel>(NotificationChannel.InApp);
   const [role, setRole] = useState<UserRole | ''>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -23,6 +24,10 @@ export default function BroadcastPage() {
     if (t) e.title = t;
     const b = validateRequired(body, 'Message');
     if (b) e.body = b;
+    const linkTrimmed = link.trim();
+    if (linkTrimmed && !/^(\/|https?:\/\/)/.test(linkTrimmed)) {
+      e.link = 'Link must start with "/" or "https://"';
+    }
     setErrors(e);
     if (Object.keys(e).length) return;
 
@@ -32,12 +37,14 @@ export default function BroadcastPage() {
         type: sanitizeText(type),
         title: sanitizeText(title),
         body: sanitizeText(body),
+        link: linkTrimmed || undefined,
         channel,
         role: role || undefined,
       });
       toast(`Broadcast queued${res.queued ? ` to ${res.queued} members` : ''}`, 'success');
       setTitle('');
       setBody('');
+      setLink('');
     } catch (err) {
       toast(err instanceof ApiError ? err.message : 'Broadcast failed', 'error');
     } finally {
@@ -75,6 +82,18 @@ export default function BroadcastPage() {
           className={errors.body ? 'input-error' : ''}
         />
         {errors.body && <div className="field-error">{errors.body}</div>}
+        <Input
+          label="Link (optional)"
+          value={link}
+          onChange={(e) => setLink(e.currentTarget.value)}
+          placeholder="/get-vetted or https://…"
+          className={errors.link ? 'input-error' : ''}
+        />
+        {errors.link && <div className="field-error">{errors.link}</div>}
+        <p className="vet-hint" style={{ marginTop: '-0.4rem', marginBottom: '1rem' }}>
+          The bell shows an &ldquo;Open&nbsp;&rarr;&rdquo; button on this notification that routes
+          members here.
+        </p>
         <div className="grid2">
           <Select
             label="Channel"
