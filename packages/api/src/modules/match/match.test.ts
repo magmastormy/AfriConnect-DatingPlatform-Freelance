@@ -181,3 +181,23 @@ describe('MatchService.generateDailyMatches', () => {
     await expect(service.generateDailyMatches('viewer')).rejects.toThrow(/Complete your profile/);
   });
 });
+
+// ── discover strict vetting gate (engine) ──────────────────────────────────
+describe('MatchService.discover strict vetting gate', () => {
+  it('rejects a viewer with an incomplete profile', async () => {
+    const service = new MatchService(fakeMatchRepo([]), fakeProfileRepo({ isComplete: false }));
+    await expect(service.discover('viewer', 20)).rejects.toThrow(/Complete your profile/);
+  });
+
+  it('rejects an un-vetted viewer (service-level defense-in-depth)', async () => {
+    const repo = {
+      getExcludedIds: async () => [],
+      loadUserTier: async () => ({ isPremium: false, isVetted: false }),
+      loadAccountCreatedAt: async () => new Date(),
+      getViewerLikes: async () => [],
+      getInteractionSample: async () => [],
+    } as unknown as MatchRepository;
+    const service = new MatchService(repo, fakeProfileRepo());
+    await expect(service.discover('viewer', 20)).rejects.toThrow(/vetting/i);
+  });
+});

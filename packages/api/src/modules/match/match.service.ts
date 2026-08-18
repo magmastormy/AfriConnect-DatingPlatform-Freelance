@@ -15,6 +15,7 @@ import { buildInteractionMatrix } from './collaborative';
 import { EngineViewer, EngineCandidate } from './algorithms.types';
 import {
   ValidationError,
+  AuthorizationError,
   ConflictError,
   NotFoundError,
 } from '@africonnect/shared';
@@ -232,11 +233,14 @@ export class MatchService implements IMatchService {
   /**
    * Default discovery surface (GET /matches/discover).
    *
-   * Migrated onto the hybrid MatchingEngine (breakdown §9 pipeline) — content
-   * + collaborative filtering, cold-start fallback, popularity damping, business
-   * rules, MMR diversity, fairness re-rank. Returns `RecommendCard` (a superset
-   * of `DiscoverCard`) so existing web clients keep working while gaining the
-   * richer explainability fields. No ML/AI involved.
+   * Strictly gated: the viewer must be vetted AND have a complete profile
+   * (enforced in `runEngine`, defense-in-depth on top of the route's
+   * requireVetted() middleware). Migrated onto the hybrid MatchingEngine
+   * (breakdown §9 pipeline) — content + collaborative filtering, cold-start
+   * fallback, popularity damping, business rules, MMR diversity, fairness
+   * re-rank. Returns `RecommendCard` (a superset of `DiscoverCard`) so existing
+   * web clients keep working while gaining the richer explainability fields.
+   * No ML/AI involved.
    */
   async discover(userId: string, limit = 20): Promise<RecommendCard[]> {
     return this.runEngine(userId, { limit });
@@ -268,6 +272,12 @@ export class MatchService implements IMatchService {
     const viewer = await this.profileRepo.findByUserId(userId);
     if (!viewer) throw new NotFoundError('Complete your profile before discovering');
     if (viewer.isPaused) throw new ValidationError('Your profile is currently paused');
+    // Strict gate: discovery is a vetted-member surface. The viewer must have a
+    // complete profile (the pre-condition for vetting) — we refuse early so an
+    // incomplete applicant cannot browse the pool while still drafting.
+    if (!viewer.isComplete) {
+      throw new ValidationError('Complete your profile before discovering');
+    }
 
     const prefs = (viewer.preferences as MatchPreferences) ?? {};
     const viewerDeal = (viewer as { dealbreakers?: string[] }).dealbreakers ?? [];
@@ -283,6 +293,15 @@ export class MatchService implements IMatchService {
       this.repo.getViewerLikes(userId),
       this.repo.getInteractionSample(CF_SAMPLE_SIZE),
     ]);
+    // Defense-in-depth vetting gate. The route mounts requireVetted(), but we
+    // also enforce it here so the restriction holds even if a future caller
+    // forgets the middleware. Mirrors config/middleware/vetting.ts semantics.
+    if (!tier.isVetted) {
+      throw new AuthorizationError(
+        'Your membership is not yet verified. Complete vetting to unlock discovery.',
+        { stage: 'unvetted' },
+      );
+    }
     const accountAgeDays = accountCreatedAt
       ? Math.max(0, Math.floor((Date.now() - accountCreatedAt.getTime()) / 86_400_000))
       : 0;
