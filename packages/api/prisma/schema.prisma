@@ -47,6 +47,8 @@ model User {
   profileViewsReceived ProfileView[] @relation("ProfileViewed")
   vettingSessions    VettingSession[] @relation("UserVettingSessions")
 
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("auth_users")
 }
 
@@ -63,6 +65,8 @@ model Session {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("auth_sessions")
 }
 
@@ -80,6 +84,8 @@ model VerificationToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("auth_verification_tokens")
 }
 
@@ -117,6 +123,8 @@ model Application {
   user                 User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("vetting_applications")
 }
 
@@ -170,6 +178,8 @@ model Profile {
   @@index([isPaused, isComplete])
   @@index([city, district, nearbyEnabled])
   @@index([nearbyEnabled, latitude, longitude])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("profile_profiles")
 }
 
@@ -191,6 +201,8 @@ model Match {
 
   @@index([userId, status])
   @@index([userId, matchedUserId, status])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("match_matches")
 }
 
@@ -203,6 +215,8 @@ model DailyMatchQueue {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("match_daily_queues")
 }
 
@@ -225,6 +239,8 @@ model Conversation {
 
   @@index([participant1Id])
   @@index([participant2Id])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("chat_conversations")
 }
 
@@ -245,6 +261,8 @@ model Message {
   sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("chat_messages")
 }
 
@@ -290,6 +308,8 @@ model RSVP {
   @@unique([eventId, userId])
   @@index([eventId, status])
   @@index([userId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("event_rsvps")
 }
 
@@ -307,6 +327,8 @@ model EventStar {
 
   @@unique([eventId, starerId, starreeId])
   @@index([eventId, starerId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("event_stars")
 }
 
@@ -328,6 +350,8 @@ model Subscription {
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   payments             Payment[]
 
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("billing_subscriptions")
 }
 
@@ -346,6 +370,8 @@ model Payment {
   subscription          Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("billing_payments")
 }
 
@@ -368,6 +394,8 @@ model Notification {
   user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("notify_notifications")
 }
 
@@ -380,6 +408,8 @@ model NotificationPreference {
   inApp  Json?
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("notify_preferences")
 }
 
@@ -403,6 +433,8 @@ model VettingSession {
 
   @@index([userId])
   @@index([externalRef])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("vetting_sessions")
 }
 
@@ -566,6 +598,8 @@ model AdminAudit {
 
   @@index([adminId])
   @@index([entity, entityId])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("admin_audit_logs")
 }
 
@@ -583,6 +617,8 @@ model ProfileView {
 
   @@index([viewerId, createdAt])
   @@index([viewedUserId, createdAt])
+  tenantId     String   @default("tnt_bootstrap")
+  @@index([tenantId])
   @@map("analytics_profile_views")
 }
 
@@ -624,4 +660,22 @@ model WebhookEvent {
   @@unique([provider, eventId])
   @@index([createdAt])
   @@map("webhook_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module: TENANT  (prefix: tenants_)  — multi-tenant partition root
+// ─────────────────────────────────────────────────────────────────────────────
+// A single bootstrap tenant exists today (id 'tnt_bootstrap'); every user-owned
+// row is tagged with tenantId so the platform can later be partitioned into
+// regions / white-labels without a schema rewrite. RLS keys on tenant_id AND
+// user_id, so cross-tenant AND cross-user leakage are both prevented. tenantId
+// is a plain tag (no FK) to keep the migration low-risk; promote to a FK when
+// real tenants are introduced.
+model Tenant {
+  id        String   @id @default("tnt_bootstrap")
+  name      String   @default("Default tenant")
+  createdAt DateTime @default(now())
+
+  @@map("tenants")
+}
 }

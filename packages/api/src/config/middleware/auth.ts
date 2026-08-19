@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../jwt';
 import { AuthedUser, UserRole, AuthenticationError, AuthorizationError } from '@africonnect/shared';
+import { runRequestContext, BOOTSTRAP_TENANT_ID } from '../requestContext';
 
 declare global {
   namespace Express {
@@ -33,7 +34,16 @@ export function authorize(...roles: UserRole[]) {
         return next(new AuthorizationError('Insufficient role'));
       }
       req.user = user;
-      next();
+      // Admin / back-office roles legitimately operate across users, so they
+      // bypass RLS; every other authenticated request is scoped to its own id
+      // by the Prisma RLS extension (defense-in-depth on the service-layer
+      // userId scoping). Unauthenticated fall-through (no context) is treated
+      // as trusted/system by the extension.
+      const isAdmin = user.role === 'superadmin' || user.role.startsWith('admin');
+      runRequestContext(
+        { userId: user.userId, tenantId: BOOTSTRAP_TENANT_ID, bypassRls: isAdmin },
+        () => next(),
+      );
     } catch {
       next(new AuthenticationError('Invalid or expired token'));
     }

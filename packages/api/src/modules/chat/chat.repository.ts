@@ -1,6 +1,7 @@
 import { PrismaClient, Conversation, Message } from '@prisma/client';
 import { NotFoundError, ConflictError, InternalError } from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
+import { rawPrisma } from '@config/prisma';
 
 export interface IChatRepository {
   findOrCreateConversation(a: string, b: string): Promise<Conversation>;
@@ -87,7 +88,9 @@ export class ChatRepository implements IChatRepository {
       throw new ConflictError('You are not a participant in this conversation');
     }
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      // Use the raw (un-extended) client so this internal transaction does not
+      // nest inside the RLS extension's per-operation transaction wrapper.
+      return await rawPrisma.$transaction(async (tx) => {
         const message = await tx.message.create({
           data: { conversationId, senderId, content, imageUrl: imageUrl ?? null, status: 'sent' },
         });
