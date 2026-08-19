@@ -98,9 +98,9 @@ export class VerificationService {
 
   /** SECONDARY FALLBACK: verify the SMS OTP. */
   async confirmSmsFallback(phone: string, code: string): Promise<void> {
-    const entry = this.otpStore.get(phone);
+    const entry = await this.otpStore.get(phone);
     if (!entry || entry.expiresAt < Date.now()) {
-      this.otpStore.delete(phone);
+      await this.otpStore.delete(phone);
       throw new AuthenticationError('SMS code expired or not requested');
     }
     if (entry.attempts >= 5) {
@@ -108,7 +108,7 @@ export class VerificationService {
     }
     entry.attempts += 1;
     if (entry.code !== code) throw new AuthenticationError('Invalid SMS code');
-    this.otpStore.delete(phone);
+    await this.otpStore.delete(phone);
 
     const user = await this.repo.findUserByPhone(phone);
     if (!user) throw new NotFoundError('No account found for this phone');

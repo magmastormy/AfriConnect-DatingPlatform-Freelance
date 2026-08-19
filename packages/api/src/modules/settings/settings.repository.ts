@@ -1,4 +1,5 @@
 import { prisma } from '@config/prisma';
+import { redisGetJson, redisSetJson } from '@config/redis';
 import { PlatformSettingsView } from './settings.types';
 
 const DEFAULT_VIEW: PlatformSettingsView = {
@@ -7,8 +8,8 @@ const DEFAULT_VIEW: PlatformSettingsView = {
   restrictedHiddenFields: ['nationality', 'profession', 'educationLevel', 'dateOfBirth'],
 };
 
-let cache: { value: PlatformSettingsView; at: number } | null = null;
-const TTL_MS = 30_000;
+const CACHE_KEY = 'settings:platform';
+const CACHE_TTL_SECONDS = 30;
 
 export interface ISettingsRepository {
   getRow(): Promise<PlatformSettingsView>;
@@ -33,13 +34,17 @@ export class SettingsRepository implements ISettingsRepository {
   constructor(private readonly db = prisma) {}
 
   async getRow(): Promise<PlatformSettingsView> {
-    if (cache && Date.now() - cache.at < TTL_MS) return cache.value;
+    // Shared (Redis) cache so an admin settings change propagates to every
+    // instance within the TTL instead of being stale on instances that never
+    // re-read the row. Falls back to the in-memory backbone when Redis is unset.
+    const cached = await redisGetJson<PlatformSettingsView>(CACHE_KEY);
+    if (cached) return cached;
     try {
       const row = (await this.db.platformSettings.findUnique({
         where: { id: 1 },
       })) as SettingsRow | null;
       const value = row ? mapRow(row) : DEFAULT_VIEW;
-      cache = { value, at: Date.now() };
+      await redisSetJson(CACHE_KEY, value, CACHE_TTL_SECONDS);
       return value;
     } catch {
       // Table not migrated yet or DB unreachable — fall back to sane defaults so
@@ -57,7 +62,7 @@ export class SettingsRepository implements ISettingsRepository {
       data: { ...input, updatedBy },
     })) as SettingsRow;
     const value = mapRow(row);
-    cache = { value, at: Date.now() };
+    await redisSetJson(CACHE_KEY, value, CACHE_TTL_SECONDS);
     return value;
   }
 }

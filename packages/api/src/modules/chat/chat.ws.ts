@@ -4,17 +4,68 @@ import type { Duplex } from 'stream';
 import { verifyAccessToken } from '@config/jwt';
 import { prisma } from '@config/prisma';
 import { logger } from '@africonnect/shared';
+import { redisEnabled, redisPublish, redisSubscribe } from '@config/redis';
 
-// In-memory presence map: userId -> set of live sockets. Reset on restart is
-// acceptable for a v1 realtime layer; a scaled deployment would use Redis pub/sub.
-const presence = new Map<string, Set<WebSocket>>();
+const CHANNEL = 'chat';
 const HEARTBEAT_MS = 30_000;
+
+// Local sockets connected to THIS instance — used to target deliveries.
+const localPresence = new Map<string, Set<WebSocket>>();
+// Best-effort global "who is online" view, maintained from presence events.
+const onlineUsers = new Set<string>();
 
 export type ChatEvent =
   | { type: 'message'; conversationId: string; message: unknown }
   | { type: 'read'; conversationId: string; by: string }
   | { type: 'presence'; userId: string; online: boolean }
   | { type: 'pong' };
+
+function send(ws: WebSocket, event: ChatEvent): void {
+  if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(event));
+}
+
+/** Deliver an event to the locally-connected sockets of a conversation's participants. */
+async function deliverLocal(conversationId: string, message: unknown): Promise<void> {
+  try {
+    const conv = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { participant1Id: true, participant2Id: true },
+    });
+    if (!conv) return;
+    const event: ChatEvent = { type: 'message', conversationId, message };
+    for (const uid of [conv.participant1Id, conv.participant2Id]) {
+      const set = localPresence.get(uid);
+      if (!set) continue;
+      for (const ws of set) send(ws, event);
+    }
+  } catch (err) {
+    logger.error({ err, conversationId }, 'RealtimeHub: deliver failed');
+  }
+}
+
+function markOnline(userId: string, online: boolean): void {
+  if (online) onlineUsers.add(userId);
+  else onlineUsers.delete(userId);
+}
+
+// Single cross-instance subscription. Every instance publishes to CHANNEL and
+// receives every message; it then delivers only to sockets connected locally.
+// Without Redis (redisEnabled=false) this degrades to an in-process EventEmitter,
+// which is correct for a single instance.
+let subscribed = false;
+function ensureSubscribed(): void {
+  if (subscribed) return;
+  subscribed = true;
+  redisSubscribe(CHANNEL, (raw: string) => {
+    try {
+      const msg = JSON.parse(raw) as ChatEvent;
+      if (msg.type === 'message') void deliverLocal(msg.conversationId, msg.message);
+      else if (msg.type === 'presence') markOnline(msg.userId, msg.online);
+    } catch {
+      /* ignore malformed frames */
+    }
+  });
+}
 
 export class RealtimeHub {
   private wss: WebSocketServer;
@@ -25,6 +76,7 @@ export class RealtimeHub {
     server.on('upgrade', (req, socket, head) => this.handleUpgrade(req, socket, head));
     this.timer = setInterval(() => this.heartbeat(), HEARTBEAT_MS);
     this.timer.unref();
+    if (redisEnabled) ensureSubscribed();
   }
 
   private handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
@@ -48,32 +100,38 @@ export class RealtimeHub {
       ws.on('message', (raw) => this.onMessage(userId, ws, raw.toString()));
       ws.on('close', () => this.unregister(userId, ws));
       ws.on('error', () => this.unregister(userId, ws));
-      this.send(ws, { type: 'presence', userId, online: true });
-      this.broadcastPresence(userId, true);
+      send(ws, { type: 'presence', userId, online: true });
+      this.publishPresence(userId, true);
     });
   }
 
   private register(userId: string, ws: WebSocket) {
-    const set = presence.get(userId) ?? new Set<WebSocket>();
+    const set = localPresence.get(userId) ?? new Set<WebSocket>();
     set.add(ws);
-    presence.set(userId, set);
+    localPresence.set(userId, set);
+    markOnline(userId, true);
   }
 
   private unregister(userId: string, ws: WebSocket) {
-    const set = presence.get(userId);
+    const set = localPresence.get(userId);
     if (!set) return;
     set.delete(ws);
     if (set.size === 0) {
-      presence.delete(userId);
-      this.broadcastPresence(userId, false);
+      localPresence.delete(userId);
+      this.publishPresence(userId, false);
     }
   }
 
+  private publishPresence(userId: string, online: boolean): void {
+    redisPublish(CHANNEL, JSON.stringify({ type: 'presence', userId, online } as ChatEvent));
+    // Also reflect locally immediately so isOnline() is consistent on this instance.
+    markOnline(userId, online && (localPresence.get(userId)?.size ?? 0) > 0);
+  }
+
   private onMessage(userId: string, ws: WebSocket, raw: string) {
-    // Client may send a ping frame; echo pong to keep the connection alive.
     try {
       const msg = JSON.parse(raw);
-      if (msg?.type === 'ping') this.send(ws, { type: 'pong' });
+      if (msg?.type === 'ping') send(ws, { type: 'pong' });
     } catch {
       /* ignore malformed frames */
     }
@@ -81,7 +139,7 @@ export class RealtimeHub {
   }
 
   private heartbeat() {
-    for (const set of presence.values()) {
+    for (const set of localPresence.values()) {
       for (const ws of set) {
         if (ws.readyState === ws.OPEN) {
           try {
@@ -94,38 +152,15 @@ export class RealtimeHub {
     }
   }
 
-  private send(ws: WebSocket, event: ChatEvent) {
-    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(event));
-  }
-
-  private broadcastPresence(userId: string, online: boolean) {
-    const event: ChatEvent = { type: 'presence', userId, online };
-    for (const [uid, set] of presence) {
-      if (uid === userId) continue;
-      for (const ws of set) this.send(ws, event);
-    }
-  }
-
-  /** Notify both participants of a conversation about a new message. */
+  /** Notify both participants of a conversation about a new message (cross-instance). */
   async broadcastMessage(conversationId: string, message: unknown): Promise<void> {
-    try {
-      const conv = await prisma.conversation.findUnique({
-        where: { id: conversationId },
-        select: { participant1Id: true, participant2Id: true },
-      });
-      if (!conv) return;
-      const event: ChatEvent = { type: 'message', conversationId, message };
-      for (const uid of [conv.participant1Id, conv.participant2Id]) {
-        const set = presence.get(uid);
-        if (!set) continue;
-        for (const ws of set) this.send(ws, event);
-      }
-    } catch (err) {
-      logger.error({ err, conversationId }, 'RealtimeHub: broadcast failed');
-    }
+    // Publish to the shared channel; every instance (including this one) receives
+    // it and delivers to its locally-connected sockets via deliverLocal. This is
+    // what makes chat work when the two participants are on different instances.
+    redisPublish(CHANNEL, JSON.stringify({ type: 'message', conversationId, message } as ChatEvent));
   }
 
   isOnline(userId: string): boolean {
-    return (presence.get(userId)?.size ?? 0) > 0;
+    return onlineUsers.has(userId);
   }
 }

@@ -49,7 +49,7 @@ export class AuthService implements IAuthService {
   constructor(private readonly repo: IAuthRepository) {}
 
   async requestOtp(input: RequestOtpInput): Promise<{ delivered: boolean }> {
-    assertWithinLimit(
+    await assertWithinLimit(
       `otp:${input.phone}`,
       OTP_MAX_REQUESTS_PER_WINDOW,
       OTP_REQUEST_WINDOW_MINUTES * 60 * 1000,
@@ -59,7 +59,7 @@ export class AuthService implements IAuthService {
 
     const code = generateOtpCode(OTP_LENGTH);
     const expiresAt = Date.now() + OTP_TTL_MINUTES * 60 * 1000;
-    otpStore.set(input.phone, { code, expiresAt, attempts: 0 });
+    await otpStore.set(input.phone, { code, expiresAt, attempts: 0 });
 
     // Sending via Twilio/SNS is wired in production; locally we log the code so
     // the OTP flow is exercisable without an SMS provider.
@@ -68,11 +68,11 @@ export class AuthService implements IAuthService {
   }
 
   async verifyOtp(input: VerifyOtpInput, ctx: SessionContext): Promise<AuthResult> {
-    assertWithinLimit(`login:${input.phone}`, RATE_LIMIT_AUTH_MAX, RATE_LIMIT_AUTH_WINDOW_MS);
+    await assertWithinLimit(`login:${input.phone}`, RATE_LIMIT_AUTH_MAX, RATE_LIMIT_AUTH_WINDOW_MS);
 
-    const entry = otpStore.get(input.phone);
+    const entry = await otpStore.get(input.phone);
     if (!entry || entry.expiresAt < Date.now()) {
-      otpStore.delete(input.phone);
+      await otpStore.delete(input.phone);
       throw new AuthenticationError('OTP expired or not requested');
     }
     if (entry.attempts >= 5) {
@@ -82,7 +82,7 @@ export class AuthService implements IAuthService {
     if (entry.code !== input.code) {
       throw new AuthenticationError('Invalid OTP');
     }
-    otpStore.delete(input.phone);
+    await otpStore.delete(input.phone);
 
     const user = await this.repo.findUserByEmail(input.email);
     if (!user) throw new AuthenticationError('No account found for this email');

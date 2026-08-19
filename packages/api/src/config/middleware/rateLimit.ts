@@ -11,10 +11,10 @@ export function rateLimitMiddleware(
   max: number = RATE_LIMIT_GENERAL_MAX,
   windowMs: number = RATE_LIMIT_GENERAL_WINDOW_MS,
 ) {
-  return (req: Request, _res: Response, next: NextFunction): void => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     const key = req.user ? `u:${req.user.userId}` : `ip:${req.ip}`;
     try {
-      assertWithinLimit(key, max, windowMs);
+      await assertWithinLimit(key, max, windowMs);
       next();
     } catch (err) {
       if (err instanceof RateLimitError) return next(err);

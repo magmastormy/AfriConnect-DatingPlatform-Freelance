@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { redisGetJson, redisSetJson, redisDel } from '@config/redis';
 
 /** One OTP challenge bound to a phone number. */
 export interface OtpEntry {
@@ -8,31 +9,32 @@ export interface OtpEntry {
 }
 
 /**
- * Pluggable OTP store. The default in-memory implementation is correct for a
- * single-instance dev/preview deployment. In production, supply a Redis-backed
- * implementation with the same interface (set/get/delete) and inject it via the
- * composition root — no call-site changes required.
+ * Pluggable OTP store. The default implementation is backed by the shared-state
+ * backbone (Redis when REDIS_URL is set, otherwise in-memory), so an OTP code
+ * generated on one API instance can be verified on another — required for
+ * correct horizontal scaling behind a load balancer. Swap the implementation at
+ * the composition root if you need a different backend; the interface is async.
  */
 export interface OtpStore {
-  set(key: string, entry: OtpEntry): void;
-  get(key: string): OtpEntry | undefined;
-  delete(key: string): void;
+  set(key: string, entry: OtpEntry): Promise<void>;
+  get(key: string): Promise<OtpEntry | null>;
+  delete(key: string): Promise<void>;
 }
 
-/** Process-local OTP store. Suitable for a single API instance without Redis. */
+const OTP_TTL_SECONDS = (Number(process.env.OTP_TTL_MINUTES) || 10) * 60 + 60;
+
+/** Shared (Redis-backed) OTP store. Suitable for multi-instance deployments. */
 export class InMemoryOtpStore implements OtpStore {
-  private readonly store = new Map<string, OtpEntry>();
-
-  set(key: string, entry: OtpEntry): void {
-    this.store.set(key, entry);
+  async set(key: string, entry: OtpEntry): Promise<void> {
+    await redisSetJson(`otp:${key}`, entry, OTP_TTL_SECONDS);
   }
 
-  get(key: string): OtpEntry | undefined {
-    return this.store.get(key);
+  async get(key: string): Promise<OtpEntry | null> {
+    return redisGetJson<OtpEntry>(`otp:${key}`);
   }
 
-  delete(key: string): void {
-    this.store.delete(key);
+  async delete(key: string): Promise<void> {
+    await redisDel(`otp:${key}`);
   }
 }
 
