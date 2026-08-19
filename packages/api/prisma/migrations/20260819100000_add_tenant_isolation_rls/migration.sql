@@ -11,10 +11,17 @@
 --
 -- IMPORTANT (kill-switch): policies are created here but RLS is NOT enabled in
 -- this migration. The API calls reconcileRls() at boot; when RLS_ENABLED=true it
--- runs `ENABLE ROW LEVEL SECURITY` on these tables, and when false it runs
+-- runs `FORCE ROW LEVEL SECURITY` on these tables, and when false it runs
 -- `DISABLE`. This keeps the layer shipped-but-dormant until it has been
 -- smoke-tested against a real database, so it cannot silently block legitimate
 -- reads (webhooks / admin / discovery) in an unverified state.
+--
+-- CRITICAL OPERATIONAL REQUIREMENT: PostgreSQL exempts SUPERUSERS from RLS. The
+-- API must therefore connect as a LEAST-PRIVILEGE, NON-SUPERUSER role (e.g.
+-- `africonnect_app`), never the bootstrap/superuser role (avnadmin on Aiven,
+-- POSTGRES_USER in docker-compose). A live smoke test proved that connecting as
+-- a superuser silently leaked EVERY user's rows past these policies. Create the
+-- app role and grant it CRUD on the schema, then point DATABASE_URL at it.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- 1. Tenant partition root ----------------------------------------------------

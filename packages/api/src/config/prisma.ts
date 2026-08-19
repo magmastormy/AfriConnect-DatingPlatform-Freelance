@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '@africonnect/shared';
-import { getRequestContext } from './requestContext';
+import { getRequestContext, BOOTSTRAP_TENANT_ID, RequestContext } from './requestContext';
 
 /**
  * Build a connection URL with a capped pool size. Under horizontal scaling
@@ -88,27 +88,69 @@ function camel(model: string): string {
  * Policy outcome per request:
  *  - authenticated user  -> scoped to app.current_user_id / app.current_tenant_id
  *  - admin role / no context (webhook, system) -> app.bypass_rls = on (trusted)
+ *
+ * IMPORTANT (context propagation): Prisma invokes `$allOperations` on an async
+ * boundary that DROPS the AsyncLocalStorage store, so reading getRequestContext()
+ * inside the extension always returns undefined (and would force bypass). We
+ * therefore capture the request context SYNCHRONOUSLY at access time via
+ * getPrisma() — which is called from synchronous repository code still inside
+ * the runRequestContext() scope — and bind it into a per-request scoped client.
+ * The scoped client is memoized on the request's context object so each request
+ * gets exactly one extended client, and concurrent requests never share state.
  */
-export const prisma = rawPrisma.$extends({
-  query: {
-    async $allOperations({ model, operation, args, query }) {
-      if (!RLS_ENABLED) return query(args);
-      if (!model) return query(args); // raw queries / transactions pass through
-
-      const ctx = getRequestContext();
-      const bypass = !!ctx?.bypassRls || !ctx?.userId;
-
-      return rawPrisma.$transaction(async (tx: any) => {
-        if (bypass) {
-          await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
-        } else {
-          await tx.$executeRawUnsafe(`SELECT set_config('app.current_user_id', $1, true)`, ctx!.userId);
-          await tx.$executeRawUnsafe(`SELECT set_config('app.current_tenant_id', $1, true)`, ctx!.tenantId);
-        }
-        const delegate = tx[camel(model)];
-        return delegate[operation](args);
-      });
+function makeScopedClient(client: PrismaClient, ctx: RequestContext | null): PrismaClient {
+  return client.$extends({
+    query: {
+      async $allOperations({ model, operation, args, query }) {
+        if (!RLS_ENABLED || !model) return query(args);
+        const bypass = !!ctx?.bypassRls || !ctx?.userId;
+        return rawPrisma.$transaction(async (tx: any) => {
+          if (bypass) {
+            await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+          } else {
+            await tx.$executeRawUnsafe(`SELECT set_config('app.current_user_id', $1, true)`, ctx!.userId);
+            await tx.$executeRawUnsafe(`SELECT set_config('app.current_tenant_id', $1, true)`, ctx!.tenantId);
+          }
+          const delegate = tx[camel(model)];
+          return delegate[operation](args);
+        });
+      },
     },
+  }) as unknown as PrismaClient;
+}
+
+let systemClient: PrismaClient | null = null;
+function getSystemClient(): PrismaClient {
+  if (!systemClient) systemClient = makeScopedClient(rawPrisma, { tenantId: BOOTSTRAP_TENANT_ID, bypassRls: true });
+  return systemClient;
+}
+
+/**
+ * Resolve the Prisma client for the current request. MUST be called from
+ * synchronous code that runs inside runRequestContext() so the context is
+ * available. System/webhook code (no context) gets the bypass client.
+ */
+export function getPrisma(): PrismaClient {
+  if (!RLS_ENABLED) return rawPrisma;
+  const ctx = getRequestContext();
+  if (!ctx) return getSystemClient();
+  const existing = (ctx as RequestContext & { __rlsClient?: PrismaClient }).__rlsClient;
+  if (existing) return existing;
+  const scoped = makeScopedClient(rawPrisma, ctx);
+  (ctx as RequestContext & { __rlsClient?: PrismaClient }).__rlsClient = scoped;
+  return scoped;
+}
+
+/**
+ * Drop-in replacement for the old global `prisma`. Every property access is
+ * delegated to the per-request scoped client resolved by getPrisma(), so no
+ * repository code needs to change. Under RLS-off it is just rawPrisma.
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_t, prop) {
+    const client = getPrisma();
+    const val = (client as any)[prop];
+    return typeof prop === 'string' && typeof val === 'function' ? val.bind(client) : val;
   },
 }) as unknown as PrismaClient;
 
@@ -123,9 +165,14 @@ export async function reconcileRls(): Promise<void> {
 
 async function enableRls(): Promise<void> {
   for (const table of RLS_TABLES) {
-    await rawPrisma.$executeRawUnsafe(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+    // FORCE (not just ENABLE) so the policies also apply to the table owner.
+    // CRITICAL: RLS is bypassed entirely for superusers, so the API MUST connect
+    // as a least-privilege, non-superuser role (e.g. `africonnect_app`) — never
+    // the bootstrap/superuser role. Otherwise these policies are silently inert.
+    // (Verified by the live RLS smoke test: superuser connection leaked all rows.)
+    await rawPrisma.$executeRawUnsafe(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
   }
-  logger.info({ tables: RLS_TABLES.length }, 'RLS enabled on user-owned tables');
+  logger.info({ tables: RLS_TABLES.length }, 'RLS forced on user-owned tables (non-superuser roles subject)');
 }
 
 async function disableRls(): Promise<void> {

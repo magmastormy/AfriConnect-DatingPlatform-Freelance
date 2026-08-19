@@ -1,0 +1,44 @@
+# Local testing stack for AfriConnect — ISOLATED from the Aiven production DB.
+#
+# The app normally runs against Aiven's free PostgreSQL (see .env). This compose
+# file is purely for local verification: live migrations, the jest regression
+# suite, and the RLS enforcement smoke test. It never touches Aiven.
+#
+#   docker compose -f docker-compose.test.yml up -d      # start
+#   docker compose -f docker-compose.test.yml down -v    # stop + wipe data
+#
+# Connection strings used by the test harness:
+#   DATABASE_URL=postgresql://afriuser:afripass@localhost:5432/africonnect?sslmode=disable
+#   REDIS_URL=redis://127.0.0.1:6379        # 127.0.0.1 (not localhost) to opt OUT of the in-memory fallback
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: africonnect-test-db
+    environment:
+      POSTGRES_USER: afriuser
+      POSTGRES_PASSWORD: afripass
+      POSTGRES_DB: africonnect
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afriuser -d africonnect"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - africonnect-test-db-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: africonnect-test-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  africonnect-test-db-data:

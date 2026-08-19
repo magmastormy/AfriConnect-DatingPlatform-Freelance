@@ -1,7 +1,7 @@
 import { PrismaClient, Conversation, Message } from '@prisma/client';
 import { NotFoundError, ConflictError, InternalError } from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
-import { rawPrisma } from '@config/prisma';
+import { rawPrisma, RLS_ENABLED } from '@config/prisma';
 
 export interface IChatRepository {
   findOrCreateConversation(a: string, b: string): Promise<Conversation>;
@@ -90,7 +90,14 @@ export class ChatRepository implements IChatRepository {
     try {
       // Use the raw (un-extended) client so this internal transaction does not
       // nest inside the RLS extension's per-operation transaction wrapper.
+      // When RLS is forced on, set bypass_rls for this trusted write: the
+      // service layer has already verified `senderId` is a conversation
+      // participant, so the WITH CHECK policy (senderId = current_user_id)
+      // would otherwise reject the insert because no GUC is set here.
       return await rawPrisma.$transaction(async (tx) => {
+        if (RLS_ENABLED) {
+          await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+        }
         const message = await tx.message.create({
           data: { conversationId, senderId, content, imageUrl: imageUrl ?? null, status: 'sent' },
         });

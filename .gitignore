@@ -15,6 +15,7 @@ out/
 
 # Prisma generated client (kept but gitignored per convention)
 packages/api/generated/
+packages/.prisma-gen/
 
 # Logs
 logs/
