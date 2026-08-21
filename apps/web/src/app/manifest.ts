@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'A vetted, curated dating community for highly educated African professionals.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#16130F',
-    theme_color: '#16130F',
+    background_color: '#581845',
+    theme_color: '#581845',
     icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
   };
 }

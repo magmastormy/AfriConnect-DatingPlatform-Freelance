@@ -17,8 +17,9 @@ export default function LandingPage() {
           Right: floating verified stack (not cards — layered dossiers)
           ============================================================ */}
       <section className="v2-hero">
+        <div className="v2-hero-banner">
         <div className="v2-hero-inner">
-          <div className="v2-hero-copy">
+          <div className="v2-hero-copy" style={{ position: 'relative', zIndex: 2 }}>
             <span className="v2-eyebrow">
               <i className="v2-eyebrow-dot" aria-hidden /> AfriConnect Professionals — Verified since 2024
             </span>
@@ -60,61 +61,11 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="v2-hero-visual" aria-hidden>
-            <div className="v2-stack">
-              <div className="v2-dossier v2-dossier--back">
-                <div className="v2-dossier-head">
-                  <span className="v2-dossier-ava" style={{ background: '#7fb79f' }}>
-                    T
-                  </span>
-                  <div>
-                    <b>Tendai M.</b>
-                    <span>Doctor · Verified · Cape Town</span>
-                  </div>
-                  <span className="v2-check">✓ Verified</span>
-                </div>
-                <div className="v2-dossier-tags">
-                  <span>UCT · Medicine</span>
-                  <span>Marriage-minded</span>
-                </div>
-              </div>
-              <div className="v2-dossier v2-dossier--mid">
-                <div className="v2-dossier-head">
-                  <span className="v2-dossier-ava" style={{ background: '#d8a55f' }}>
-                    K
-                  </span>
-                  <div>
-                    <b>Kwame A.</b>
-                    <span>Engineer · Verified · Johannesburg</span>
-                  </div>
-                  <span className="v2-check">✓ Verified</span>
-                </div>
-                <div className="v2-dossier-tags">
-                  <span>Wits · MSc</span>
-                  <span>Building</span>
-                  <span>★ 94% match</span>
-                </div>
-              </div>
-              <div className="v2-dossier v2-dossier--front">
-                <div className="v2-dossier-head">
-                  <span className="v2-dossier-ava">N</span>
-                  <div>
-                    <b>Naledi D.</b>
-                    <span>Advocate · Verified · Nairobi</span>
-                  </div>
-                  <span className="v2-check v2-check--brand">✓ Verified</span>
-                </div>
-                <p className="v2-dossier-bio">
-                  “We cap daily intros so you judge us on quality, not hours spent.”
-                </p>
-                <div className="v2-dossier-foot">
-                  <span>LLB · Wits</span>
-                  <span className="v2-dot" />
-                  <span>2 mutual interests</span>
-                </div>
-              </div>
-              <div className="v2-float-badge v2-float-badge--tr">Daily queue · 3 today</div>
-            </div>
+          
+
+          {/* Human-group illustration — passion/attraction, self-contained SVG */}
+          <div className="v2-hero-figure" aria-hidden="true">
+            <img src="/human-group.svg" alt="" width="520" height="480" />
           </div>
         </div>
 
@@ -129,6 +80,7 @@ export default function LandingPage() {
           <span>Lagos</span>
           <span className="v2-cities-dot">·</span>
           <span>Accra</span>
+        </div>
         </div>
       </section>
 

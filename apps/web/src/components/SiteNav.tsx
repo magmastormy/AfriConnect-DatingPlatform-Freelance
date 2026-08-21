@@ -54,19 +54,19 @@ export function SiteNav() {
       <Link href="/" className="brand" aria-label="AfriConnect Professionals home">
         <div className="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="18" fill="#16130F" />
+            <circle cx="20" cy="20" r="18" fill="#581845" />
             <path
               d="M12 28L20 12L28 28"
-              stroke="#C2502E"
+              stroke="#C70039"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <path d="M20 12V28" stroke="#C2502E" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="20" cy="20" r="3" fill="#C2502E" />
+            <path d="M20 12V28" stroke="#C70039" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="20" cy="20" r="3" fill="#C70039" />
             <path
               d="M14 22C14 22 16 24 20 24C24 24 26 22 26 22"
-              stroke="#B8893A"
+              stroke="#DA07A6"
               strokeWidth="1.5"
               strokeLinecap="round"
             />
