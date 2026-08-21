@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { Card, ApiState, Button, Badge } from '@/components/ui';
-import { EventView } from '@/lib/types';
+import type { EventView } from '@/lib/types';
 import { EventStatus } from '@/lib/shared';
 
 export default function AdminEventsPage() {
@@ -15,9 +15,9 @@ export default function AdminEventsPage() {
   useEffect(() => {
     void (async () => {
       try {
-        setEvents(await api.get<EventView[]>('/admin/events'));
+        setEvents(await adminApi.listEvents());
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Failed to load');
+        setError(e instanceof AdminApiError ? e.message : 'Failed to load');
       } finally {
         setLoading(false);
       }
@@ -27,11 +27,10 @@ export default function AdminEventsPage() {
   async function moderate(id: string, data: { status?: EventStatus; featured?: boolean }) {
     setBusyId(id);
     try {
-      await api.post(`/admin/events/${id}/moderate`, data);
-      const refreshed = await api.get<EventView[]>('/admin/events');
-      setEvents(refreshed);
+      await adminApi.moderateEvent(id, data);
+      setEvents(await adminApi.listEvents());
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Moderation failed');
+      setError(e instanceof AdminApiError ? e.message : 'Moderation failed');
     } finally {
       setBusyId(null);
     }

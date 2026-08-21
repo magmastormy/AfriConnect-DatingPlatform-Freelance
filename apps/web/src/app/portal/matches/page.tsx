@@ -19,8 +19,8 @@ export default function MatchesPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const d = await api.get<{ matches: DailyMatch[] }>('/matches/daily');
-        setDaily(d.matches);
+        const d = await api.get<DailyMatch[]>('/matches/daily');
+        setDaily(d);
         const m = await api.get<MutualMatch[]>('/matches/mutual');
         setMutual(m);
       } catch (e) {

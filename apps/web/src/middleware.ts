@@ -27,7 +27,11 @@ const protectedRoutes = createRouteMatcher(['/portal/:path*', '/onboarding', '/s
 
 const authScreens = createRouteMatcher(['/sign-in', '/sign-up']);
 
+const adminAuthRoutes = createRouteMatcher(['/admin/login', '/admin/setup']);
+
 export default clerkMiddleware(async (auth, req: NextRequest, _event: NextFetchEvent) => {
+  // Admin portal has its OWN auth (email+password, separate from Clerk). Never invoke Clerk there.
+  if (adminAuthRoutes(req)) return NextResponse.next();
   if (!isEnabled) return NextResponse.next();
 
   const { userId, redirectToSignIn } = await auth();
@@ -37,7 +41,7 @@ export default clerkMiddleware(async (auth, req: NextRequest, _event: NextFetchE
   }
 
   if (authScreens(req) && userId) {
-    return NextResponse.redirect(new URL('/portal', req.url));
+    return NextResponse.redirect(new URL('/portal/discover', req.url));
   }
 
   return NextResponse.next();

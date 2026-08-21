@@ -37,17 +37,19 @@ export function SmileVerify() {
     try {
       const r = await api.createVettingSession();
       setResult(r);
-      pollRef.current = setInterval(async () => {
-        try {
-          const s = await api.getVettingStatus();
-          if (s.verified) {
-            if (pollRef.current) clearInterval(pollRef.current);
-            pollRef.current = null;
-            await refresh();
+      pollRef.current = setInterval(() => {
+        void (async () => {
+          try {
+            const s = await api.getVettingStatus();
+            if (s.verified) {
+              if (pollRef.current) clearInterval(pollRef.current);
+              pollRef.current = null;
+              await refresh();
+            }
+          } catch {
+            /* transient; keep polling */
           }
-        } catch {
-          /* transient; keep polling */
-        }
+        })();
       }, 2500);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Could not start verification');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { ApiState, Button, Badge, Select, SearchInput, Pagination } from '@/components/ui';
 import { ApplicationView } from '@/lib/types';
 import { ApplicationStatus } from '@/lib/shared';
@@ -30,12 +30,9 @@ export default function ApplicationsPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const list = await api.get<ApplicationView[]>(
-          '/admin/applications' + (filter ? `?status=${filter}` : ''),
-        );
-        setApps(list);
+        setApps(await adminApi.listApplications(filter || undefined));
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Failed to load');
+        setError(e instanceof AdminApiError ? e.message : 'Failed to load');
       } finally {
         setLoading(false);
       }
@@ -59,10 +56,10 @@ export default function ApplicationsPage() {
   async function review(id: string, status: ApplicationStatus) {
     setBusyId(id);
     try {
-      await api.post(`/admin/applications/${id}/review`, { status });
+      await adminApi.reviewApplication(id, { status });
       setApps((p) => p.filter((a) => a.id !== id));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Review failed');
+      setError(e instanceof AdminApiError ? e.message : 'Review failed');
     } finally {
       setBusyId(null);
     }

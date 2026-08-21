@@ -1,32 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { Card, ApiState, Badge } from '@/components/ui';
 
-interface AuditEntry {
-  id: string;
-  adminId: string;
-  action: string;
-  entity: string;
-  entityId: string | null;
-  scope: string;
-  metadata: unknown;
-  ipAddress: string | null;
-  createdAt: string;
-}
-
 export default function AuditPage() {
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [entries, setEntries] = useState<
+    Awaited<ReturnType<typeof adminApi.listAudit>>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
-        setEntries(await api.get<AuditEntry[]>('/admin/audit'));
+        setEntries(await adminApi.listAudit());
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Failed to load audit log');
+        setError(e instanceof AdminApiError ? e.message : 'Failed to load audit log');
       } finally {
         setLoading(false);
       }

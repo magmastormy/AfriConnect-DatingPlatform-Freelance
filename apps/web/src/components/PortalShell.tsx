@@ -22,7 +22,6 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Explore',
     items: [
-      { href: '/portal', label: 'Dashboard' },
       { href: '/portal/discover', label: 'Discover' },
       { href: '/portal/matches', label: 'Matches' },
       { href: '/portal/events', label: 'Events' },
@@ -32,8 +31,8 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Your account',
     items: [
+      { href: '/portal', label: 'Dashboard' },
       { href: '/portal/account', label: 'Account' },
-      { href: '/portal/settings', label: 'Settings' },
     ],
   },
 ];

@@ -1,5 +1,6 @@
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
+import { createHash, createHmac } from 'crypto';
 import { logger } from '../logger';
 import { InternalError } from '../errors/AppError';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -19,10 +20,36 @@ export interface UploadResult {
   publicId: string;
 }
 
+// ── SigV4 helpers (used by CloudflareR2MediaStorage.getSignedUrl) ────────────
+// Implemented inline so we don't pull @aws-sdk/s3-request-presigner into the
+// shared bundle — Node's crypto is built-in and the algorithm is short.
+function sha256Hex(s: string): string {
+  return createHash('sha256').update(s, 'utf8').digest('hex');
+}
+function uriEncode(s: string): string {
+  return encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
+function hmac(key: Buffer | string, data: string): Buffer {
+  return createHmac('sha256', key).update(data, 'utf8').digest();
+}
+function deriveSigningKey(secret: string, date: string, region: string, service: string): Buffer {
+  const kDate = hmac('AWS4' + secret, date);
+  const kRegion = hmac(kDate, region);
+  const kService = hmac(kRegion, service);
+  return hmac(kService, 'aws4_request');
+}
+
 export interface IMediaStorage {
   readonly name: string;
   upload(buffer: Buffer, ext: string, folder: string): Promise<UploadResult>;
   remove(publicId: string): Promise<void>;
+  /**
+   * Returns a URL the browser can use to GET the object. For private buckets
+   * (R2 with no public access) this must be a presigned URL with a finite TTL —
+   * otherwise the browser gets the storage provider's XML auth error.
+   * For local/Cloudinary the original public URL is fine.
+   */
+  getSignedUrl(publicId: string, ttlSeconds: number): Promise<string>;
 }
 
 const LOCAL_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
@@ -51,6 +78,12 @@ export class LocalMediaStorage implements IMediaStorage {
     } catch (err) {
       logger.warn({ err, publicId }, 'LocalMediaStorage: remove failed (ignored)');
     }
+  }
+
+  // Local files are served by the static `/uploads` route on the API — the
+  // URL is already browser-loadable without signing.
+  async getSignedUrl(publicId: string, _ttlSeconds: number): Promise<string> {
+    return `/uploads/${publicId.replace(/^\/+/, '')}`;
   }
 }
 
@@ -99,6 +132,14 @@ export class CloudinaryMediaStorage implements IMediaStorage {
     } catch (err) {
       logger.warn({ err, publicId }, 'Cloudinary remove failed (ignored)');
     }
+  }
+
+  // Cloudinary secure_url assets are already publicly readable — pass through.
+  async getSignedUrl(publicId: string, _ttlSeconds: number): Promise<string> {
+    // publicId here is the full secure_url we stored on upload. If callers pass
+    // a raw key instead, we can't reliably reconstruct the URL without the
+    // cloud_name, so they should pass the stored URL through.
+    return publicId;
   }
 }
 
@@ -235,6 +276,114 @@ export class CloudflareR2MediaStorage implements IMediaStorage {
 
       logger.warn({ err, key: publicId }, 'CloudflareR2MediaStorage: remove failed (ignored)');
     }
+  }
+
+  /**
+   * Generate a SigV4-presigned GET URL valid for `ttlSeconds`.
+   *
+   * R2 bucket policy: objects are private unless the bucket itself has public
+   * access enabled — which the project deliberately does NOT do, since vet
+   * documents contain PII (POPIA). An unsigned browser GET returns R2's XML
+   * `<Error><Code>InvalidArgument</Code><Message>Authorization</Message></Error>`.
+   * The fix: mint a per-request signed URL here. Implementation is intentionally
+   * inline (Node's crypto is built-in) so we don't need @aws-sdk/s3-request-presigner.
+   */
+  async getSignedUrl(publicId: string, ttlSeconds: number): Promise<string> {
+    const key = publicId.replace(/^\/+/, '');
+    const host = this.cdnDomain
+      ? this.cdnDomain
+      : `${this.accountId}.r2.cloudflarestorage.com`;
+    const proto = 'https';
+    const canonicalUri = this.cdnDomain
+      ? `/${key}`
+      : `/${this.bucket}/${key}`;
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateStamp = amzDate.slice(0, 8);
+    const credentialScope = `${dateStamp}/auto/s3/aws4_request`;
+    const algorithm = 'AWS4-HMAC-SHA256';
+    const service = 's3';
+
+    // We need the credentials. Reach into the S3Client to get them — the SDK
+    // exposes them via the resolved provider's `getCredentials` if needed, but
+    // simpler: we cached them on construction. Pull them back out by re-reading
+    // from the resolved config. Fallback: ask the client.
+    const creds = await this.resolveCredentials();
+    const accessKeyId = creds.accessKeyId;
+    const secretAccessKey = creds.secretAccessKey;
+
+    const credential = `${accessKeyId}/${credentialScope}`;
+    const signedHeaders = 'host';
+    const expires = Math.max(1, Math.min(604800, Math.floor(ttlSeconds))); // R2 max 7 days.
+
+    const params = new URLSearchParams();
+    params.set('X-Amz-Algorithm', algorithm);
+    params.set('X-Amz-Credential', credential);
+    params.set('X-Amz-Date', amzDate);
+    params.set('X-Amz-Expires', String(expires));
+    params.set('X-Amz-SignedHeaders', signedHeaders);
+
+    const canonicalHeaders = `host:${host}\n`;
+    const payloadHash = 'UNSIGNED-PAYLOAD';
+
+    // Canonical query string is the alphabetically-sorted params.
+    const canonicalQueryString = [...params.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${uriEncode(k)}=${uriEncode(v)}`)
+      .join('&');
+
+    const canonicalRequest = [
+      'GET',
+      canonicalUri,
+      canonicalQueryString,
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join('\n');
+
+    const hashedCanonicalRequest = sha256Hex(canonicalRequest);
+    const stringToSign = [
+      algorithm,
+      amzDate,
+      credentialScope,
+      hashedCanonicalRequest,
+    ].join('\n');
+
+    const signingKey = deriveSigningKey(secretAccessKey, dateStamp, 'auto', service);
+    const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+
+    params.set('X-Amz-Signature', signature);
+
+    return `${proto}://${host}${canonicalUri}?${params.toString()}`;
+  }
+
+  /**
+   * Extracts credentials from the S3Client's internal middleware stack.
+   * The SDK lazily resolves providers (incl. default chains), so we resolve
+   * once at first use and memoize.
+   */
+  private resolvedCreds: { accessKeyId: string; secretAccessKey: string } | null = null;
+  private async resolveCredentials(): Promise<{ accessKeyId: string; secretAccessKey: string }> {
+    if (this.resolvedCreds) return this.resolvedCreds;
+    // The S3Client.config.credentials may be a provider; await it to get a static pair.
+    const creds = (this.client as unknown as { config: { credentials: unknown } }).config
+      .credentials as
+      | { accessKeyId?: string; secretAccessKey?: string }
+      | (() => Promise<{ accessKeyId?: string; secretAccessKey?: string }>);
+    let resolved: { accessKeyId?: string; secretAccessKey?: string } | undefined;
+    if (typeof creds === 'function') {
+      resolved = await creds();
+    } else {
+      resolved = creds;
+    }
+    if (!resolved?.accessKeyId || !resolved?.secretAccessKey) {
+      throw new InternalError('R2 credentials could not be resolved for presigning');
+    }
+    this.resolvedCreds = {
+      accessKeyId: resolved.accessKeyId,
+      secretAccessKey: resolved.secretAccessKey,
+    };
+    return this.resolvedCreds;
   }
 
   /**

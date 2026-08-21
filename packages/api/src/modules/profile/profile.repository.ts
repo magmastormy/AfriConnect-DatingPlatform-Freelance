@@ -111,12 +111,18 @@ export class ProfileRepository implements IProfileRepository {
   async update(userId: string, data: Record<string, unknown>): Promise<Profile> {
     const existing = await this.findByUserId(userId);
     if (!existing) throw new NotFoundError('Profile not found', { userId });
+    const completeness = this.calculateCompleteness({ ...existing, ...data });
     try {
       return await this.prisma.profile.update({
         where: { userId },
         data: {
           ...data,
-          completenessScore: this.calculateCompleteness({ ...existing, ...data }),
+          completenessScore: completeness,
+          // Keep the boolean flag in sync with the score on every update — without
+          // this, edits to an existing profile raised the score but left isComplete
+          // stale (false), so members could never reach a "complete" state via the
+          // account page (which always updates, never re-creates).
+          isComplete: completeness >= 80,
         },
       });
     } catch (error) {

@@ -25,6 +25,7 @@ import { buildEventModule } from './modules/event';
 import { buildNotificationModule } from './modules/notification';
 import { buildBillingModule } from './modules/billing';
 import { buildAdminModule } from './modules/admin';
+import { buildAdminAuthModule } from './modules/adminAuth';
 import { buildSettingsModule } from './modules/settings';
 import { buildUploadModule } from './modules/upload';
 import { buildAnalyticsModule } from './modules/analytics';
@@ -39,9 +40,35 @@ export function createApp(): Express {
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // behind a reverse proxy / LB; needed for real client IP
 
-  // Security & parsing
-  app.use(helmet());
-  app.use(cors({ origin: config.corsOrigins, credentials: true }));
+  // Security & parsing — hardened helmet (Clause 3: no stack leak, HSTS, CSP)
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          upgradeInsecureRequests: [],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    }),
+  );
+  // Strict CORS: whitelist only (no wildcard). In production this must be https://afri-connect.co.za + https://app.afri-connect.co.za
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        // Allow non-browser (no origin) and whitelisted
+        if (!origin || config.corsOrigins.includes(origin)) return cb(null, true);
+        return cb(new Error(`CORS blocked: ${origin} not whitelisted`), false);
+      },
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Id', 'X-Correlation-Id', 'X-Forwarded-For'],
+      maxAge: 600,
+    }),
+  );
   app.use(
     express.json({
       limit: '12mb',
@@ -87,6 +114,8 @@ export function createApp(): Express {
   app.use(`${mount}/events`, buildEventModule());
   app.use(`${mount}/notifications`, buildNotificationModule());
   app.use(`${mount}/billing`, buildBillingModule());
+  // Separate admin auth — public (login/bootstrap) must sit BEFORE the protected admin router
+  app.use(`${mount}/admin/auth`, buildAdminAuthModule());
   app.use(`${mount}/admin`, buildAdminModule());
   app.use(`${mount}/settings`, buildSettingsModule());
   app.use(`${mount}/upload`, buildUploadModule());

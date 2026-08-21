@@ -72,7 +72,7 @@ export class VerificationService {
 
   /** SECONDARY FALLBACK: send an SMS OTP when email is unavailable. */
   async requestSmsFallback(phone: string): Promise<{ delivered: boolean }> {
-    assertWithinLimit(
+    await assertWithinLimit(
       `smsfb:${phone}`,
       SMS_FALLBACK_MAX_REQUESTS_PER_WINDOW,
       SMS_FALLBACK_WINDOW_MINUTES * 60 * 1000,
@@ -86,7 +86,7 @@ export class VerificationService {
 
     const code = generateOtpCode(OTP_LENGTH);
     const expiresAt = Date.now() + OTP_TTL_MINUTES * 60 * 1000;
-    this.otpStore.set(phone, { code, expiresAt, attempts: 0 });
+    await this.otpStore.set(phone, { code, expiresAt, attempts: 0 });
 
     const result = await this.sms.send(
       phone,

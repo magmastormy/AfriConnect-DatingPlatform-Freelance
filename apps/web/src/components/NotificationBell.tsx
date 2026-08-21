@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useAdminAuth } from '@/lib/adminAuth';
 import { Badge } from '@/components/ui';
 import type { NotificationView } from '@/lib/types';
 
@@ -18,6 +19,7 @@ function timeAgo(iso: string): string {
 
 export function NotificationBell() {
   const router = useRouter();
+  const { user: adminUser } = useAdminAuth();
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<NotificationView[]>([]);
   const [open, setOpen] = useState(false);
@@ -25,6 +27,7 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null);
 
   const refreshCount = () => {
+    if (adminUser) return;
     api
       .unreadNotificationCount()
       .then((r) => setCount(r.count))
@@ -50,18 +53,21 @@ export function NotificationBell() {
     const next = !open;
     setOpen(next);
     if (next) {
-      setLoading(true);
-      try {
-        setItems(await api.listNotifications());
-      } catch {
-        /* ignore */
-      } finally {
-        setLoading(false);
+      if (!adminUser) {
+        setLoading(true);
+        try {
+          setItems(await api.listNotifications());
+        } catch {
+          /* ignore */
+        } finally {
+          setLoading(false);
+        }
       }
     }
   }
 
   async function markRead(id: string) {
+    if (adminUser) return;
     setItems((p) => p.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     setCount((c) => Math.max(0, c - 1));
     try {
@@ -81,6 +87,7 @@ export function NotificationBell() {
   }
 
   async function markAll() {
+    if (adminUser) return;
     setItems((p) => p.map((n) => ({ ...n, isRead: true })));
     setCount(0);
     try {

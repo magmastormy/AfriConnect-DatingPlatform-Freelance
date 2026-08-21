@@ -23,5 +23,15 @@
     }
   },
   "include": ["src/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "prisma/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "prisma/**",
+    "scripts/test-harness/**",
+    "scripts/perf/**",
+    "scripts/load/**",
+    "scripts/bench/**",
+    "scripts/e2e/**"
+  ]
 }

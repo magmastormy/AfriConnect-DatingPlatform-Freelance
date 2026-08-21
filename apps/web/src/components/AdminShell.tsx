@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { useAuth } from '@/lib/auth';
-import { isAdmin } from '@/lib/auth';
+import { useAdminAuth, isAdminRole } from '@/lib/adminAuth';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
 
@@ -20,22 +19,28 @@ const LINKS = [
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAdminAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const isPublicAdminRoute = pathname === '/admin/login' || pathname === '/admin/setup';
 
   useEffect(() => {
-    if (!loading && !user) router.replace('/login');
-    if (!loading && user && !isAdmin(user.role)) router.replace('/portal');
-  }, [loading, user, router]);
+    if (isPublicAdminRoute) return;
+    if (!loading && !user) router.replace('/admin/login');
+    if (!loading && user && !isAdminRole(user.role)) router.replace('/');
+  }, [loading, user, router, isPublicAdminRoute]);
+
+  if (isPublicAdminRoute) {
+    return <>{children}</>;
+  }
 
   if (loading)
     return (
       <div className="state">
-        <span className="spinner" />
+        <span className="spinner" aria-label="Loading admin" />
       </div>
     );
-  if (!user) return null;
+  if (!user || !isAdminRole(user.role)) return null;
 
   return (
     <div className="admin-shell">
@@ -61,6 +66,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
+          <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--line)', fontSize: '0.8rem', color: 'var(--muted)' }}>
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+            <button
+              className="btn btn-ghost"
+              style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }}
+              onClick={async () => {
+                await logout();
+                router.replace('/admin/login');
+              }}
+            >
+              Sign out
+            </button>
+          </div>
         </aside>
         <div>{children}</div>
       </div>

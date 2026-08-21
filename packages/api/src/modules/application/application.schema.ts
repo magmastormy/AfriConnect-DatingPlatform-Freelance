@@ -16,7 +16,8 @@ export const createApplicationSchema = z
     dateOfBirth: z
       .string()
       .datetime()
-      .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+      .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/))
+      .transform((val) => new Date(val)),
     gender: z.nativeEnum(Gender),
     nationality: z.string().min(2).max(60),
     profession: z.string().min(1).max(120),

@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
-import { useAuth, isAdmin } from '@/lib/auth';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
+import { useAdminAuth, isAdminRole } from '@/lib/adminAuth';
 import { useToast } from '@/components/Toast';
 import { Card, Button, Badge, ApiState } from '@/components/ui';
 import { AdminTabs } from '@/components/AdminTabs';
@@ -16,7 +16,7 @@ const GATED_FIELDS: { key: string; label: string; hint: string }[] = [
 ];
 
 export default function AdminSettingsPage() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAdminAuth();
   const toast = useToast();
 
   const [settings, setSettings] = useState<PlatformSettingsView | null>(null);
@@ -36,20 +36,20 @@ export default function AdminSettingsPage() {
     setLoadingView(true);
     setLoadError(null);
     try {
-      const s = await api.getSettings();
+      const s = await adminApi.getSettings();
       setSettings(s);
       setExtraPhotos(s.freeViewMaxExtraPhotos);
       setConnectionLimit(s.freePremiumConnectionLimit);
       setHiddenFields(s.restrictedHiddenFields ?? []);
     } catch (e) {
-      setLoadError(e instanceof ApiError ? e.message : 'Failed to load settings');
+      setLoadError(e instanceof AdminApiError ? e.message : 'Failed to load settings');
     } finally {
       setLoadingView(false);
     }
   }, []);
 
   useEffect(() => {
-    if (user && isAdmin(user.role)) void load();
+    if (user && isAdminRole(user.role)) void load();
   }, [user, load]);
 
   if (loading) {
@@ -59,7 +59,7 @@ export default function AdminSettingsPage() {
       </div>
     );
   }
-  if (!user || !isAdmin(user.role)) {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <div className="card" style={{ maxWidth: 560, margin: '2rem auto' }}>
         <h1 style={{ marginTop: 0 }}>Admins only</h1>
@@ -94,7 +94,7 @@ export default function AdminSettingsPage() {
       restrictedHiddenFields: hiddenFields,
     };
     try {
-      const updated = await api.updateSettings(body);
+      const updated = await adminApi.updateSettings(body);
       setSettings(updated);
       setExtraPhotos(updated.freeViewMaxExtraPhotos);
       setConnectionLimit(updated.freePremiumConnectionLimit);
@@ -102,8 +102,8 @@ export default function AdminSettingsPage() {
       setSavedMsg('Settings saved.');
       toast('Settings saved', 'success');
     } catch (e) {
-      setSaveError(e instanceof ApiError ? e.message : 'Failed to save settings');
-      toast(e instanceof ApiError ? e.message : 'Failed to save settings', 'error');
+      setSaveError(e instanceof AdminApiError ? e.message : 'Failed to save settings');
+      toast(e instanceof AdminApiError ? e.message : 'Failed to save settings', 'error');
     } finally {
       setSaving(false);
     }

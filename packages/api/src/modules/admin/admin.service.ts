@@ -14,6 +14,7 @@ import { IApplicationService } from '@modules/application/application.service';
 import { IEventService } from '@modules/event/event.service';
 import { IBillingService } from '@modules/billing/billing.service';
 import { INotificationService } from '@modules/notification/notification.service';
+import { IMediaStorage } from '@africonnect/shared';
 import {
   AuthedUser,
   UserRole,
@@ -142,15 +143,71 @@ export class AdminService implements IAdminService {
     private readonly events: IEventService,
     private readonly billing: IBillingService,
     private readonly notifications: INotificationService,
+    private readonly storage: IMediaStorage,
   ) {}
+
+  /**
+   * Wraps a stored file URL into a browser-loadable URL.
+   *
+   * The application rows store whatever URL the upload pipeline returned at the
+   * time the member submitted their documents. For private buckets (R2) the
+   * stored URL is a public-shaped R2 URL that the browser cannot GET unsigned —
+   * R2 replies with `<Error><Code>InvalidArgument</Code><Message>Authorization…
+   * </Error>`. We sign on the way out so the admin "view" link actually works.
+   *
+   * - Local: stored URL is `/uploads/<key>` → already served by the API's static
+   *   `/uploads` route, so we leave it alone.
+   * - Cloudinary: stored URL is the public secure_url → leave it alone.
+   * - R2: extract the object key, mint a 1-hour SigV4 presigned URL.
+   */
+  private async withSignedUrl(url: string | undefined | null): Promise<string | undefined> {
+    if (!url) return undefined;
+    // Local storage: served by static `/uploads`. Leave untouched.
+    if (url.startsWith('/uploads/')) return url;
+    // Cloudinary: public secure_url. Leave untouched.
+    if (url.includes('res.cloudinary.com')) return url;
+    // R2: extract key after the bucket segment and mint a presigned GET URL.
+    if (url.includes('.r2.cloudflarestorage.com/')) {
+      try {
+        const u = new URL(url);
+        // path looks like "/<bucket>/<key...>"
+        const parts = u.pathname.replace(/^\/+/, '').split('/');
+        const key = parts.slice(1).join('/'); // drop bucket segment
+        if (!key) return url;
+        return await this.storage.getSignedUrl(key, 3600);
+      } catch (err) {
+        logger.warn({ err, url }, 'admin.service: failed to sign R2 URL, returning original');
+        return url;
+      }
+    }
+    // Custom CDN over R2: extract path after the CDN host.
+    try {
+      const u = new URL(url);
+      const key = u.pathname.replace(/^\/+/, '');
+      if (!key) return url;
+      return await this.storage.getSignedUrl(key, 3600);
+    } catch {
+      return url;
+    }
+  }
 
   async dashboard(): Promise<AdminDashboard> {
     return this.repo.dashboard();
   }
 
   async listApplications(status?: ApplicationStatus): Promise<ApplicationAdminView[]> {
-    const apps = await this.applications.listForAdmin(status ? { status } : undefined);
-    return apps as ApplicationAdminView[];
+    const apps = (await this.applications.listForAdmin(
+      status ? { status } : undefined,
+    )) as ApplicationAdminView[];
+    return Promise.all(
+      apps.map(async (a) => ({
+        ...a,
+        proofOfWorkUrl: await this.withSignedUrl(a.proofOfWorkUrl),
+        idDocumentUrl: (await this.withSignedUrl(a.idDocumentUrl)) ?? a.idDocumentUrl,
+        selfieUrl: (await this.withSignedUrl(a.selfieUrl)) ?? a.selfieUrl,
+        degreeCertificateUrl: await this.withSignedUrl(a.degreeCertificateUrl),
+      })),
+    );
   }
 
   async reviewApplication(
@@ -158,11 +215,11 @@ export class AdminService implements IAdminService {
     input: ReviewApplicationInput,
     admin: AuthedUser,
   ): Promise<ApplicationAdminView> {
-    const updated = await this.applications.review(
+    const updated = (await this.applications.review(
       id,
       { status: input.status, adminNotes: input.adminNotes },
       admin,
-    );
+    )) as ApplicationAdminView;
 
     // On approval, promote the applicant to an active member so they can log in.
     if (input.status === ApplicationStatus.Approved) {
@@ -185,7 +242,13 @@ export class AdminService implements IAdminService {
       ipAddress: null,
     });
 
-    return updated as ApplicationAdminView;
+    return {
+      ...updated,
+      proofOfWorkUrl: await this.withSignedUrl(updated.proofOfWorkUrl),
+      idDocumentUrl: (await this.withSignedUrl(updated.idDocumentUrl)) ?? updated.idDocumentUrl,
+      selfieUrl: (await this.withSignedUrl(updated.selfieUrl)) ?? updated.selfieUrl,
+      degreeCertificateUrl: await this.withSignedUrl(updated.degreeCertificateUrl),
+    };
   }
 
   async listMembers(filter: ListMembersFilter) {

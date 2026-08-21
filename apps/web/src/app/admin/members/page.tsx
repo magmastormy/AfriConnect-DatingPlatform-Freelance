@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { ApiState, Button, Badge, Select, SearchInput, Pagination } from '@/components/ui';
 import { MemberView } from '@/lib/types';
 import { UserStatus } from '@/lib/shared';
@@ -36,7 +36,7 @@ export default function MembersPage() {
       setLoading(true);
       setError(null);
       try {
-        const { items, total: t } = await api.listMembers({
+        const { items, total: t } = await adminApi.listMembers({
           page,
           limit: PAGE_SIZE,
           search: search || undefined,
@@ -47,7 +47,7 @@ export default function MembersPage() {
           setTotal(t);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof ApiError ? e.message : 'Failed to load');
+        if (!cancelled) setError(e instanceof AdminApiError ? e.message : 'Failed to load');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -60,8 +60,12 @@ export default function MembersPage() {
   async function act(userId: string, action: 'suspend' | 'unsuspend' | 'ban' | 'unban' | 'verify') {
     setBusyId(userId);
     try {
-      await api.post(`/admin/members/${userId}/${action}`, {});
-      const { items, total: t } = await api.listMembers({
+      if (action === 'suspend') await adminApi.suspendMember(userId);
+      else if (action === 'unsuspend') await adminApi.unsuspendMember(userId);
+      else if (action === 'ban') await adminApi.banMember(userId);
+      else if (action === 'unban') await adminApi.unbanMember(userId);
+      else if (action === 'verify') await adminApi.verifyMember(userId, { emailVerified: true });
+      const { items, total: t } = await adminApi.listMembers({
         page,
         limit: PAGE_SIZE,
         search: search || undefined,
@@ -70,7 +74,7 @@ export default function MembersPage() {
       setMembers(items);
       setTotal(t);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Action failed');
+      setError(e instanceof AdminApiError ? e.message : 'Action failed');
     } finally {
       setBusyId(null);
     }

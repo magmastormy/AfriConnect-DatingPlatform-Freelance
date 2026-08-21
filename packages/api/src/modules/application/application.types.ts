@@ -15,7 +15,7 @@ export interface CreateApplicationInput {
   // from the authenticated account (see ApplicationRepository.getUserContact).
   email?: string;
   phone?: string;
-  dateOfBirth: string; // ISO date
+  dateOfBirth: Date; // Date object (transformed from string by schema)
   gender: Gender;
   nationality: string;
   profession: string;

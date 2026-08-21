@@ -12,6 +12,7 @@ import { BillingService } from '@modules/billing/billing.service';
 import { BillingRepository } from '@modules/billing/billing.repository';
 import { NotificationService } from '@modules/notification/notification.service';
 import { NotificationRepository } from '@modules/notification/notification.repository';
+import { createMediaStorage } from '@config/providers';
 
 export function buildAdminModule(): Router {
   const repo = new AdminRepository(prisma);
@@ -22,6 +23,7 @@ export function buildAdminModule(): Router {
   );
   const eventService = new EventService(new EventRepository(prisma));
   const billingService = new BillingService(new BillingRepository(prisma), notificationService);
+  const storage = createMediaStorage();
 
   const service: IAdminService = new AdminService(
     repo,
@@ -29,6 +31,7 @@ export function buildAdminModule(): Router {
     eventService,
     billingService,
     notificationService,
+    storage,
   );
   const controller = new AdminController(service);
   return adminRoutes(controller, service);

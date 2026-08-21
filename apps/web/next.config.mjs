@@ -36,7 +36,26 @@ const securityHeaders = (nonce) => [
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@africonnect/shared'],
+  swcMinify: true,
+  compress: true,
+  poweredByHeader: false,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'picsum.photos' },
+      { protocol: 'https', hostname: '**.picsum.photos' },
+    ],
+    formats: ['image/avif', 'image/webp'],
+  },
+  experimental: {
+    optimizePackageImports: ['@clerk/nextjs', 'qrcode.react'],
+    webpackBuildWorker: true,
+  },
   webpack: (config, { isServer }) => {
+    // Fix: PackFileCacheStrategy big strings 192kib warning — use gzip compression
+    if (config.cache && typeof config.cache === 'object' && 'compression' in config.cache) {
+      config.cache.compression = 'gzip';
+    }
+    config.infrastructureLogging = { level: 'error' };
     if (!isServer) {
       config.resolve.alias['@africonnect/shared'] = path.resolve(
         __dirname,

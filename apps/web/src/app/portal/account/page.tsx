@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useClerkIdentity } from '@/lib/useClerkIdentity';
 import { Card, ApiState, Button, Input, Select, Badge } from '@/components/ui';
 import { ProfileBadges } from '@/components/ProfileBadges';
-import { SubscriptionPlan, SubscriptionStatus, City, Gender } from '@/lib/shared';
+import { SubscriptionPlan, SubscriptionStatus, City, Gender, EducationLevel } from '@/lib/shared';
 
 interface Profile {
   firstName: string;
@@ -17,7 +17,9 @@ interface Profile {
   gender: Gender;
   profession: string | null;
   employer: string | null;
+  educationLevel: EducationLevel | null;
   dateOfBirth: string | null;
+  interests: string[] | null;
   isComplete: boolean;
   isPaused: boolean;
 }
@@ -32,8 +34,13 @@ export default function AccountPage() {
   const { user: clerkUser } = useClerkIdentity();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sub, setSub] = useState<Sub | null>(null);
+  // Raw, unsplit interests text. Kept separate from profile.interests (the
+  // string[] the server expects) so the textbox behaves like a normal input —
+  // commas are preserved while typing and only converted to an array on save.
+  const [interestsText, setInterestsText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   // Seed the form from Clerk identity when the backend profile is still empty,
@@ -52,6 +59,7 @@ export default function AccountPage() {
         ]);
         setProfile(p);
         setSub(s);
+        setInterestsText(Array.isArray(p.interests) ? p.interests.join(', ') : '');
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load');
       } finally {
@@ -67,6 +75,7 @@ export default function AccountPage() {
       return;
     }
     setBusy(true);
+    setSavedMsg(null);
     try {
       const payload = {
         firstName: profile.firstName || clerkUser?.firstName || '',
@@ -77,10 +86,27 @@ export default function AccountPage() {
         gender: profile.gender,
         profession: profile.profession,
         employer: profile.employer,
-        dateOfBirth: profile.dateOfBirth ?? undefined,
+        educationLevel: profile.educationLevel ?? undefined,
+        interests: interestsText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        // The API returns dateOfBirth as a full ISO datetime string
+      // (e.g. "1990-05-15T00:00:00.000Z"), but the updateProfile Zod schema
+      // requires strict YYYY-MM-DD — slice to the date portion to avoid a 400
+      // validation error on every save.
+      dateOfBirth:
+        profile.dateOfBirth && profile.dateOfBirth.length >= 10
+          ? profile.dateOfBirth.slice(0, 10)
+          : undefined,
       };
       const saved = await api.put<Profile>('/profile/me', payload);
       setProfile({ ...saved });
+      setSavedMsg(
+        saved.isComplete
+          ? 'Profile saved — your profile is now complete.'
+          : 'Profile saved. Fill bio, profession, employer, education level, interests, and add a photo (Settings → Photos) to reach 100%.',
+      );
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Save failed');
     } finally {
@@ -194,6 +220,11 @@ export default function AccountPage() {
                 value={profile.profession ?? ''}
                 onChange={(e) => setProfile({ ...profile, profession: e.currentTarget.value })}
               />
+              <Input
+                label="Employer"
+                value={profile.employer ?? ''}
+                onChange={(e) => setProfile({ ...profile, employer: e.currentTarget.value })}
+              />
               <Select
                 label="City"
                 value={profile.city}
@@ -220,12 +251,40 @@ export default function AccountPage() {
                   </option>
                 ))}
               </Select>
+              <Select
+                label="Education level"
+                value={profile.educationLevel ?? ''}
+                onChange={(e) =>
+                  setProfile({ ...profile, educationLevel: e.currentTarget.value as EducationLevel })
+                }
+              >
+                <option value="">Select…</option>
+                {Object.values(EducationLevel).map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                label="Date of birth"
+                type="date"
+                value={profile.dateOfBirth ? profile.dateOfBirth.slice(0, 10) : ''}
+                onChange={(e) => setProfile({ ...profile, dateOfBirth: e.currentTarget.value })}
+              />
             </div>
             <label className="field">
               <span>Bio</span>
               <textarea
                 value={profile.bio ?? ''}
                 onChange={(e) => setProfile({ ...profile, bio: e.currentTarget.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Interests (comma-separated)</span>
+              <input
+                value={interestsText}
+                onChange={(e) => setInterestsText(e.currentTarget.value)}
+                placeholder="e.g. Hiking, Jazz, Fintech"
               />
             </label>
             <div className="row-actions">
@@ -236,6 +295,7 @@ export default function AccountPage() {
                 {profile.isPaused ? 'Resume profile' : 'Pause profile'}
               </Button>
             </div>
+            {savedMsg && <div className="notice" style={{ color: '#1a7f37', borderColor: '#1a7f37' }}>{savedMsg}</div>}
             {profile.isPaused && (
               <div className="notice">Your profile is paused and hidden from matches.</div>
             )}

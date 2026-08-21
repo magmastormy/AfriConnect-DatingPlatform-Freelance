@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
-import { useAuth, isAdmin } from '@/lib/auth';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
+import { useAdminAuth, isAdminRole } from '@/lib/adminAuth';
+import type { ApplicationAdminView } from '@/lib/types';
 import { useToast } from '@/components/Toast';
 import { Card, Button, Badge, Textarea, ApiState } from '@/components/ui';
 import { AdminTabs } from '@/components/AdminTabs';
-import type { ApplicationAdminView } from '@/lib/types';
 
 const _STATUS_OPTIONS = ['submitted', 'under_review', 'approved', 'rejected', 'on_hold'] as const;
 type StatusFilter = (typeof _STATUS_OPTIONS)[number] | 'all';
@@ -19,7 +19,7 @@ const PROOF_LABELS: Record<string, string> = {
 };
 
 export default function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAdminAuth();
   const toast = useToast();
 
   const [filter, setFilter] = useState<StatusFilter>('submitted');
@@ -35,17 +35,17 @@ export default function AdminPage() {
     setLoadingList(true);
     setListError(null);
     try {
-      const apps = await api.listApplications(filter === 'all' ? undefined : filter);
+      const apps = await adminApi.listApplications(filter === 'all' ? undefined : filter);
       setList(apps);
     } catch (e) {
-      setListError(e instanceof ApiError ? e.message : 'Failed to load applications');
+      setListError(e instanceof AdminApiError ? e.message : 'Failed to load applications');
     } finally {
       setLoadingList(false);
     }
   }, [filter]);
 
   useEffect(() => {
-    if (user && isAdmin(user.role)) void load();
+    if (user && isAdminRole(user.role)) void load();
   }, [user, load]);
 
   if (loading) {
@@ -55,7 +55,7 @@ export default function AdminPage() {
       </div>
     );
   }
-  if (!user || !isAdmin(user.role)) {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <div className="card" style={{ maxWidth: 560, margin: '2rem auto' }}>
         <h1 style={{ marginTop: 0 }}>Admins only</h1>
@@ -74,7 +74,7 @@ export default function AdminPage() {
     }
     setSubmitting(true);
     try {
-      await api.reviewApplication(selected.id, {
+      await adminApi.reviewApplication(selected.id, {
         status: decision,
         adminNotes: reason.trim() || undefined,
       });
@@ -83,7 +83,7 @@ export default function AdminPage() {
       setReason('');
       await load();
     } catch (e) {
-      toast(e instanceof ApiError ? e.message : 'Review failed', 'error');
+      toast(e instanceof AdminApiError ? e.message : 'Review failed', 'error');
     } finally {
       setSubmitting(false);
     }

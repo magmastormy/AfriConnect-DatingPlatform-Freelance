@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "scripts/test-harness/**/*.ts",
+    "scripts/perf/**/*.ts",
+    "scripts/load/**/*.ts",
+    "scripts/bench/**/*.ts",
+    "scripts/e2e/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "prisma/**"]
+}

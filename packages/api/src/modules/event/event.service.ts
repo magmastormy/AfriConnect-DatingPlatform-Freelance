@@ -1,6 +1,7 @@
 import { IEventRepository } from './event.repository';
 import { CreateEventInput, RSVPResult } from './event.types';
 import { NotFoundError, ValidationError, RSVPStatus, asEnum } from '@africonnect/shared';
+import { redisGetJson, redisSetJson, redisDel } from '@config/redis';
 
 export interface IEventService {
   listUpcoming(): Promise<unknown[]>;
@@ -66,11 +67,30 @@ export class EventService implements IEventService {
   }
 
   async listUpcoming(): Promise<unknown[]> {
+    if (process.env.NODE_ENV !== 'test') {
+      const cacheKey = 'events:upcoming';
+      const cached = await redisGetJson<unknown[]>(cacheKey).catch(() => null);
+      if (cached) return cached;
+      const events = await this.repo.listUpcoming();
+      const views = events.map((e) => this.toView(e));
+      await redisSetJson(cacheKey, views, 30).catch(() => {});
+      return views;
+    }
     const events = await this.repo.listUpcoming();
     return events.map((e) => this.toView(e));
   }
 
   async getById(id: string): Promise<unknown> {
+    if (process.env.NODE_ENV !== 'test') {
+      const cacheKey = `events:${id}`;
+      const cached = await redisGetJson<unknown>(cacheKey).catch(() => null);
+      if (cached) return cached;
+      const event = await this.repo.getById(id);
+      if (!event) throw new NotFoundError('Event not found', { id });
+      const view = this.toView(event);
+      await redisSetJson(cacheKey, view, 30).catch(() => {});
+      return view;
+    }
     const event = await this.repo.getById(id);
     if (!event) throw new NotFoundError('Event not found', { id });
     return this.toView(event);
@@ -85,10 +105,12 @@ export class EventService implements IEventService {
     const start = new Date(input.startTime);
     const end = new Date(input.endTime);
     if (end <= start) throw new ValidationError('End time must be after start time');
-    return this.repo.create(
+    const created = await this.repo.create(
       { ...input, startTime: start, endTime: end, status: 'published' },
       adminId,
     );
+    await redisDel('events:upcoming').catch(() => {});
+    return created;
   }
 
   async update(id: string, data: Record<string, unknown>): Promise<unknown> {

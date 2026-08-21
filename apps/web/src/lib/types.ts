@@ -270,3 +270,27 @@ export interface UpdateSettingsInput {
   freePremiumConnectionLimit?: number;
   restrictedHiddenFields?: string[];
 }
+
+// Server-only admin view types. Mirrors packages/api/src/modules/admin/admin.types.ts —
+// these are not shared via @africonnect/shared because the web app is the only consumer.
+export interface MemberDetail extends MemberView {
+  profile: unknown | null;
+  subscription: {
+    plan: SubscriptionPlan;
+    status: SubscriptionStatus;
+    currentPeriodEnd: string | null;
+  } | null;
+  applications: { id: string; status: ApplicationStatus; createdAt: string }[];
+}
+
+export interface AdminAuditView {
+  id: string;
+  adminId: string;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  scope: string;
+  metadata: unknown;
+  ipAddress: string | null;
+  createdAt: string;
+}

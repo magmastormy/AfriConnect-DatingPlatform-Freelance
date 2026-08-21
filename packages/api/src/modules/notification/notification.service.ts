@@ -6,6 +6,7 @@ import {
 } from './notification.types';
 import { logger, asEnum, AdminScope, SCOPE_ROLES } from '@africonnect/shared';
 import { Pagination, toPagination } from '@africonnect/shared';
+import { redisGetJson, redisSetJson, redisDel } from '@config/redis';
 
 export interface INotificationService {
   create(input: CreateNotificationInput): Promise<NotificationView>;
@@ -27,26 +28,48 @@ export class NotificationService implements INotificationService {
 
   async create(input: CreateNotificationInput): Promise<NotificationView> {
     const n = await this.repo.create({ ...input, sentAt: new Date() });
+    // Invalidate unread count cache for recipient
+    await redisDel(`notify:unread:${input.userId}`).catch(() => {});
     logger.info({ type: input.type, channel: input.channel }, 'Notification dispatched (console)');
     return this.toView(n);
   }
 
   async list(userId: string, page?: number, limit?: number): Promise<NotificationView[]> {
     const pagination: Pagination = toPagination(page, limit);
+    // Only first page is hot — cache it briefly (polling clients hit page 1 repeatedly), skip in tests for hermetics
+    if (process.env.NODE_ENV !== 'test' && pagination.page === 1 && pagination.limit <= 20) {
+      const cacheKey = `notify:list:${userId}:${pagination.limit}`;
+      const cached = await redisGetJson<NotificationView[]>(cacheKey).catch(() => null);
+      if (cached) return cached;
+      const list = await this.repo.listForUser(userId, pagination);
+      const views = list.map((n) => this.toView(n));
+      await redisSetJson(cacheKey, views, 5).catch(() => {});
+      return views;
+    }
     const list = await this.repo.listForUser(userId, pagination);
     return list.map((n) => this.toView(n));
   }
 
   async markRead(id: string, userId: string): Promise<void> {
     await this.repo.markRead(id, userId);
+    await redisDel(`notify:unread:${userId}`).catch(() => {});
+    await redisDel(`notify:list:${userId}:20`).catch(() => {});
   }
 
   async unreadCount(userId: string): Promise<number> {
-    return this.repo.unreadCount(userId);
+    if (process.env.NODE_ENV === 'test') return this.repo.unreadCount(userId);
+    const cacheKey = `notify:unread:${userId}`;
+    const cached = await redisGetJson<number>(cacheKey).catch(() => null);
+    if (cached !== null && cached !== undefined) return cached as number;
+    const count = await this.repo.unreadCount(userId);
+    await redisSetJson(cacheKey, count, 5).catch(() => {});
+    return count;
   }
 
   async markAllRead(userId: string): Promise<void> {
     await this.repo.markAllRead(userId);
+    await redisDel(`notify:unread:${userId}`).catch(() => {});
+    await redisDel(`notify:list:${userId}:20`).catch(() => {});
   }
 
   async bulk(input: BulkNotificationInput): Promise<{ queued: number }> {

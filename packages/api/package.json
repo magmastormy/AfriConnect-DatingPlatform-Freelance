@@ -6,8 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
-    "start": "node dist/api/src/server.js",
+    "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit",
+    "typecheck:harness": "tsc -p tsconfig.harness.json --noEmit",
     "lint": "eslint --config ../../eslint.config.cjs src scripts",
     "test": "jest",
     "prisma:generate": "node scripts/prisma-env.cjs generate",
@@ -15,7 +16,8 @@
     "prisma:deploy": "node scripts/prisma-env.cjs migrate deploy",
     "prisma:studio": "node scripts/prisma-env.cjs studio",
     "prisma:validate": "node scripts/prisma-env.cjs validate",
-    "seed": "node prisma/seed.js",
+    "prisma:seed": "node scripts/prisma-env.cjs seed",
+    "seed": "node scripts/prisma-env.cjs seed",
     "migrate:r2": "ts-node -r tsconfig-paths/register scripts/migrate-to-r2.ts"
   },
   "prisma": {
@@ -23,7 +25,7 @@
   },
   "dependencies": {
     "@africonnect/shared": "workspace:*",
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -31,31 +33,38 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "smile-identity-core": "^3.1.0",
+    "multer": "1.4.5-lts.1",
     "pino": "^9.4.0",
     "pino-http": "^10.2.0",
+    "smile-identity-core": "^3.1.0",
     "stripe": "^16.12.0",
-    "zod": "^3.23.8",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "@types/autocannon": "^7.12.7",
     "@types/bcryptjs": "^2.4.6",
-    "@types/multer": "^1.4.12",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.6",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.5.4",
     "@types/ws": "^8.5.12",
     "@typescript-eslint/eslint-plugin": "^8.4.0",
     "@typescript-eslint/parser": "^8.4.0",
+    "autocannon": "^8.0.0",
     "eslint": "^9.9.1",
     "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
-    "@types/jest": "^29.5.12",
     "prisma": "^5.20.0",
+    "puppeteer-core": "^25.8.0",
+    "tinybench": "^2.9.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.6.2",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.6.2"
   }
 }

@@ -41,6 +41,17 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Special case for seed command - run node directly
+if (args[0] === 'seed') {
+  const seedPath = path.resolve(__dirname, '../prisma/seed.js');
+  const result = spawnSync('node', [seedPath], {
+    stdio: 'inherit',
+    shell: true,
+    env: process.env,
+  });
+  process.exit(result.status ?? 1);
+}
+
 // `shell: true` is required on Windows so the `prisma.cmd` shim on PATH resolves.
 // pnpm puts packages/api/node_modules/.bin on PATH when running package scripts.
 const result = spawnSync('prisma', args, {

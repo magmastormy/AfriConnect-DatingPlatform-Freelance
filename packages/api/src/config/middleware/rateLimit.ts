@@ -11,14 +11,13 @@ export function rateLimitMiddleware(
   max: number = RATE_LIMIT_GENERAL_MAX,
   windowMs: number = RATE_LIMIT_GENERAL_WINDOW_MS,
 ) {
-  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const key = req.user ? `u:${req.user.userId}` : `ip:${req.ip}`;
-    try {
-      await assertWithinLimit(key, max, windowMs);
-      next();
-    } catch (err) {
-      if (err instanceof RateLimitError) return next(err);
-      next(err);
-    }
+    void assertWithinLimit(key, max, windowMs)
+      .then(() => next())
+      .catch((err: unknown) => {
+        if (err instanceof RateLimitError) return next(err);
+        next(err as Error);
+      });
   };
 }

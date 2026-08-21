@@ -5,6 +5,7 @@ import { IApplicationService } from '@modules/application/application.service';
 import { IEventService } from '@modules/event/event.service';
 import { IBillingService } from '@modules/billing/billing.service';
 import { INotificationService } from '@modules/notification/notification.service';
+import { IMediaStorage } from '@africonnect/shared';
 import { NotFoundError, ConflictError } from '@africonnect/shared';
 
 function fakeRepo(over: Partial<IAdminRepository> = {}): IAdminRepository {
@@ -79,6 +80,19 @@ function fakeNotifications(): INotificationService {
   } as unknown as INotificationService;
 }
 
+// Pass-through storage for unit tests — admin.service will call getSignedUrl on
+// the URLs returned by the application service, but tests aren't exercising the
+// signing path; they assert behavior around the role/promotion logic. Returning
+// the input unchanged keeps test fixtures realistic without needing real R2.
+function fakeStorage(): IMediaStorage {
+  return {
+    name: 'fake',
+    upload: async () => ({ url: '', publicId: '' }),
+    remove: async () => undefined,
+    getSignedUrl: async (id: string) => id,
+  } as unknown as IMediaStorage;
+}
+
 const superAdmin = {
   userId: 'admin1',
   role: UserRole.SuperAdmin,
@@ -135,7 +149,7 @@ describe('AdminService vetting', () => {
         createdAt: new Date(),
       }),
     });
-    const service = new AdminService(repo, apps, fakeEvents(), fakeBilling(), fakeNotifications());
+    const service = new AdminService(repo, apps, fakeEvents(), fakeBilling(), fakeNotifications(), fakeStorage());
 
     const result = await service.reviewApplication(
       'app1',
@@ -161,6 +175,7 @@ describe('AdminService vetting', () => {
       fakeEvents(),
       fakeBilling(),
       fakeNotifications(),
+      fakeStorage(),
     );
     await expect(
       service.reviewApplication('missing', { status: 'approved' as never }, superAdmin),
@@ -188,6 +203,7 @@ describe('AdminService role assignment (SuperAdmin only)', () => {
       fakeEvents(),
       fakeBilling(),
       fakeNotifications(),
+      fakeStorage(),
     );
     await expect(
       service.assignRole('u', { userId: 'u', role: UserRole.AdminVetting }, superAdmin),
@@ -213,6 +229,7 @@ describe('AdminService role assignment (SuperAdmin only)', () => {
       fakeEvents(),
       fakeBilling(),
       fakeNotifications(),
+      fakeStorage(),
     );
     await expect(
       service.assignRole('u', { userId: 'u', role: UserRole.SuperAdmin }, vettingAdmin),
@@ -238,6 +255,7 @@ describe('AdminService role assignment (SuperAdmin only)', () => {
       fakeEvents(),
       fakeBilling(),
       fakeNotifications(),
+      fakeStorage(),
     );
     await expect(service.banMember('admin2', vettingAdmin, {})).rejects.toBeInstanceOf(
       ConflictError,

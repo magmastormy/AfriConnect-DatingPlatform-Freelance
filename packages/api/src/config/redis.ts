@@ -83,10 +83,18 @@ if (redisConfigured) {
 export const redisEnabled = redisConfigured;
 
 // ── KV (JSON) ──────────────────────────────────────────────────────────────────
+function isRedisReady(): boolean {
+  return !!redisClient && redisClient.status === 'ready';
+}
+
 export async function redisGetJson<T>(key: string): Promise<T | null> {
-  if (redisClient) {
-    const raw = await redisClient.get(key);
-    return raw ? (JSON.parse(raw) as T) : null;
+  if (isRedisReady()) {
+    try {
+      const raw = await redisClient.get(key);
+      return raw ? (JSON.parse(raw) as T) : null;
+    } catch {
+      // fall through to memory
+    }
   }
   const raw = await memKv.get(key);
   return raw ? (JSON.parse(raw) as T) : null;
@@ -94,17 +102,26 @@ export async function redisGetJson<T>(key: string): Promise<T | null> {
 
 export async function redisSetJson(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
   const raw = JSON.stringify(value);
-  if (redisClient) {
-    if (ttlSeconds) await redisClient.set(key, raw, 'EX', ttlSeconds);
-    else await redisClient.set(key, raw);
-    return;
+  if (isRedisReady()) {
+    try {
+      if (ttlSeconds) await redisClient.set(key, raw, 'EX', ttlSeconds);
+      else await redisClient.set(key, raw);
+      return;
+    } catch {
+      // fall through
+    }
   }
   await memKv.set(key, raw, ttlSeconds);
 }
 
 export async function redisDel(key: string): Promise<void> {
-  if (redisClient) await redisClient.del(key);
-  else await memKv.del(key);
+  if (isRedisReady()) {
+    try {
+      await redisClient.del(key);
+      return;
+    } catch {}
+  }
+  await memKv.del(key);
 }
 
 // ── Sliding-window rate limit ───────────────────────────────────────────────────
@@ -120,32 +137,52 @@ export async function redisSlidingWindow(
   max: number,
   now = Date.now(),
 ): Promise<SlidingWindowResult> {
-  if (redisClient) {
-    const cutoff = now - windowMs;
-    await redisClient.zremrangebyscore(key, '-inf', cutoff);
-    const count = (await redisClient.zcard(key)) as number;
-    if (count >= max) {
-      const oldest = (await redisClient.zrange(key, 0, 0)) as string[];
-      const retryAfterMs = oldest.length ? Number(oldest[0]) + windowMs - now : windowMs;
-      return { allowed: false, remaining: 0, retryAfterMs: Math.max(0, retryAfterMs) };
+  if (isRedisReady()) {
+    try {
+      const cutoff = now - windowMs;
+      await redisClient.zremrangebyscore(key, '-inf', cutoff);
+      const count = (await redisClient.zcard(key)) as number;
+      if (count >= max) {
+        const oldest = (await redisClient.zrange(key, 0, 0)) as string[];
+        const oldestTs = oldest.length ? Number(oldest[0].split(':')[0]) : now;
+        const retryAfterMs = oldest.length ? oldestTs + windowMs - now : windowMs;
+        return { allowed: false, remaining: 0, retryAfterMs: Math.max(0, retryAfterMs) };
+      }
+      // Use unique member to avoid collision when multiple reqs share the same millisecond (high-concurrency bug)
+      const member = `${now}:${Math.random().toString(36).slice(2, 10)}:${process.hrtime.bigint().toString()}`;
+      await redisClient.zadd(key, now, member);
+      await redisClient.expire(key, Math.ceil(windowMs / 1000));
+      return { allowed: true, remaining: max - count - 1, retryAfterMs: 0 };
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message ?? '';
+      if (msg.includes('WRONGTYPE')) {
+        // Key was previously a STRING (e.g., leftover from cache). Delete and retry as ZSET.
+        await redisClient.del(key).catch(() => {});
+        return redisSlidingWindow(key, windowMs, max, now);
+      }
+      // Redis not ready or other error — fall through to memory
+      if (msg.includes("Stream isn't writeable") || msg.includes('enableOfflineQueue')) {
+        // fall through
+      } else {
+        throw err;
+      }
     }
-    await redisClient.zadd(key, now, String(now));
-    await redisClient.expire(key, Math.ceil(windowMs / 1000));
-    return { allowed: true, remaining: max - count - 1, retryAfterMs: 0 };
   }
-  // Memory fallback
+  // Memory fallback — use unique timestamps to avoid dup collapsing
   const hits = (memWindows.get(key) ?? []).filter((t) => t > now - windowMs);
   memWindows.set(key, hits);
   if (hits.length >= max) {
     return { allowed: false, remaining: 0, retryAfterMs: hits[0] + windowMs - now };
   }
-  hits.push(now);
+  // Jitter by 0.001ms so same-ms concurrent calls remain distinct entries
+  hits.push(now + Math.random() * 0.5);
+  memWindows.set(key, hits);
   return { allowed: true, remaining: max - hits.length, retryAfterMs: 0 };
 }
 
 // ── Pub/Sub (WS presence + cross-instance chat delivery) ─────────────────────────
 export function redisPublish(channel: string, message: string): void {
-  if (redisClient) {
+  if (isRedisReady()) {
     redisClient.publish(channel, message).catch(() => {});
     return;
   }
@@ -153,7 +190,7 @@ export function redisPublish(channel: string, message: string): void {
 }
 
 export function redisSubscribe(channel: string, handler: (message: string) => void): void {
-  if (redisClient) {
+  if (isRedisReady()) {
     redisClient.subscribe(channel).catch(() => {});
     redisClient.on('message', (ch: string, msg: string) => {
       if (ch === channel) handler(msg);

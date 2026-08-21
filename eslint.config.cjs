@@ -21,6 +21,13 @@ module.exports = [
       '**/*.test.tsx',
       '**/*.spec.ts',
       '**/*.spec.tsx',
+      // Harness scripts are type-checked via tsconfig.harness.json, not the main
+      // project. They use `any` and `import.meta` patterns that are intentional.
+      '**/scripts/test-harness/**',
+      '**/scripts/perf/**',
+      '**/scripts/load/**',
+      '**/scripts/bench/**',
+      '**/scripts/e2e/**',
     ],
   },
   {
@@ -64,6 +71,12 @@ module.exports = [
       ],
       'prefer-const': 'error',
       'no-var': 'error',
+    },
+  },
+  {
+    files: ['**/vetting.smile.ts', '**/types/ioredis.d.ts', '**/config/prisma.ts', '**/config/redis.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ];

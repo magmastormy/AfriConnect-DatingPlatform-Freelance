@@ -92,9 +92,6 @@ export function SiteNav() {
           </>
         ) : (
           <>
-            <Link className="navlink" href="/events" prefetch>
-              Events
-            </Link>
             <Link className="navlink" href="/sign-in" prefetch>
               Sign in
             </Link>
@@ -145,9 +142,6 @@ export function SiteNav() {
             </>
           ) : (
             <>
-              <Link className="mobile-navlink" href="/events" prefetch>
-                Events
-              </Link>
               <Link className="mobile-navlink" href="/sign-in" prefetch>
                 Sign in
               </Link>

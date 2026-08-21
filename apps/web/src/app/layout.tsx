@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
@@ -10,22 +10,25 @@ import { JsonLd } from '@/components/JsonLd';
 import { ThemeProvider } from '@/lib/theme';
 import { THEME_COOKIE, isThemeSetting, type ThemeSetting } from '@/lib/theme.utils';
 import { ClerkProvider } from './clerk-provider';
+import { BFCacheHandler } from '@/components/BFCacheHandler';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://africonnect.pro';
 
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  display: 'swap',
+// Self-hosted fonts — no Google Fonts network (ECONNRESET at build), woff2 served from /_next/static/media with display:swap for LCP
+const fraunces = localFont({
+  src: [
+    { path: '../../public/fonts/Fraunces-400.woff2', weight: '400', style: 'normal' },
+    { path: '../../public/fonts/Fraunces-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-display',
-  // Trimmed from 5 weights -> 2: fewer woff2 fetches = faster dev compile and a
-  // lighter production payload (400 body + 700 display headings).
-  weight: ['400', '700'],
-});
-
-const inter = Inter({
-  subsets: ['latin'],
   display: 'swap',
+  preload: true,
+});
+const inter = localFont({
+  src: '../../public/fonts/Inter-400.woff2',
   variable: '--font-sans',
+  display: 'swap',
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -101,6 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body>
+        <BFCacheHandler />
         <JsonLd data={orgLd} />
         <JsonLd data={siteLd} />
         <ThemeProvider initialTheme={initialTheme}>

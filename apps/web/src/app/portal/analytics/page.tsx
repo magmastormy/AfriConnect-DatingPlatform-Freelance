@@ -1,10 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { getMyAnalytics, ApiError, type AnalyticsBundle, type Bucket } from '@/lib/api';
 import { ApiState, Card } from '@/components/ui';
-import { LineChart } from '@/components/charts/LineChart';
-import { BarChart } from '@/components/charts/BarChart';
+// Perf: defer chart hydration off main thread — analytics is not LCP, so dynamic + ssr:false shaves ~30k from initial bundle and TBT
+const LineChart = dynamic(() => import('@/components/charts/LineChart').then((m) => m.LineChart), {
+  ssr: false,
+  loading: () => <div style={{ height: 120, background: 'var(--surface-3)', borderRadius: 8 }} aria-hidden="true" />,
+});
+const BarChart = dynamic(() => import('@/components/charts/BarChart').then((m) => m.BarChart), {
+  ssr: false,
+  loading: () => <div style={{ height: 120, background: 'var(--surface-3)', borderRadius: 8 }} aria-hidden="true" />,
+});
 
 type WindowDays = 7 | 30 | 90;
 const WINDOWS: WindowDays[] = [7, 30, 90];

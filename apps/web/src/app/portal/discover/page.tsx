@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { api, ApiError } from '@/lib/api';
 import { DiscoverCard, NearbyProfileView, ProfileRedNoteView } from '@/lib/types';
 import { isPremium, SubscriptionView, can, Capability } from '@/lib/membership';
@@ -76,7 +77,7 @@ function HeartIcon() {
 }
 
 // ── Discover / Nearby grid card (Xiaohongshu-style, browse-only) ────────────
-function DiscoverGridCard({ member, onOpen }: { member: GridMember; onOpen: () => void }) {
+function DiscoverGridCard({ member, onOpen, priority = false }: { member: GridMember; onOpen: () => void; priority?: boolean }) {
   const initial = (member.displayName.charAt(0) || '?').toUpperCase();
   return (
     <div
@@ -94,9 +95,23 @@ function DiscoverGridCard({ member, onOpen }: { member: GridMember; onOpen: () =
     >
       <div
         className="discover-card-photo"
-        style={member.photo ? { backgroundImage: `url(${member.photo})` } : undefined}
+        style={{ position:'relative', overflow:'hidden', backgroundColor:'var(--surface-3)' }}
       >
-        {!member.photo && <span className="photo-fallback">No photo</span>}
+        {member.photo ? (
+          <Image
+            src={member.photo}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw"
+            style={{ objectFit:'cover' }}
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : "low"}
+          />
+        ) : (
+          <span className="photo-fallback">No photo</span>
+        )}
         <div className="discover-card-badges">
           {member.verified && <Badge tone="good">Verified</Badge>}
           {member.isPremium && <Badge tone="warn">Premium</Badge>}
@@ -113,8 +128,10 @@ function DiscoverGridCard({ member, onOpen }: { member: GridMember; onOpen: () =
       </div>
 
       <div className="discover-card-footer">
-        <span className="discover-card-avatar">
-          {member.photo ? <img src={member.photo} alt="" /> : initial}
+        <span className="discover-card-avatar" style={{ overflow:'hidden', width:40, height:40, borderRadius:'50%', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+          {member.photo ? (
+            <Image src={member.photo} alt="" width={40} height={40} style={{ objectFit:'cover' }} loading="lazy" decoding="async" />
+          ) : initial}
         </span>
         <span className="discover-card-id">
           <b>{member.displayName}</b>
@@ -166,12 +183,23 @@ function RedNoteModal({
   return (
     <div className="modal-shell" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        {/* Sliding photos */}
+        {/* Sliding photos — next/image with priority for LCP (first 2) */}
         <div
           className="modal-photo"
-          style={photos[idx] ? { backgroundImage: `url(${photos[idx]})` } : undefined}
+          style={{ position:'relative', overflow:'hidden' }}
         >
-          {!photos[idx] && <span className="modal-photo-empty">No photo</span>}
+          {photos[idx] ? (
+            <Image
+              src={photos[idx]}
+              alt=""
+              fill
+              sizes="(max-width: 768px) 100vw, 600px"
+              style={{ objectFit:'cover' }}
+              priority={idx < 2}
+            />
+          ) : (
+            <span className="modal-photo-empty">No photo</span>
+          )}
           {photos.length > 1 && (
             <>
               <button
@@ -499,11 +527,12 @@ export default function DiscoverPage() {
           {canConnect ? (
             <>
               <div className="discover-grid">
-                {deck.map((card) => (
+                {deck.map((card, idx) => (
                   <DiscoverGridCard
                     key={card.userId}
                     member={normalizeDiscover(card)}
                     onOpen={() => openRedNoteFromCard(card.userId)}
+                    priority={idx < 2}
                   />
                 ))}
               </div>
@@ -524,11 +553,12 @@ export default function DiscoverPage() {
                 </Link>
               </div>
               <div className="discover-grid">
-                {deck.slice(0, 3).map((card) => (
+                {deck.slice(0, 3).map((card, idx) => (
                   <DiscoverGridCard
                     key={card.userId}
                     member={normalizeDiscover(card)}
                     onOpen={() => openRedNoteFromCard(card.userId)}
+                    priority={idx < 2}
                   />
                 ))}
               </div>
@@ -581,11 +611,12 @@ export default function DiscoverPage() {
               {nearbyOptIn && (
                 <>
                   <div className="discover-grid">
-                    {nearby.map((card) => (
+                    {nearby.map((card, idx) => (
                       <DiscoverGridCard
                         key={card.userId}
                         member={normalizeNearby(card)}
                         onOpen={() => openRedNoteFromCard(card.userId)}
+                        priority={idx < 2}
                       />
                     ))}
                   </div>

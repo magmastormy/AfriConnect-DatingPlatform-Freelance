@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { Card, ApiState, Button, Badge, Select } from '@/components/ui';
 import { RoleDescriptor } from '@/lib/types';
 import { UserRole } from '@/lib/shared';
@@ -24,15 +24,12 @@ export default function RolesPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [r, a] = await Promise.all([
-          api.get<RoleDescriptor[]>('/admin/roles'),
-          api.get<AdminUser[]>('/admin/admins'),
-        ]);
+        const [r, a] = await Promise.all([adminApi.roleMatrix(), adminApi.listAdmins()]);
         setMatrix(r);
-        setAdmins(a);
+        setAdmins(a as unknown as AdminUser[]);
         if (a.length) setAssignId(a[0].id);
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Failed to load');
+        setError(e instanceof AdminApiError ? e.message : 'Failed to load');
       } finally {
         setLoading(false);
       }
@@ -42,11 +39,10 @@ export default function RolesPage() {
   async function assign() {
     setBusy(true);
     try {
-      await api.post(`/admin/admins/${assignId}/role`, { role: assignRole });
-      const a = await api.get<AdminUser[]>('/admin/admins');
-      setAdmins(a);
+      await adminApi.assignRole(assignId, { role: assignRole });
+      setAdmins((await adminApi.listAdmins()) as unknown as AdminUser[]);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Assign failed');
+      setError(e instanceof AdminApiError ? e.message : 'Assign failed');
     } finally {
       setBusy(false);
     }

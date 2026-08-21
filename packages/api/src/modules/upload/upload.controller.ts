@@ -37,7 +37,7 @@ export class UploadController {
     upload.single('file'),
     asyncHandler(async (req: Request, res: Response) => {
       if (!req.user) throw new ValidationError('Unauthenticated');
-      assertWithinLimit(
+      await assertWithinLimit(
         `upload:${req.user.userId}`,
         RATE_LIMIT_UPLOAD_MAX,
         RATE_LIMIT_UPLOAD_WINDOW_MS,

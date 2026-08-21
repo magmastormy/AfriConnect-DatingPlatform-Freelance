@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { useToast } from '@/components/Toast';
 import { Card, Button, Input, Textarea, Select } from '@/components/ui';
 import { NotificationChannel, UserRole } from '@/lib/shared';
@@ -33,7 +33,7 @@ export default function BroadcastPage() {
 
     setBusy(true);
     try {
-      const res = await api.post<{ queued?: number }>('/admin/notifications/broadcast', {
+      const res = await adminApi.broadcast({
         type: sanitizeText(type),
         title: sanitizeText(title),
         body: sanitizeText(body),
@@ -46,7 +46,7 @@ export default function BroadcastPage() {
       setBody('');
       setLink('');
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : 'Broadcast failed', 'error');
+      toast(err instanceof AdminApiError ? err.message : 'Broadcast failed', 'error');
     } finally {
       setBusy(false);
     }

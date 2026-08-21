@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { adminApi, AdminApiError } from '@/lib/adminApi';
 import { ApiState, Button, Badge, Select, SearchInput, Pagination } from '@/components/ui';
 import { SubscriptionAdminView } from '@/lib/types';
 import { SubscriptionStatus, SubscriptionPlan } from '@/lib/shared';
@@ -30,12 +30,9 @@ export default function SubscriptionsPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const list = await api.get<SubscriptionAdminView[]>(
-          '/admin/subscriptions' + (filter ? `?status=${filter}` : ''),
-        );
-        setSubs(list);
+        setSubs(await adminApi.listSubscriptions(filter || undefined));
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Failed to load');
+        setError(e instanceof AdminApiError ? e.message : 'Failed to load');
       } finally {
         setLoading(false);
       }
@@ -55,10 +52,10 @@ export default function SubscriptionsPage() {
   async function cancel(userId: string) {
     setBusyId(userId);
     try {
-      await api.post(`/admin/subscriptions/${userId}/cancel`, { atPeriodEnd: true });
+      await adminApi.cancelSubscription(userId, { atPeriodEnd: true });
       setSubs((p) => p.map((s) => (s.userId === userId ? { ...s, cancelAtPeriodEnd: true } : s)));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Cancel failed');
+      setError(e instanceof AdminApiError ? e.message : 'Cancel failed');
     } finally {
       setBusyId(null);
     }
@@ -67,16 +64,13 @@ export default function SubscriptionsPage() {
   async function grant(userId: string) {
     setBusyId(userId);
     try {
-      await api.post(`/admin/subscriptions/${userId}/grant`, {
+      await adminApi.grantSubscription(userId, {
         plan: SubscriptionPlan.Premium,
         months: 1,
       });
-      const refreshed = await api.get<SubscriptionAdminView[]>(
-        '/admin/subscriptions' + (filter ? `?status=${filter}` : ''),
-      );
-      setSubs(refreshed);
+      setSubs(await adminApi.listSubscriptions(filter || undefined));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Grant failed');
+      setError(e instanceof AdminApiError ? e.message : 'Grant failed');
     } finally {
       setBusyId(null);
     }

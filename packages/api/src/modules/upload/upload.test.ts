@@ -1,10 +1,15 @@
 import { UploadService } from './upload.service';
 import { ValidationError } from '@africonnect/shared';
 
-const makeStorage = (over: Partial<{ upload: jest.Mock; remove: jest.Mock }> = {}) => ({
+const makeStorage = (
+  over: Partial<{ upload: jest.Mock; remove: jest.Mock; getSignedUrl: jest.Mock }> = {},
+) => ({
   name: 'mock',
   upload: over.upload ?? jest.fn(),
   remove: over.remove ?? jest.fn(),
+  // getSignedUrl is required by IMediaStorage (admin.service calls it). Upload
+  // tests don't exercise signing, so a no-op is fine.
+  getSignedUrl: over.getSignedUrl ?? jest.fn(async (id: string) => id),
 });
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0]);

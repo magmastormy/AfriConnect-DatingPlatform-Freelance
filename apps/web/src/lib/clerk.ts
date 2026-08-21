@@ -31,7 +31,7 @@ export const CLERK_PUBLISHABLE_KEY = publishableKey;
 export const SIGN_IN_URL = '/sign-in';
 export const SIGN_UP_URL = '/sign-up';
 /** Where a member lands after authenticating. */
-export const AFTER_SIGN_IN_URL = '/portal';
+export const AFTER_SIGN_IN_URL = '/portal/discover';
 /**
  * A brand-new account goes to onboarding, which creates the profile and then
  * offers vetting. Vetting is deliberately NOT part of sign-up.
