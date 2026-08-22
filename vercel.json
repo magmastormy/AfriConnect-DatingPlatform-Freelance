@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm --filter @africonnect/web build",
-  "outputDirectory": "apps/web/.next",
-  "installCommand": "pnpm install"
+  "buildCommand": "turbo run build --filter=@africonnect/web",
+  "installCommand": "pnpm install",
+  "outputDirectory": "apps/web/.next"
 }
