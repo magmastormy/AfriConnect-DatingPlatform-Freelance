@@ -14,32 +14,33 @@ services:
       - key: PORT
         value: "4000"
       - key: API_MOUNT_PATH
-        sync: false
+        value: "36995461b66a8b6a44ccf6ccfe5aa8ce"
       - key: JWT_ACCESS_SECRET
-        sync: false
+        generateValue: true
       - key: JWT_REFRESH_SECRET
-        sync: false
+        generateValue: true
       - key: DATABASE_URL
         # Use your Aiven free PostgreSQL "Service URI" (must end in ?sslmode=require)
-        sync: false
+        # Set this manually in Render dashboard after deployment
+        value: "SET_IN_RENDER_DASHBOARD"
       - key: WEB_BASE_URL
-        sync: false
+        value: "SET_IN_RENDER_DASHBOARD"
       - key: CORS_ORIGINS
-        sync: false
+        value: "SET_IN_RENDER_DASHBOARD"
       - key: TWILIO_ACCOUNT_SID
-        sync: false
+        value: ""
       - key: TWILIO_AUTH_TOKEN
-        sync: false
+        value: ""
       - key: TWILIO_VERIFY_SID
-        sync: false
+        value: ""
       - key: STRIPE_SECRET_KEY
-        sync: false
+        value: ""
       - key: STRIPE_WEBHOOK_SECRET
-        sync: false
+        value: ""
       - key: CLERK_PUBLISHABLE_KEY
-        sync: false
+        value: ""
       - key: CLERK_SECRET_KEY
-        sync: false
+        value: ""
       - key: CONTACT_WEBHOOK_URL
-        sync: false
+        value: ""
     preDeployCommand: pnpm --filter @africonnect/api exec prisma migrate deploy
