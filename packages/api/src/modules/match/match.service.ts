@@ -20,6 +20,7 @@ import {
   NotFoundError,
 } from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
+import { redisGetJson, redisSetJson } from '../../config/redis';
 import {
   DAILY_MATCH_LIMIT,
   DISCOVER_PREVIEW_LIMIT,
@@ -287,6 +288,15 @@ export class MatchService implements IMatchService {
     );
     const topN = Math.min(50, opts.limit ?? RECOMMEND_TOP_N);
 
+    const cacheKey = `match:discover:${userId}:${topN}:${radiusKm}`;
+    if (process.env.NODE_ENV !== 'test') {
+      const cached = await redisGetJson<RecommendCard[]>(cacheKey).catch(() => null);
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        logger.debug({ userId, cacheKey }, 'Discover cache hit');
+        return cached;
+      }
+    }
+
     const [tier, accountCreatedAt, likedItemIds, interactions] = await Promise.all([
       this.repo.loadUserTier(userId),
       this.repo.loadAccountCreatedAt(userId),
@@ -374,7 +384,7 @@ export class MatchService implements IMatchService {
     const engine = new MatchingEngine(buildDefaultConfig({ radiusKm, topN }));
     const ranked = engine.recommend(engineViewer, engineCandidates, matrix);
 
-    return ranked.map((r) => {
+    const cards = ranked.map((r) => {
       const c = r.candidate;
       const p = profileById.get(c.userId);
       const photos = Array.isArray(p?.photos)
@@ -409,6 +419,11 @@ export class MatchService implements IMatchService {
         },
       } as RecommendCard;
     });
+
+    if (process.env.NODE_ENV !== 'test') {
+      await redisSetJson(cacheKey, cards, 30).catch(() => {});
+    }
+    return cards;
   }
 
   /**

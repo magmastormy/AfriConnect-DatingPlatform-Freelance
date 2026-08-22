@@ -348,6 +348,7 @@ a:hover { color: var(--brand-ink); }
 
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--spinner-track); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.35; } }
 
 /* Toasts */
 .toast {
@@ -1190,7 +1191,7 @@ a:hover { color: var(--brand-ink); }
 }
 .portal-signout:hover { color: var(--bad); border-color: var(--bad); }
 
-.portal-content { min-width: 0; max-width: 1200px; margin-right: auto; }
+.portal-content { min-width: 0; max-width: 1200px; margin-right: auto; max-height: calc(100vh - 88px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; }
 .portal-content.is-wide { max-width: 1600px; }
 
 .portal-menu-btn {
@@ -1392,6 +1393,9 @@ a:hover { color: var(--brand-ink); }
 .discover-grid {
   column-count: 2;
   column-gap: 16px;
+  overscroll-behavior: contain;
+  /* contain scroll inside grid when nested in portal-content */
+  max-height: 100%;
 }
 @media (min-width: 640px) {
   .discover-grid { column-count: 3; }
@@ -1560,6 +1564,7 @@ a:hover { color: var(--brand-ink); }
   justify-content: center;
   z-index: 50;
   padding: 16px;
+  overscroll-behavior: contain;
 }
 .modal-card {
   background: var(--surface);
@@ -1568,8 +1573,10 @@ a:hover { color: var(--brand-ink); }
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
+body:has(.modal-shell) { overflow: hidden; }
 .modal-photo {
   position: relative;
   aspect-ratio: 4 / 3;

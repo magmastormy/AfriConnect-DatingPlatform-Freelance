@@ -156,6 +156,33 @@ function DiscoverGridCard({ member, onOpen, priority = false }: { member: GridMe
   );
 }
 
+// ── Skeleton for fast perceived load ───────────────────────────────────────
+function DiscoverSkeletonGrid() {
+  return (
+    <div className="discover-grid" aria-busy="true" aria-label="Loading members">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="discover-card"
+          style={{
+            height: 320,
+            background: 'var(--surface-2)',
+            border: '1px solid var(--line)',
+            animation: 'pulse 1.4s ease-in-out infinite',
+            opacity: 0.7,
+          }}
+        >
+          <div style={{ height: '72%', background: 'var(--line)', opacity: 0.5 }} />
+          <div style={{ padding: '12px', display: 'grid', gap: 8 }}>
+            <div style={{ height: 12, width: '60%', background: 'var(--line)', borderRadius: 6 }} />
+            <div style={{ height: 10, width: '40%', background: 'var(--line)', borderRadius: 6 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── RedNote drill-down (gated profile card + sticky action bar) ─────────────
 function RedNoteModal({
   view,
@@ -368,15 +395,16 @@ export default function DiscoverPage() {
     setNearbyLoading(true);
     setNearbyError(null);
     try {
-      const s = await api.get<SubscriptionView>('/billing/subscription');
+      const [s, me] = await Promise.all([
+        api.get<SubscriptionView>('/billing/subscription'),
+        api.get<{ nearbyEnabled: boolean }>('/profile/me').catch(() => ({ nearbyEnabled: false })),
+      ]);
       setSub(s);
       if (!isPremium(s)) {
         setNearby([]);
+        setNearbyOptIn(me.nearbyEnabled);
         return;
       }
-      const me = await api
-        .get<{ nearbyEnabled: boolean }>('/profile/me')
-        .catch(() => ({ nearbyEnabled: false }));
       setNearbyOptIn(me.nearbyEnabled);
       if (!me.nearbyEnabled) {
         setNearby([]);
@@ -523,7 +551,11 @@ export default function DiscoverPage() {
       </div>
 
       {mode === 'discover' && (
-        <ApiState loading={loading} error={error} empty={!loading && deck.length === 0}>
+        <>
+          {loading && deck.length === 0 ? (
+            <DiscoverSkeletonGrid />
+          ) : (
+            <ApiState loading={false} error={error} empty={deck.length === 0}>
           {canConnect ? (
             <>
               <div className="discover-grid">
@@ -565,14 +597,20 @@ export default function DiscoverPage() {
             </>
           )}
         </ApiState>
+          )}
+        </>
       )}
 
       {mode === 'nearby' && (
-        <ApiState
-          loading={nearbyLoading}
-          error={nearbyError}
-          empty={!nearbyLoading && !nearbyError && nearbyOptIn === true && nearby.length === 0}
-        >
+        <>
+          {nearbyLoading && nearby.length === 0 && nearbyOptIn !== false ? (
+            <DiscoverSkeletonGrid />
+          ) : (
+            <ApiState
+              loading={false}
+              error={nearbyError}
+              empty={!nearbyError && nearbyOptIn === true && nearby.length === 0}
+            >
           {!isPremium(sub) ? (
             <Card title="Nearby is a Premium feature">
               <p style={{ color: 'var(--muted)', marginBottom: '1rem' }}>
@@ -635,7 +673,9 @@ export default function DiscoverPage() {
               )}
             </div>
           )}
-        </ApiState>
+            </ApiState>
+          )}
+        </>
       )}
 
       {redNoteLoading && (
