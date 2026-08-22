@@ -4,11 +4,14 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
+    "rootDir": "./src",
     "declaration": false,
     "baseUrl": ".",
     "paths": {
-      "@africonnect/shared": ["../shared/src/index.ts"],
-      "@africonnect/shared/errors": ["../shared/src/errors/AppError.ts"],
+      "@config/middleware/auth": ["src/config/middleware/auth.ts"],
+      "@config/middleware/rateLimit": ["src/config/middleware/rateLimit.ts"],
+      "@config/middleware/validate": ["src/config/middleware/validate.ts"],
+      "@config/middleware/device": ["src/config/middleware/device.ts"],
       "@modules/*": ["src/modules/*"],
       "@config/*": ["src/config/*"],
       "@config/jwt": ["src/config/jwt.ts"],
@@ -22,7 +25,7 @@
       "@webhooks/dedupe": ["src/webhooks/dedupe.ts"]
     }
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",

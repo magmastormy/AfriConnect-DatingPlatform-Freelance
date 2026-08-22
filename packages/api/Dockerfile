@@ -45,4 +45,4 @@ COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 RUN pnpm --filter @africonnect/api exec prisma generate || true
 
 EXPOSE 4000
-CMD ["sh", "-c", "pnpm --filter @africonnect/api exec prisma migrate deploy && node packages/api/dist/api/src/server.js"]
+CMD ["sh", "-c", "pnpm --filter @africonnect/api exec prisma migrate deploy && node packages/api/dist/server.js"]
