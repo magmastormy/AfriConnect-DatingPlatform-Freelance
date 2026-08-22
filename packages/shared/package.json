@@ -2,19 +2,19 @@
   "name": "@africonnect/shared",
   "version": "1.0.0",
   "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "browser": "./src/client.ts",
-      "default": "./src/index.ts"
+      "browser": "./dist/client.js",
+      "default": "./dist/index.js"
     },
-    "./errors": "./src/errors/AppError.ts",
-    "./logger": "./src/logger.ts",
-    "./constants": "./src/constants.ts",
-    "./crypto": "./src/crypto/pii.ts",
-    "./http": "./src/http/envelope.ts",
-    "./integrations/media": "./src/integrations/media.ts"
+    "./errors": "./dist/errors/AppError.js",
+    "./logger": "./dist/logger.js",
+    "./constants": "./dist/constants.js",
+    "./crypto": "./dist/crypto/pii.js",
+    "./http": "./dist/http/envelope.js",
+    "./integrations/media": "./dist/integrations/media.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
