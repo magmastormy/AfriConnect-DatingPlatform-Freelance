@@ -144,6 +144,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className={`portal-content ${isWide ? 'is-wide' : ''}`}>
+        <div className="portal-content-inner">
         <button
           className="portal-menu-btn"
           onClick={() => setNavOpen(true)}
@@ -153,6 +154,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           <span aria-hidden="true">☰</span> Menu
         </button>
         {children}
+        </div>
       </main>
       {navOpen && <div className="portal-backdrop" onClick={() => setNavOpen(false)} />}
     </div>
