@@ -20,6 +20,12 @@ interface Profile {
   educationLevel: EducationLevel | null;
   dateOfBirth: string | null;
   interests: string[] | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
+  distanceKm?: number | null;
+  educationMin?: EducationLevel | null;
+  professions?: string[] | null;
+  relationshipGoals?: string[] | null;
   isComplete: boolean;
   isPaused: boolean;
 }
@@ -42,6 +48,15 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [preferences, setPreferences] = useState({
+    ageMin: 21,
+    ageMax: 45,
+    distanceKm: 50,
+    educationMin: '' as EducationLevel | '',
+    professions: '',
+    relationshipGoals: '',
+  });
+  const [activeTab, setActiveTab] = useState<'information' | 'settings'>('information');
 
   // Seed the form from Clerk identity when the backend profile is still empty,
   // so a member who signed up via Clerk sees their real name immediately
@@ -60,6 +75,14 @@ export default function AccountPage() {
         setProfile(p);
         setSub(s);
         setInterestsText(Array.isArray(p.interests) ? p.interests.join(', ') : '');
+        setPreferences({
+          ageMin: Number(p.ageMin ?? 21),
+          ageMax: Number(p.ageMax ?? 45),
+          distanceKm: Number(p.distanceKm ?? 50),
+          educationMin: p.educationMin ?? '',
+          professions: Array.isArray(p.professions) ? p.professions.join(', ') : '',
+          relationshipGoals: Array.isArray(p.relationshipGoals) ? p.relationshipGoals.join(', ') : '',
+        });
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load');
       } finally {
@@ -114,6 +137,26 @@ export default function AccountPage() {
     }
   }
 
+  async function savePreferences() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.put('/profile/me/preferences', {
+        ageMin: preferences.ageMin,
+        ageMax: preferences.ageMax,
+        distanceKm: preferences.distanceKm,
+        educationMin: preferences.educationMin || undefined,
+        professions: preferences.professions.split(',').map((value) => value.trim()).filter(Boolean),
+        relationshipGoals: preferences.relationshipGoals.split(',').map((value) => value.trim()).filter(Boolean),
+      });
+      setSavedMsg('Match preferences saved.');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not save preferences');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function togglePause() {
     if (!profile) return;
     setBusy(true);
@@ -154,7 +197,31 @@ export default function AccountPage() {
         <p>Manage your profile and membership.</p>
       </div>
       <ApiState loading={loading} error={error}>
-        {profile && (
+        <div className="account-layout">
+          <div className="account-tabs" role="tablist" aria-label="Account sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'information'}
+              data-active={activeTab === 'information'}
+              onClick={() => setActiveTab('information')}
+            >
+              <span>Account information</span>
+              <small>Personal profile details</small>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'settings'}
+              data-active={activeTab === 'settings'}
+              onClick={() => setActiveTab('settings')}
+            >
+              <span>Settings</span>
+              <small>Membership and visibility</small>
+            </button>
+          </div>
+          <div className="account-tab-panel">
+            {activeTab === 'information' && profile && (
           <Card
             title="Profile"
             action={
@@ -302,11 +369,29 @@ export default function AccountPage() {
           </Card>
         )}
 
-        <Card title="Membership status">
-          <ProfileBadges sub={sub} stage={stage} applicationStatus={applicationStatus} />
-        </Card>
+            {activeTab === 'settings' && (
+              <>
+                <Card title="Match preferences">
+                  <p className="card-copy">Tell us who you want to meet and how far we should search.</p>
+                  <div className="grid2">
+                    <Input label="Minimum age" type="number" value={String(preferences.ageMin)} onChange={(e) => setPreferences({ ...preferences, ageMin: Number(e.currentTarget.value) })} />
+                    <Input label="Maximum age" type="number" value={String(preferences.ageMax)} onChange={(e) => setPreferences({ ...preferences, ageMax: Number(e.currentTarget.value) })} />
+                    <Input label="Distance (km)" type="number" value={String(preferences.distanceKm)} onChange={(e) => setPreferences({ ...preferences, distanceKm: Number(e.currentTarget.value) })} />
+                    <Select label="Minimum education" value={preferences.educationMin} onChange={(e) => setPreferences({ ...preferences, educationMin: e.currentTarget.value as EducationLevel | '' })}>
+                      <option value="">Any education level</option>
+                      {Object.values(EducationLevel).map((level) => <option key={level} value={level}>{level}</option>)}
+                    </Select>
+                  </div>
+                  <Input label="Preferred professions" value={preferences.professions} onChange={(e) => setPreferences({ ...preferences, professions: e.currentTarget.value })} placeholder="e.g. Engineer, Doctor" />
+                  <Input label="Relationship goals" value={preferences.relationshipGoals} onChange={(e) => setPreferences({ ...preferences, relationshipGoals: e.currentTarget.value })} placeholder="e.g. Marriage, Long-term" />
+                  <Button disabled={busy} onClick={savePreferences}>Save preferences</Button>
+                </Card>
 
-        <Card
+                <Card title="Membership status">
+                  <ProfileBadges sub={sub} stage={stage} applicationStatus={applicationStatus} />
+                </Card>
+
+                <Card
           title="Membership"
           action={
             sub ? (
@@ -328,8 +413,12 @@ export default function AccountPage() {
           )}
           <Button disabled={busy} onClick={startCheckout}>
             Upgrade to Premium
-          </Button>
-        </Card>
+                  </Button>
+                </Card>
+              </>
+            )}
+          </div>
+        </div>
       </ApiState>
     </div>
   );
