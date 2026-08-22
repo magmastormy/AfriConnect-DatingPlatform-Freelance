@@ -8,7 +8,7 @@ services:
     plan: starter
     region: oregon
     healthCheckPath: /healthz
-    env:
+    envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -20,27 +20,12 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: DATABASE_URL
-        # Use your Aiven free PostgreSQL "Service URI" (must end in ?sslmode=require)
-        # Set this manually in Render dashboard after deployment
         value: "SET_IN_RENDER_DASHBOARD"
       - key: WEB_BASE_URL
         value: "SET_IN_RENDER_DASHBOARD"
       - key: CORS_ORIGINS
         value: "SET_IN_RENDER_DASHBOARD"
-      - key: TWILIO_ACCOUNT_SID
-        value: ""
-      - key: TWILIO_AUTH_TOKEN
-        value: ""
-      - key: TWILIO_VERIFY_SID
-        value: ""
-      - key: STRIPE_SECRET_KEY
-        value: ""
-      - key: STRIPE_WEBHOOK_SECRET
-        value: ""
       - key: CLERK_PUBLISHABLE_KEY
         value: ""
       - key: CLERK_SECRET_KEY
         value: ""
-      - key: CONTACT_WEBHOOK_URL
-        value: ""
-    preDeployCommand: pnpm --filter @africonnect/api exec prisma migrate deploy
