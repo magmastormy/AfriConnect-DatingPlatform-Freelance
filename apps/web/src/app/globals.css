@@ -229,7 +229,7 @@ body {
 a { color: var(--brand); text-decoration: none; }
 a:hover { color: var(--brand-ink); }
 
-.app { padding: 0 1.25rem 3.5rem; flex: 1 0 auto; max-width: 100%; overflow-x: hidden; width: 100%; }
+.app { padding: 0 1.25rem 3.5rem; flex: 1 0 auto; width: 100%; overflow-x: hidden; }
 .wide { max-width: 1280px; }
 
 /* ---------- Buttons ---------- */
@@ -574,7 +574,7 @@ a:hover { color: var(--brand-ink); }
 .vet-linkrow { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: center; }
 
 /* ---------- Public content pages (discover / matches / events) ---------- */
-.page { max-width: var(--maxw); margin: 0 auto; padding: clamp(2rem, 6vw, 4rem) 1.5rem; }
+.page { margin: 0 auto; padding: clamp(2rem, 6vw, 4rem) 1.5rem; }
 .page-head { margin-bottom: 1.75rem; }
 .page-head h1 {
   font-family: var(--font-display); font-weight: 600;
@@ -1131,6 +1131,8 @@ a:hover { color: var(--brand-ink); }
   align-items: start;
   min-height: calc(100vh - 88px);
   padding: 2rem 0 4rem;
+  width: 100%;
+  max-width: 100%;
 }
 .portal-nav {
   position: sticky;
@@ -1191,8 +1193,8 @@ a:hover { color: var(--brand-ink); }
 }
 .portal-signout:hover { color: var(--bad); border-color: var(--bad); }
 
-.portal-content { min-width: 0; max-width: 1200px; margin-right: auto; }
-.portal-content.is-wide { max-width: 1600px; }
+.portal-content { min-width: 0; margin-right: auto; }
+.portal-content.is-wide { }
 
 .portal-menu-btn {
   display: none;
