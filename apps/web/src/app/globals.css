@@ -1702,7 +1702,7 @@ body:has(.modal-shell) { overflow: hidden; }
    Inspirations: Brevo (scale + marquee) · Current (playful wiggles,
    ink blocks) · Revolut (confidence, massive type, dark CTA).
    No repeated 3-card grids. Each section is a different layout.
-   Tokens only — survives light/dark flip.
+   Tokens only ��� survives light/dark flip.
    ============================================================ */
 .landing-v2 { --v2-max: 1120px; }
 .v2-kicker {
@@ -1978,5 +1978,30 @@ body:has(.modal-shell) { overflow: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   .v2-marquee-track { animation: none; }
+}
+
+/* Portal layout guardrails: prevent narrow parent wrappers and dense rows from collapsing. */
+.portal-shell,
+.portal-content,
+.portal-content-inner { box-sizing: border-box; }
+.portal-content-inner { max-width: none; }
+.portal-content-inner > .page,
+.portal-content-inner > .profile-page,
+.portal-content-inner > .account-page { width: 100%; max-width: 1180px; margin-inline: auto; }
+.portal-content-inner .page-head,
+.portal-content-inner .lede,
+.portal-content-inner .row-actions { min-width: 0; }
+.portal-content-inner .row-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.portal-content-inner .row-actions > * { max-width: 100%; }
+
+@media (max-width: 860px) {
+  .portal-shell { min-height: auto; }
+  .portal-content-inner > .page,
+  .portal-content-inner > .profile-page,
+  .portal-content-inner > .account-page { max-width: none; }
+}
+@media (max-width: 560px) {
+  .portal-content-inner .page { padding-inline: 0; }
+  .portal-content-inner .card { padding-inline: 1rem; }
 }
 

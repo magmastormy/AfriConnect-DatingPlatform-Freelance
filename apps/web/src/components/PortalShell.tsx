@@ -145,15 +145,15 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
       <main className={`portal-content ${isWide ? 'is-wide' : ''}`}>
         <div className="portal-content-inner">
-        <button
-          className="portal-menu-btn"
-          onClick={() => setNavOpen(true)}
-          aria-label="Open menu"
-          type="button"
-        >
-          <span aria-hidden="true">☰</span> Menu
-        </button>
-        {children}
+          <button
+            className="portal-menu-btn"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open menu"
+            type="button"
+          >
+            <span aria-hidden="true">☰</span> Menu
+          </button>
+          {children}
         </div>
       </main>
       {navOpen && <div className="portal-backdrop" onClick={() => setNavOpen(false)} />}
