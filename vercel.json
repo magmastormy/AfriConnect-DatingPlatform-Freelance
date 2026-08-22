@@ -1,6 +1,5 @@
 {
   "buildCommand": "pnpm --filter @africonnect/web build",
   "installCommand": "pnpm install",
-  "outputDirectory": "apps/web/.next",
-  "rootDirectory": "."
+  "outputDirectory": ".next"
 }
