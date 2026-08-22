@@ -372,6 +372,53 @@ a:hover { color: var(--brand-ink); }
 .tabs button { background: none; border: none; padding: 0.6rem 0.9rem; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
 .tabs button[data-active="true"] { color: var(--brand); border-bottom-color: var(--brand); }
 
+.account-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  width: 100%;
+}
+.account-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: sticky;
+  top: 1.25rem;
+}
+.account-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.account-tabs button span { color: inherit; font-weight: 700; }
+.account-tabs button small { color: var(--muted); font-size: 0.76rem; }
+.account-tabs button:hover { background: var(--surface-3); color: var(--ink); }
+.account-tabs button[data-active="true"] {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--brand);
+  box-shadow: var(--shadow);
+}
+.account-tab-panel { min-width: 0; }
+.account-tab-panel > .card:last-child { margin-bottom: 0; }
+
+@media (max-width: 680px) {
+  .account-layout { grid-template-columns: 1fr; gap: 1rem; }
+  .account-tabs { position: static; display: grid; grid-template-columns: 1fr 1fr; }
+  .account-tabs button { padding: 0.7rem; }
+}
+
 .linkish { background: none; border: none; color: var(--brand); font: inherit; font-size: 0.78rem; cursor: pointer; padding: 0; }
 .linkish:hover { text-decoration: underline; }
 
@@ -1702,7 +1749,7 @@ body:has(.modal-shell) { overflow: hidden; }
    Inspirations: Brevo (scale + marquee) · Current (playful wiggles,
    ink blocks) · Revolut (confidence, massive type, dark CTA).
    No repeated 3-card grids. Each section is a different layout.
-   Tokens only ��� survives light/dark flip.
+   Tokens only ����� survives light/dark flip.
    ============================================================ */
 .landing-v2 { --v2-max: 1120px; }
 .v2-kicker {

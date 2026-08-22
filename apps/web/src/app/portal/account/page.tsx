@@ -42,6 +42,7 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<'information' | 'settings'>('information');
 
   // Seed the form from Clerk identity when the backend profile is still empty,
   // so a member who signed up via Clerk sees their real name immediately
@@ -154,7 +155,31 @@ export default function AccountPage() {
         <p>Manage your profile and membership.</p>
       </div>
       <ApiState loading={loading} error={error}>
-        {profile && (
+        <div className="account-layout">
+          <div className="account-tabs" role="tablist" aria-label="Account sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'information'}
+              data-active={activeTab === 'information'}
+              onClick={() => setActiveTab('information')}
+            >
+              <span>Account information</span>
+              <small>Personal profile details</small>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'settings'}
+              data-active={activeTab === 'settings'}
+              onClick={() => setActiveTab('settings')}
+            >
+              <span>Settings</span>
+              <small>Membership and visibility</small>
+            </button>
+          </div>
+          <div className="account-tab-panel">
+            {activeTab === 'information' && profile && (
           <Card
             title="Profile"
             action={
@@ -302,11 +327,13 @@ export default function AccountPage() {
           </Card>
         )}
 
-        <Card title="Membership status">
-          <ProfileBadges sub={sub} stage={stage} applicationStatus={applicationStatus} />
-        </Card>
+            {activeTab === 'settings' && (
+              <>
+                <Card title="Membership status">
+                  <ProfileBadges sub={sub} stage={stage} applicationStatus={applicationStatus} />
+                </Card>
 
-        <Card
+                <Card
           title="Membership"
           action={
             sub ? (
@@ -328,8 +355,12 @@ export default function AccountPage() {
           )}
           <Button disabled={busy} onClick={startCheckout}>
             Upgrade to Premium
-          </Button>
-        </Card>
+                  </Button>
+                </Card>
+              </>
+            )}
+          </div>
+        </div>
       </ApiState>
     </div>
   );
