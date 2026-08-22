@@ -50,9 +50,20 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const isWide = WIDE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 
   useEffect(() => {
-    if (!loading && !user) router.replace('/login');
+    // Clerk can be authenticated a moment before its session bridge exchanges
+    // the Clerk JWT for the AfriConnect API session. Do not redirect back to
+    // sign-in during that short handoff or the app can enter a redirect loop.
+    const waitingForClerkExchange = !loading && !user && clerkLoaded && Boolean(clerkUser);
+    if (!loading && !user && clerkLoaded && !waitingForClerkExchange) {
+      router.replace('/sign-in');
+      return;
+    }
+    if (waitingForClerkExchange) {
+      const timeout = window.setTimeout(() => router.replace('/sign-in'), 10000);
+      return () => window.clearTimeout(timeout);
+    }
     if (!loading && user && isAdmin(user.role)) router.replace('/admin');
-  }, [loading, user, router]);
+  }, [loading, user, clerkLoaded, clerkUser, router]);
 
   useEffect(() => {
     setNavOpen(false);
@@ -79,7 +90,13 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         <span className="spinner" />
       </div>
     );
-  if (!user) return null;
+  if (!user)
+    return (
+      <div className="state" role="status" aria-live="polite">
+        <span className="spinner" />
+        <span className="sr-only">Completing sign-in</span>
+      </div>
+    );
 
   const displayName =
     [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') ||
