@@ -11,11 +11,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function buildCsp(nonce) {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "font-src 'self'",
-    "connect-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com`,
+    "style-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com",
+    "img-src 'self' data: https: https://*.clerk.com https://*.clerk.accounts.dev https://img.clerk.com https://images.clerk.dev",
+    "font-src 'self' https://*.clerk.accounts.dev https://*.clerk.com data:",
+    "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.ingest.clerk.com https://clerk-telemetry.com https://africonnect-datingplatform-freelance.onrender.com wss://africonnect-datingplatform-freelance.onrender.com https: wss: blob:",
+    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
+    "worker-src 'self' blob: https://*.clerk.accounts.dev",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
