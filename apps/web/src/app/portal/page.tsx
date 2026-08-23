@@ -78,7 +78,11 @@ export default function PortalDashboard() {
       done: !!(profile?.firstName && profile?.isComplete),
       href: '/portal/account',
     },
-    { label: 'Verify your identity', done: stage === MembershipStage.Verified, href: '/get-vetted' },
+    {
+      label: 'Verify your identity',
+      done: stage === MembershipStage.Verified,
+      href: '/get-vetted',
+    },
     { label: 'Review today’s introductions', done: (dailyCount ?? 0) > 0, href: '/portal/matches' },
     {
       label: 'Resume your profile to be matched',

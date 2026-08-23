@@ -6,6 +6,7 @@ import { chatRoutes } from './chat.routes';
 import { RealtimeHub } from './chat.ws';
 import { prisma } from '@config/prisma';
 import { createMediaStorage } from '@config/providers';
+import type { IMatchService } from '@modules/match';
 
 let realtime: RealtimeHub | undefined;
 
@@ -15,9 +16,9 @@ export function setRealtimeHub(hub: RealtimeHub): void {
   realtime = hub;
 }
 
-export function buildChatModule(): Router {
+export function buildChatModule(matchService?: IMatchService): Router {
   const repo = new ChatRepository(prisma);
-  const service: IChatService = new ChatService(repo, realtime);
+  const service: IChatService = new ChatService(repo, realtime, matchService);
   const media = createMediaStorage();
   const controller = new ChatController(service, media);
   return chatRoutes(controller, service);

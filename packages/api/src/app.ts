@@ -19,7 +19,7 @@ import { honeypotMiddleware } from './config/middleware/honeypot';
 import { buildAuthModule } from './modules/auth';
 import { buildApplicationModule } from './modules/application';
 import { buildProfileModule } from './modules/profile';
-import { buildMatchModule } from './modules/match';
+import { buildMatchModule, buildMatchService } from './modules/match';
 import { buildChatModule } from './modules/chat';
 import { buildEventModule } from './modules/event';
 import { buildNotificationModule } from './modules/notification';
@@ -65,7 +65,13 @@ export function createApp(): Express {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Id', 'X-Correlation-Id', 'X-Forwarded-For'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Device-Id',
+        'X-Correlation-Id',
+        'X-Forwarded-For',
+      ],
       maxAge: 600,
     }),
   );
@@ -110,7 +116,10 @@ export function createApp(): Express {
   app.use(`${mount}/applications`, buildApplicationModule());
   app.use(`${mount}/profile`, buildProfileModule());
   app.use(`${mount}/matches`, buildMatchModule());
-  app.use(`${mount}/chat`, buildChatModule());
+  // Chat conversation creation is guarded on a mutual match, so it needs the
+  // match service's isMutual check injected.
+  const matchService = buildMatchService();
+  app.use(`${mount}/chat`, buildChatModule(matchService));
   app.use(`${mount}/events`, buildEventModule());
   app.use(`${mount}/notifications`, buildNotificationModule());
   app.use(`${mount}/billing`, buildBillingModule());

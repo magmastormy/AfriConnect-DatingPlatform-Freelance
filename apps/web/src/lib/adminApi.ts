@@ -107,7 +107,12 @@ interface AdminApiResponse<T> {
   error: { code: string; message: string } | null;
 }
 
-async function adminRequest<T>(method: string, path: string, body?: unknown, withAuth = true): Promise<T> {
+async function adminRequest<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  withAuth = true,
+): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (withAuth) {
     const token = getAdminAccessToken();
@@ -137,22 +142,29 @@ async function adminRequest<T>(method: string, path: string, body?: unknown, wit
 
 export const adminApi = {
   login: (email: string, password: string) =>
-    adminRequest<{ accessToken: string; refreshToken: string; user: { id: string; email: string; role: string; status: string } }>(
-      'POST',
-      '/admin/auth/login',
-      { email, password },
-      false,
-    ),
+    adminRequest<{
+      accessToken: string;
+      refreshToken: string;
+      user: { id: string; email: string; role: string; status: string };
+    }>('POST', '/admin/auth/login', { email, password }, false),
   bootstrap: (email: string, password: string, setupToken: string) =>
-    adminRequest<{ accessToken: string; refreshToken: string; user: { id: string; email: string; role: string; status: string } }>(
+    adminRequest<{
+      accessToken: string;
+      refreshToken: string;
+      user: { id: string; email: string; role: string; status: string };
+    }>('POST', '/admin/auth/bootstrap', { email, password, setupToken }, false),
+  refresh: (refreshToken: string) =>
+    adminRequest<{ accessToken: string; refreshToken: string }>(
       'POST',
-      '/admin/auth/bootstrap',
-      { email, password, setupToken },
+      '/admin/auth/refresh',
+      { refreshToken },
       false,
     ),
-  refresh: (refreshToken: string) =>
-    adminRequest<{ accessToken: string; refreshToken: string }>('POST', '/admin/auth/refresh', { refreshToken }, false),
-  me: () => adminRequest<{ user: { userId: string; role: string; email: string; status: string } }>('GET', '/admin/auth/me'),
+  me: () =>
+    adminRequest<{ user: { userId: string; role: string; email: string; status: string } }>(
+      'GET',
+      '/admin/auth/me',
+    ),
   logout: (refreshToken: string) =>
     adminRequest<{ loggedOut: boolean }>('POST', '/admin/auth/logout', { refreshToken }, false),
   listApplications: (status?: string) =>
@@ -164,8 +176,7 @@ export const adminApi = {
     adminRequest<ApplicationAdminView>('POST', `/admin/applications/${id}/review`, body),
 
   // ── Audit (any administrator) ─────────────────────────────────────────────
-  listAudit: () =>
-    adminRequest<AdminAuditView[]>('GET', '/admin/audit'),
+  listAudit: () => adminRequest<AdminAuditView[]>('GET', '/admin/audit'),
 
   // ── Members / Support ─────────────────────────────────────────────────────
   listMembers: (params?: {
@@ -187,27 +198,33 @@ export const adminApi = {
       `/admin/members${q ? `?${q}` : ''}`,
     );
   },
-  getMember: (userId: string) =>
-    adminRequest<MemberDetail>('GET', `/admin/members/${userId}`),
+  getMember: (userId: string) => adminRequest<MemberDetail>('GET', `/admin/members/${userId}`),
   suspendMember: (userId: string, body?: { reason?: string }) =>
-    adminRequest<{ id: string; status: string }>('POST', `/admin/members/${userId}/suspend`, body ?? {}),
+    adminRequest<{ id: string; status: string }>(
+      'POST',
+      `/admin/members/${userId}/suspend`,
+      body ?? {},
+    ),
   unsuspendMember: (userId: string) =>
     adminRequest<{ id: string; status: string }>('POST', `/admin/members/${userId}/unsuspend`, {}),
   banMember: (userId: string, body?: { reason?: string }) =>
-    adminRequest<{ id: string; status: string }>('POST', `/admin/members/${userId}/ban`, body ?? {}),
+    adminRequest<{ id: string; status: string }>(
+      'POST',
+      `/admin/members/${userId}/ban`,
+      body ?? {},
+    ),
   unbanMember: (userId: string) =>
     adminRequest<{ id: string; status: string }>('POST', `/admin/members/${userId}/unban`, {}),
-  verifyMember: (
-    userId: string,
-    body: { emailVerified?: boolean; phoneVerified?: boolean },
-  ) =>
-    adminRequest<{ id: string; verified: boolean }>('POST', `/admin/members/${userId}/verify`, body),
+  verifyMember: (userId: string, body: { emailVerified?: boolean; phoneVerified?: boolean }) =>
+    adminRequest<{ id: string; verified: boolean }>(
+      'POST',
+      `/admin/members/${userId}/verify`,
+      body,
+    ),
 
   // ── SuperAdmin: admins + role matrix ───────────────────────────────────────
-  listAdmins: () =>
-    adminRequest<MemberView[]>('GET', '/admin/admins'),
-  roleMatrix: () =>
-    adminRequest<RoleDescriptor[]>('GET', '/admin/roles'),
+  listAdmins: () => adminRequest<MemberView[]>('GET', '/admin/admins'),
+  roleMatrix: () => adminRequest<RoleDescriptor[]>('GET', '/admin/roles'),
   assignRole: (userId: string, body: { role: string }) =>
     adminRequest<{ id: string; role: string }>('POST', `/admin/admins/${userId}/role`, body),
 
@@ -231,10 +248,11 @@ export const adminApi = {
     ),
 
   // ── Events ─────────────────────────────────────────────────────────────────
-  listEvents: () =>
-    adminRequest<EventView[]>('GET', '/admin/events'),
-  moderateEvent: (id: string, body: { status?: EventStatus; featured?: boolean; reason?: string }) =>
-    adminRequest<EventView>('POST', `/admin/events/${id}/moderate`, body),
+  listEvents: () => adminRequest<EventView[]>('GET', '/admin/events'),
+  moderateEvent: (
+    id: string,
+    body: { status?: EventStatus; featured?: boolean; reason?: string },
+  ) => adminRequest<EventView>('POST', `/admin/events/${id}/moderate`, body),
 
   // ── Content / broadcast ────────────────────────────────────────────────────
   broadcast: (body: {
@@ -244,12 +262,10 @@ export const adminApi = {
     channel: string;
     role?: string;
     link?: string;
-  }) =>
-    adminRequest<{ queued: number }>('POST', '/admin/notifications/broadcast', body),
+  }) => adminRequest<{ queued: number }>('POST', '/admin/notifications/broadcast', body),
 
   // ── Platform settings (CRM) ────────────────────────────────────────────────
-  getSettings: () =>
-    adminRequest<PlatformSettingsView>('GET', '/settings'),
+  getSettings: () => adminRequest<PlatformSettingsView>('GET', '/settings'),
   updateSettings: (body: UpdateSettingsInput) =>
     adminRequest<PlatformSettingsView>('PUT', '/settings', body),
 

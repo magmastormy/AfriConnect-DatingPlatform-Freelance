@@ -17,7 +17,8 @@ export default function AdminLoginPage() {
       </div>
       <AdminLoginForm />
       <p className="vet-hint" style={{ marginTop: 16, textAlign: 'center' }}>
-        First admin? <a href="/admin/setup">Bootstrap with setup token</a> · <a href="/">← Back to site</a>
+        First admin? <a href="/admin/setup">Bootstrap with setup token</a> ·{' '}
+        <a href="/">← Back to site</a>
       </p>
     </div>
   );

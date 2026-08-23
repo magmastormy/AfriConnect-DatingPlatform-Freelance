@@ -26,6 +26,10 @@ export interface IMatchRepository {
     score?: number | null,
   ): Promise<Match>;
   findMutual(userId: string): Promise<Match[]>;
+  /** Superlikes the caller has RECEIVED but not yet reciprocated (pending). */
+  findSuperlikesReceived(userId: string): Promise<Match[]>;
+  /** Fetch a single Match row by id (used to resolve the matchId envelope). */
+  findById(id: string): Promise<Match | null>;
   createDailyQueue(userId: string, matches: DailyMatchEntry[]): Promise<void>;
   /** Resolves a user's membership tier (free vs premium) and vetting status. */
   loadUserTier(userId: string): Promise<TierContext>;
@@ -42,9 +46,9 @@ export interface IMatchRepository {
    * TODO(popularity): replace the Elo default with a persisted `popularityElo`
    * column once the like-event updater (popularity.ts updateElo) is wired in.
    */
-  getCandidateMeta(itemIds: string[]): Promise<
-    Map<string, { accountAgeDays: number; likedByCount: number; elo: number }>
-  >;
+  getCandidateMeta(
+    itemIds: string[],
+  ): Promise<Map<string, { accountAgeDays: number; likedByCount: number; elo: number }>>;
 }
 
 export class MatchRepository implements IMatchRepository {
@@ -170,6 +174,20 @@ export class MatchRepository implements IMatchRepository {
 
   async findMutual(userId: string): Promise<Match[]> {
     return this.prisma.match.findMany({ where: { userId, status: 'mutual' } });
+  }
+
+  async findSuperlikesReceived(userId: string): Promise<Match[]> {
+    // The caller is the *target* (matchedUserId). A pending superlike-received
+    // is a row where someone else superliked them and the status has not yet
+    // become mutual. Sender identity is intentionally never returned (POPIA).
+    return this.prisma.match.findMany({
+      where: { matchedUserId: userId, userAction: 'superliked', status: { not: 'mutual' } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findById(id: string): Promise<Match | null> {
+    return this.prisma.match.findUnique({ where: { id } });
   }
 
   async createDailyQueue(userId: string, matches: DailyMatchEntry[]): Promise<void> {

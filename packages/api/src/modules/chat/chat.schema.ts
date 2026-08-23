@@ -13,5 +13,10 @@ export const editMessageSchema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(4000),
 });
 
+export const createConversationSchema = z.object({
+  targetId: z.string().min(1, 'targetId is required'),
+});
+
 export type SendMessageDTO = z.infer<typeof sendMessageSchema>;
 export type EditMessageDTO = z.infer<typeof editMessageSchema>;
+export type CreateConversationDTO = z.infer<typeof createConversationSchema>;

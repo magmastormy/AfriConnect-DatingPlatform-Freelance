@@ -256,8 +256,8 @@ export function OnboardingForm() {
           </div>
           <h1>You’re verified</h1>
           <p>
-            Your application has been approved. You can connect with members, join events, and
-            keep refining your profile from the account page.
+            Your application has been approved. You can connect with members, join events, and keep
+            refining your profile from the account page.
           </p>
           <div className="vet-actions vet-actions-center">
             <Link className="btn btn-primary" href="/portal">

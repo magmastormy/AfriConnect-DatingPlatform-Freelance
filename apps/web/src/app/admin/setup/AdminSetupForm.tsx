@@ -24,7 +24,12 @@ export function AdminSetupForm() {
       router.push('/admin');
       router.refresh();
     } catch (e) {
-      const msg = e instanceof AdminApiError ? e.message : e instanceof Error ? e.message : 'Bootstrap failed';
+      const msg =
+        e instanceof AdminApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Bootstrap failed';
       setErr(msg);
     } finally {
       setBusy(false);
@@ -36,15 +41,34 @@ export function AdminSetupForm() {
       {err && <div className="notice">{err}</div>}
       <label className="field">
         <span>Superadmin email</span>
-        <input type="email" required value={email} onChange={(e) => setEmail(e.currentTarget.value)} placeholder="admin@afri-connect.co.za" />
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.currentTarget.value)}
+          placeholder="admin@afri-connect.co.za"
+        />
       </label>
       <label className="field">
         <span>Password (≥8 chars)</span>
-        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.currentTarget.value)} placeholder="••••••••" />
+        <input
+          type="password"
+          required
+          minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.currentTarget.value)}
+          placeholder="••••••••"
+        />
       </label>
       <label className="field">
         <span>ADMIN_SETUP_TOKEN</span>
-        <input type="password" required value={token} onChange={(e) => setToken(e.currentTarget.value)} placeholder="from server .env" />
+        <input
+          type="password"
+          required
+          value={token}
+          onChange={(e) => setToken(e.currentTarget.value)}
+          placeholder="from server .env"
+        />
       </label>
       <Button type="submit" disabled={busy || !email || !password || !token}>
         {busy ? 'Creating…' : 'Create superadmin'}

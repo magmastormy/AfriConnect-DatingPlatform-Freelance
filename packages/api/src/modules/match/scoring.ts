@@ -101,7 +101,10 @@ export function applyPenalties(
   return Math.min(100, Math.max(0, s));
 }
 
-export function passesThreshold(score: number, threshold: number = MIN_COMPATIBILITY_THRESHOLD): boolean {
+export function passesThreshold(
+  score: number,
+  threshold: number = MIN_COMPATIBILITY_THRESHOLD,
+): boolean {
   return score >= threshold;
 }
 

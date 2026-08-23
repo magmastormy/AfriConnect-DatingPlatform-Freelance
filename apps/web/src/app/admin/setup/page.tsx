@@ -13,7 +13,9 @@ export default function AdminSetupPage() {
       <div className="vet-head">
         <p className="kicker">AfriConnect · Admin setup</p>
         <h1>Create first superadmin</h1>
-        <p>Only works once — when no admin exists. Requires ADMIN_SETUP_TOKEN from the server .env.</p>
+        <p>
+          Only works once — when no admin exists. Requires ADMIN_SETUP_TOKEN from the server .env.
+        </p>
       </div>
       <AdminSetupForm />
       <p className="vet-hint" style={{ marginTop: 16, textAlign: 'center' }}>

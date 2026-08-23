@@ -15,6 +15,7 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [superCount, setSuperCount] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -23,6 +24,8 @@ export default function MatchesPage() {
         setDaily(d);
         const m = await api.get<MutualMatch[]>('/matches/mutual');
         setMutual(m);
+        const s = await api.get<{ count: number }>('/matches/superlikes-received');
+        setSuperCount(s.count);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load matches');
       } finally {
@@ -45,6 +48,12 @@ export default function MatchesPage() {
 
   return (
     <div>
+      {superCount > 0 && (
+        <div className="notice" role="status">
+          You have {superCount} new {superCount === 1 ? 'superlike' : 'superlikes'}. Like them back
+          on Discover to match.
+        </div>
+      )}
       <div className="page-head">
         <h1>Matches</h1>
         <div className="row-actions">

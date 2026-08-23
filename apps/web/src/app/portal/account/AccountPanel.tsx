@@ -92,13 +92,13 @@ export function AccountPanel() {
           .map((s) => s.trim())
           .filter(Boolean),
         // The API returns dateOfBirth as a full ISO datetime string
-      // (e.g. "1990-05-15T00:00:00.000Z"), but the updateProfile Zod schema
-      // requires strict YYYY-MM-DD — slice to the date portion to avoid a 400
-      // validation error on every save.
-      dateOfBirth:
-        profile.dateOfBirth && profile.dateOfBirth.length >= 10
-          ? profile.dateOfBirth.slice(0, 10)
-          : undefined,
+        // (e.g. "1990-05-15T00:00:00.000Z"), but the updateProfile Zod schema
+        // requires strict YYYY-MM-DD — slice to the date portion to avoid a 400
+        // validation error on every save.
+        dateOfBirth:
+          profile.dateOfBirth && profile.dateOfBirth.length >= 10
+            ? profile.dateOfBirth.slice(0, 10)
+            : undefined,
       };
       const saved = await api.put<Profile>('/profile/me', payload);
       setProfile({ ...saved });
@@ -255,7 +255,10 @@ export function AccountPanel() {
                 label="Education level"
                 value={profile.educationLevel ?? ''}
                 onChange={(e) =>
-                  setProfile({ ...profile, educationLevel: e.currentTarget.value as EducationLevel })
+                  setProfile({
+                    ...profile,
+                    educationLevel: e.currentTarget.value as EducationLevel,
+                  })
                 }
               >
                 <option value="">Select…</option>
@@ -295,7 +298,11 @@ export function AccountPanel() {
                 {profile.isPaused ? 'Resume profile' : 'Pause profile'}
               </Button>
             </div>
-            {savedMsg && <div className="notice" style={{ color: '#1a7f37', borderColor: '#1a7f37' }}>{savedMsg}</div>}
+            {savedMsg && (
+              <div className="notice" style={{ color: '#1a7f37', borderColor: '#1a7f37' }}>
+                {savedMsg}
+              </div>
+            )}
             {profile.isPaused && (
               <div className="notice">Your profile is paused and hidden from matches.</div>
             )}

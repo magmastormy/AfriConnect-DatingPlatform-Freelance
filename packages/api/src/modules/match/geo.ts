@@ -18,21 +18,14 @@ export function haversineKm(
   a: { latitude?: number | null; longitude?: number | null },
   b: { latitude?: number | null; longitude?: number | null },
 ): number | null {
-  if (
-    a.latitude == null ||
-    a.longitude == null ||
-    b.latitude == null ||
-    b.longitude == null
-  ) {
+  if (a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null) {
     return null; // insufficient coordinates — caller must fall back
   }
   const dLat = toRad(b.latitude - a.latitude);
   const dLon = toRad(b.longitude - a.longitude);
   const lat1 = toRad(a.latitude);
   const lat2 = toRad(b.latitude);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 

@@ -174,10 +174,7 @@ export class ApplicationService implements IApplicationService {
           body: 'Your application was approved — welcome to AfriConnect. You can now connect with members and join events.',
           link: '/portal',
         });
-      } else if (
-        status === ApplicationStatus.Rejected ||
-        status === ApplicationStatus.OnHold
-      ) {
+      } else if (status === ApplicationStatus.Rejected || status === ApplicationStatus.OnHold) {
         await this.notifyMember(updated.userId, {
           type: 'vetting.declined',
           title: 'Update on your application',

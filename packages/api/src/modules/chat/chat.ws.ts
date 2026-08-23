@@ -157,7 +157,10 @@ export class RealtimeHub {
     // Publish to the shared channel; every instance (including this one) receives
     // it and delivers to its locally-connected sockets via deliverLocal. This is
     // what makes chat work when the two participants are on different instances.
-    redisPublish(CHANNEL, JSON.stringify({ type: 'message', conversationId, message } as ChatEvent));
+    redisPublish(
+      CHANNEL,
+      JSON.stringify({ type: 'message', conversationId, message } as ChatEvent),
+    );
   }
 
   isOnline(userId: string): boolean {

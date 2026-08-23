@@ -79,12 +79,8 @@ export class MatchingEngine {
     const prefs = viewer.preferences;
 
     // Shared vocabularies so every candidate's diversity vector is comparable.
-    const interestVocab = Array.from(
-      new Set(candidates.flatMap((c) => c.interests ?? [])),
-    );
-    const industryVocab = Array.from(
-      new Set(candidates.flatMap((c) => c.industries ?? [])),
-    );
+    const interestVocab = Array.from(new Set(candidates.flatMap((c) => c.interests ?? [])));
+    const industryVocab = Array.from(new Set(candidates.flatMap((c) => c.industries ?? [])));
 
     // ── 1. Hard constraints ──────────────────────────────────────────────────
     const filtered = candidates.filter((c) => {
@@ -125,7 +121,8 @@ export class MatchingEngine {
       let newUserBoost = 0;
       if (this.config.enableBusinessRules) {
         if (c.isPremium) premiumBoost = this.config.premiumBoost;
-        if (c.accountAgeDays < this.config.newUserWindowDays) newUserBoost = this.config.newUserBoost;
+        if (c.accountAgeDays < this.config.newUserWindowDays)
+          newUserBoost = this.config.newUserBoost;
         base += premiumBoost + newUserBoost;
       }
 

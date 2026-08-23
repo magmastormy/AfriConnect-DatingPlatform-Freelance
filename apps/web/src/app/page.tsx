@@ -18,69 +18,80 @@ export default function LandingPage() {
           ============================================================ */}
       <section className="v2-hero">
         <div className="v2-hero-banner">
-        <div className="v2-hero-inner">
-          <div className="v2-hero-copy" style={{ position: 'relative', zIndex: 2 }}>
-            <span className="v2-eyebrow">
-              <i className="v2-eyebrow-dot" aria-hidden /> AfriConnect Professionals — Verified since 2024
-            </span>
-            <h1 className="v2-display">
-              The people
-              <br />
-              worth <em>meeting</em>
-              <br />
-              are already
-              <span className="v2-underline"> vetted.</span>
-            </h1>
-            <p className="v2-lede">
-              No swipes. No feeds. Every member is degree, ID and intent-verified before a profile
-              is seen — so the person across the table is real, and worth your time.
-            </p>
-            <div className="v2-hero-actions">
-              <Link href="/sign-up" className="btn btn-dark v2-cta-primary">
-                Create your account <span aria-hidden>→</span>
-              </Link>
-              <Link href="/discover" className="btn btn-ghost v2-cta-ghost">
-                See how it works
-              </Link>
-              <span className="v2-micro">Free to apply · 48h vetting · POPIA compliant</span>
+          <div className="v2-hero-inner">
+            <div className="v2-hero-copy" style={{ position: 'relative', zIndex: 2 }}>
+              <span className="v2-eyebrow">
+                <i className="v2-eyebrow-dot" aria-hidden /> AfriConnect Professionals — Verified
+                since 2024
+              </span>
+              <h1 className="v2-display">
+                The people
+                <br />
+                worth <em>meeting</em>
+                <br />
+                are already
+                <span className="v2-underline"> vetted.</span>
+              </h1>
+              <p className="v2-lede">
+                No swipes. No feeds. Every member is degree, ID and intent-verified before a profile
+                is seen — so the person across the table is real, and worth your time.
+              </p>
+              <div className="v2-hero-actions">
+                <Link href="/sign-up" className="btn btn-dark v2-cta-primary">
+                  Create your account <span aria-hidden>→</span>
+                </Link>
+                <Link href="/discover" className="btn btn-ghost v2-cta-ghost">
+                  See how it works
+                </Link>
+                <span className="v2-micro">Free to apply · 48h vetting · POPIA compliant</span>
+              </div>
+
+              <div className="v2-proof-row">
+                <div className="v2-proof">
+                  <strong>100%</strong>
+                  <span>
+                    verified
+                    <br />
+                    members only
+                  </span>
+                </div>
+                <div className="v2-proof">
+                  <strong>≤5</strong>
+                  <span>
+                    curated
+                    <br />
+                    intros / day
+                  </span>
+                </div>
+                <div className="v2-proof">
+                  <strong>AES-256</strong>
+                  <span>
+                    encrypted
+                    <br />
+                    PII at rest
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="v2-proof-row">
-              <div className="v2-proof">
-                <strong>100%</strong>
-                <span>verified<br />members only</span>
-              </div>
-              <div className="v2-proof">
-                <strong>≤5</strong>
-                <span>curated<br />intros / day</span>
-              </div>
-              <div className="v2-proof">
-                <strong>AES-256</strong>
-                <span>encrypted<br />PII at rest</span>
-              </div>
+            {/* Human-group illustration — passion/attraction, self-contained SVG */}
+            <div className="v2-hero-figure" aria-hidden="true">
+              <img src="/human-group.svg" alt="" width="520" height="480" />
             </div>
           </div>
 
-          
-
-          {/* Human-group illustration — passion/attraction, self-contained SVG */}
-          <div className="v2-hero-figure" aria-hidden="true">
-            <img src="/human-group.svg" alt="" width="520" height="480" />
+          {/* hairline cities */}
+          <div className="v2-cities">
+            <span>Johannesburg</span>
+            <span className="v2-cities-dot">·</span>
+            <span>Cape Town</span>
+            <span className="v2-cities-dot">·</span>
+            <span>Nairobi</span>
+            <span className="v2-cities-dot">·</span>
+            <span>Lagos</span>
+            <span className="v2-cities-dot">·</span>
+            <span>Accra</span>
           </div>
-        </div>
-
-        {/* hairline cities */}
-        <div className="v2-cities">
-          <span>Johannesburg</span>
-          <span className="v2-cities-dot">·</span>
-          <span>Cape Town</span>
-          <span className="v2-cities-dot">·</span>
-          <span>Nairobi</span>
-          <span className="v2-cities-dot">·</span>
-          <span>Lagos</span>
-          <span className="v2-cities-dot">·</span>
-          <span>Accra</span>
-        </div>
         </div>
       </section>
 
@@ -121,7 +132,9 @@ export default function LandingPage() {
             </span>
           ))}
         </div>
-        <span className="v2-marquee-cap">Every profile is a person we have verified — no catfish, no inflated résumés.</span>
+        <span className="v2-marquee-cap">
+          Every profile is a person we have verified — no catfish, no inflated résumés.
+        </span>
       </section>
 
       {/* ============================================================
@@ -150,8 +163,8 @@ export default function LandingPage() {
               <div className="v2-rule">
                 <span>02</span>
                 <p>
-                  <strong>No volume game.</strong> ≤5 introductions a day — enough to choose well, not
-                  enough to burn out.
+                  <strong>No volume game.</strong> ≤5 introductions a day — enough to choose well,
+                  not enough to burn out.
                 </p>
               </div>
               <div className="v2-rule">
@@ -189,7 +202,12 @@ export default function LandingPage() {
         </div>
         {/* wiggly divider like Current Vehicles */}
         <div className="v2-wiggle" aria-hidden>
-          <svg viewBox="0 0 1200 24" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            viewBox="0 0 1200 24"
+            preserveAspectRatio="none"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <path
               d="M0 12 Q 25 0, 50 12 T 100 12 T 150 12 T 200 12 T 250 12 T 300 12 T 350 12 T 400 12 T 450 12 T 500 12 T 550 12 T 600 12 T 650 12 T 700 12 T 750 12 T 800 12 T 850 12 T 900 12 T 950 12 T 1000 12 T 1050 12 T 1100 12 T 1150 12 T 1200 12"
               stroke="var(--line-strong)"
@@ -233,8 +251,8 @@ export default function LandingPage() {
             <span className="v2-timeline-n">03</span>
             <h3>Meet well</h3>
             <p>
-              Daily curated matches, hosted events, and a chat built for trust — edit, recall, block,
-              report.
+              Daily curated matches, hosted events, and a chat built for trust — edit, recall,
+              block, report.
             </p>
             <span className="v2-timeline-meta">≤5 / day · capped</span>
           </div>
@@ -252,7 +270,14 @@ export default function LandingPage() {
             <div className="v2-score">
               <div className="v2-score-ring">
                 <svg viewBox="0 0 120 120" aria-hidden>
-                  <circle cx="60" cy="60" r="52" stroke="var(--line-strong)" strokeWidth="6" fill="none" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="52"
+                    stroke="var(--line-strong)"
+                    strokeWidth="6"
+                    fill="none"
+                  />
                   <circle
                     cx="60"
                     cy="60"
@@ -313,7 +338,9 @@ export default function LandingPage() {
             </div>
             <div className="v2-ledger-row">
               <dt>Verified bonus</dt>
-              <dd>Confirmed identity and education lift a score — trust is part of compatibility.</dd>
+              <dd>
+                Confirmed identity and education lift a score — trust is part of compatibility.
+              </dd>
             </div>
           </div>
         </div>
@@ -404,8 +431,8 @@ export default function LandingPage() {
         <div className="v2-pull-inner">
           <span className="v2-kicker">Founding note</span>
           <blockquote>
-            “We would rather be judged on the quality of a short list than the hours you sink into
-            a feed.”
+            “We would rather be judged on the quality of a short list than the hours you sink into a
+            feed.”
           </blockquote>
           <cite>AfriConnect Professionals — Built for people who value their time.</cite>
         </div>

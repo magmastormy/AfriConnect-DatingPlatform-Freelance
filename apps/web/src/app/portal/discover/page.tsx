@@ -10,6 +10,8 @@ import { ApiState, Badge, Card, Button } from '@/components/ui';
 import { useToast } from '@/components/Toast';
 import { useTrackProfileView } from '@/lib/useProfileView';
 import { useAuth } from '@/lib/auth';
+import { useViewport } from '@/lib/use-viewport';
+import { FullScreenDiscover } from '@/components/discover/FullScreenDiscover';
 
 type Mode = 'discover' | 'nearby';
 type ActAction = 'like' | 'pass' | 'superlike';
@@ -77,7 +79,15 @@ function HeartIcon() {
 }
 
 // ── Discover / Nearby grid card (Xiaohongshu-style, browse-only) ────────────
-function DiscoverGridCard({ member, onOpen, priority = false }: { member: GridMember; onOpen: () => void; priority?: boolean }) {
+function DiscoverGridCard({
+  member,
+  onOpen,
+  priority = false,
+}: {
+  member: GridMember;
+  onOpen: () => void;
+  priority?: boolean;
+}) {
   const initial = (member.displayName.charAt(0) || '?').toUpperCase();
   return (
     <div
@@ -95,7 +105,7 @@ function DiscoverGridCard({ member, onOpen, priority = false }: { member: GridMe
     >
       <div
         className="discover-card-photo"
-        style={{ position:'relative', overflow:'hidden', backgroundColor:'var(--surface-3)' }}
+        style={{ position: 'relative', overflow: 'hidden', backgroundColor: 'var(--surface-3)' }}
       >
         {member.photo ? (
           <Image
@@ -103,11 +113,11 @@ function DiscoverGridCard({ member, onOpen, priority = false }: { member: GridMe
             alt=""
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
-            style={{ objectFit:'cover' }}
+            style={{ objectFit: 'cover' }}
             priority={priority}
-            loading={priority ? undefined : "lazy"}
+            loading={priority ? undefined : 'lazy'}
             decoding="async"
-            fetchPriority={priority ? "high" : "low"}
+            fetchPriority={priority ? 'high' : 'low'}
           />
         ) : (
           <span className="photo-fallback">No photo</span>
@@ -128,10 +138,31 @@ function DiscoverGridCard({ member, onOpen, priority = false }: { member: GridMe
       </div>
 
       <div className="discover-card-footer">
-        <span className="discover-card-avatar" style={{ overflow:'hidden', width:40, height:40, borderRadius:'50%', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+        <span
+          className="discover-card-avatar"
+          style={{
+            overflow: 'hidden',
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {member.photo ? (
-            <Image src={member.photo} alt="" width={40} height={40} style={{ objectFit:'cover' }} loading="lazy" decoding="async" />
-          ) : initial}
+            <Image
+              src={member.photo}
+              alt=""
+              width={40}
+              height={40}
+              style={{ objectFit: 'cover' }}
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            initial
+          )}
         </span>
         <span className="discover-card-id">
           <b>{member.displayName}</b>
@@ -211,17 +242,14 @@ function RedNoteModal({
     <div className="modal-shell" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         {/* Sliding photos — next/image with priority for LCP (first 2) */}
-        <div
-          className="modal-photo"
-          style={{ position:'relative', overflow:'hidden' }}
-        >
+        <div className="modal-photo" style={{ position: 'relative', overflow: 'hidden' }}>
           {photos[idx] ? (
             <Image
               src={photos[idx]}
               alt=""
               fill
               sizes="(max-width: 768px) 100vw, 600px"
-              style={{ objectFit:'cover' }}
+              style={{ objectFit: 'cover' }}
               priority={idx < 2}
             />
           ) : (
@@ -341,6 +369,7 @@ export default function DiscoverPage() {
   const { stage } = useAuth();
   // Unvetted members can preview members but cannot act (connect) yet.
   const canConnect = can(stage, Capability.Match);
+  const isMobile = useViewport();
   const [mode, setMode] = useState<Mode>('discover');
 
   // ── Discover deck (match scoring) ──────────────────────────────────────────
@@ -534,6 +563,9 @@ export default function DiscoverPage() {
     [redNote, redNoteSource, act, actNearby],
   );
 
+  // On phones, swap the browse grid for the immersive full-screen swipe deck.
+  if (isMobile) return <FullScreenDiscover />;
+
   return (
     <div>
       <div className="page-head">
@@ -556,47 +588,50 @@ export default function DiscoverPage() {
             <DiscoverSkeletonGrid />
           ) : (
             <ApiState loading={false} error={error} empty={deck.length === 0}>
-          {canConnect ? (
-            <>
-              <div className="discover-grid">
-                {deck.map((card, idx) => (
-                  <DiscoverGridCard
-                    key={card.userId}
-                    member={normalizeDiscover(card)}
-                    onOpen={() => openRedNoteFromCard(card.userId)}
-                    priority={idx < 2}
-                  />
-                ))}
-              </div>
-              {deck.length > 0 && (
-                <div className="row-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
-                  <button className="btn btn-subtle" disabled={loading} onClick={load}>
-                    Reload
-                  </button>
-                </div>
+              {canConnect ? (
+                <>
+                  <div className="discover-grid">
+                    {deck.map((card, idx) => (
+                      <DiscoverGridCard
+                        key={card.userId}
+                        member={normalizeDiscover(card)}
+                        onOpen={() => openRedNoteFromCard(card.userId)}
+                        priority={idx < 2}
+                      />
+                    ))}
+                  </div>
+                  {deck.length > 0 && (
+                    <div
+                      className="row-actions"
+                      style={{ justifyContent: 'center', marginTop: 14 }}
+                    >
+                      <button className="btn btn-subtle" disabled={loading} onClick={load}>
+                        Reload
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="stage-banner">
+                    <p>Get vetted to like &amp; message members.</p>
+                    <Link href="/get-vetted" className="btn btn-primary">
+                      Get vetted
+                    </Link>
+                  </div>
+                  <div className="discover-grid">
+                    {deck.slice(0, 3).map((card, idx) => (
+                      <DiscoverGridCard
+                        key={card.userId}
+                        member={normalizeDiscover(card)}
+                        onOpen={() => openRedNoteFromCard(card.userId)}
+                        priority={idx < 2}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
-            </>
-          ) : (
-            <>
-              <div className="stage-banner">
-                <p>Get vetted to like &amp; message members.</p>
-                <Link href="/get-vetted" className="btn btn-primary">
-                  Get vetted
-                </Link>
-              </div>
-              <div className="discover-grid">
-                {deck.slice(0, 3).map((card, idx) => (
-                  <DiscoverGridCard
-                    key={card.userId}
-                    member={normalizeDiscover(card)}
-                    onOpen={() => openRedNoteFromCard(card.userId)}
-                    priority={idx < 2}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </ApiState>
+            </ApiState>
           )}
         </>
       )}
@@ -611,68 +646,72 @@ export default function DiscoverPage() {
               error={nearbyError}
               empty={!nearbyError && nearbyOptIn === true && nearby.length === 0}
             >
-          {!isPremium(sub) ? (
-            <Card title="Nearby is a Premium feature">
-              <p style={{ color: 'var(--muted)', marginBottom: '1rem' }}>
-                See vetted members in your district who have Nearby turned on — like WeChat&apos;s
-                people-nearby, scoped to your neighbourhood. Upgrade to browse and be discovered.
-              </p>
-              <Link className="btn btn-primary" href="/portal/account">
-                Upgrade to Premium
-              </Link>
-            </Card>
-          ) : (
-            <div style={{ maxWidth: 720, margin: '0 auto' }}>
-              <Card title="Your location">
-                {nearbyOptIn ? (
-                  <>
-                    <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
-                      You’re sharing your location. We surface vetted members in your area.
-                    </p>
-                    <Button variant="ghost" disabled={locBusy} onClick={forgetLocation}>
-                      {locBusy ? 'Working…' : 'Forget my location'}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
-                      Share your device location to discover vetted members around you. Your
-                      coordinates are stored and cleared the moment you drop the feature.
-                    </p>
-                    <Button disabled={locBusy} onClick={shareLocation}>
-                      {locBusy ? 'Locating…' : 'Share my location'}
-                    </Button>
-                  </>
-                )}
-              </Card>
+              {!isPremium(sub) ? (
+                <Card title="Nearby is a Premium feature">
+                  <p style={{ color: 'var(--muted)', marginBottom: '1rem' }}>
+                    See vetted members in your district who have Nearby turned on — like
+                    WeChat&apos;s people-nearby, scoped to your neighbourhood. Upgrade to browse and
+                    be discovered.
+                  </p>
+                  <Link className="btn btn-primary" href="/portal/account">
+                    Upgrade to Premium
+                  </Link>
+                </Card>
+              ) : (
+                <div style={{ maxWidth: 720, margin: '0 auto' }}>
+                  <Card title="Your location">
+                    {nearbyOptIn ? (
+                      <>
+                        <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
+                          You’re sharing your location. We surface vetted members in your area.
+                        </p>
+                        <Button variant="ghost" disabled={locBusy} onClick={forgetLocation}>
+                          {locBusy ? 'Working…' : 'Forget my location'}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
+                          Share your device location to discover vetted members around you. Your
+                          coordinates are stored and cleared the moment you drop the feature.
+                        </p>
+                        <Button disabled={locBusy} onClick={shareLocation}>
+                          {locBusy ? 'Locating…' : 'Share my location'}
+                        </Button>
+                      </>
+                    )}
+                  </Card>
 
-              {nearbyOptIn && (
-                <>
-                  <div className="discover-grid">
-                    {nearby.map((card, idx) => (
-                      <DiscoverGridCard
-                        key={card.userId}
-                        member={normalizeNearby(card)}
-                        onOpen={() => openRedNoteFromCard(card.userId)}
-                        priority={idx < 2}
-                      />
-                    ))}
-                  </div>
-                  {nearby.length > 0 && (
-                    <div className="row-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
-                      <button
-                        className="btn btn-subtle"
-                        disabled={nearbyLoading}
-                        onClick={loadNearby}
-                      >
-                        Reload Nearby
-                      </button>
-                    </div>
+                  {nearbyOptIn && (
+                    <>
+                      <div className="discover-grid">
+                        {nearby.map((card, idx) => (
+                          <DiscoverGridCard
+                            key={card.userId}
+                            member={normalizeNearby(card)}
+                            onOpen={() => openRedNoteFromCard(card.userId)}
+                            priority={idx < 2}
+                          />
+                        ))}
+                      </div>
+                      {nearby.length > 0 && (
+                        <div
+                          className="row-actions"
+                          style={{ justifyContent: 'center', marginTop: 14 }}
+                        >
+                          <button
+                            className="btn btn-subtle"
+                            disabled={nearbyLoading}
+                            onClick={loadNearby}
+                          >
+                            Reload Nearby
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
+                </div>
               )}
-            </div>
-          )}
             </ApiState>
           )}
         </>

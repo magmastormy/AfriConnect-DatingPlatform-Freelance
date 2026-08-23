@@ -1,0 +1,69 @@
+/* ============================================================
+   BOTTOM NAV — mobile-only primary navigation.
+   Hidden on >= 860px where the PortalShell sidebar takes over.
+   Mirrors the token contract from globals.css.
+   ============================================================ */
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding: 0.25rem 0.25rem env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-nav-item {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.4rem 0.25rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+.bottom-nav-item.is-active { color: var(--brand); }
+.bottom-nav-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  font-weight: 400;
+}
+.bottom-nav-label { line-height: 1; }
+
+.bottom-nav-badge {
+  position: absolute;
+  top: 0.1rem;
+  left: calc(50% + 0.5rem);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bad);
+  color: var(--on-ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+/* Reserve space for the fixed bar so it never covers content on mobile. */
+@media (max-width: 860px) {
+  .portal-content { padding-bottom: 72px; }
+}
+
+/* On wide screens the sidebar is the primary nav; hide the bottom bar. */
+@media (min-width: 861px) {
+  .bottom-nav { display: none; }
+}

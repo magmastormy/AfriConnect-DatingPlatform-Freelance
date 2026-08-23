@@ -3,13 +3,34 @@ import { InternalError } from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
 
 export interface IAdminAuthRepository {
-  findAdminByEmail(email: string): Promise<{ id: string; email: string; role: string; status: string; passwordHash: string | null } | null>;
+  findAdminByEmail(email: string): Promise<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    passwordHash: string | null;
+  } | null>;
   countAdmins(): Promise<number>;
-  createAdmin(email: string, passwordHash: string, role?: string): Promise<{ id: string; email: string; role: string; status: string }>;
-  findUserById(id: string): Promise<{ id: string; email: string; role: string; status: string } | null>;
-  findSessionByJti(jti: string): Promise<{ userId: string; tokenHash: string; deviceId: string | null } | null>;
+  createAdmin(
+    email: string,
+    passwordHash: string,
+    role?: string,
+  ): Promise<{ id: string; email: string; role: string; status: string }>;
+  findUserById(
+    id: string,
+  ): Promise<{ id: string; email: string; role: string; status: string } | null>;
+  findSessionByJti(
+    jti: string,
+  ): Promise<{ userId: string; tokenHash: string; deviceId: string | null } | null>;
   findSessionByTokenHash(hash: string): Promise<{ userId: string; deviceId: string | null } | null>;
-  storeRefreshToken(userId: string, tokenHash: string, jti: string, deviceId: string | null, ip: string | null, expiresAt: Date): Promise<void>;
+  storeRefreshToken(
+    userId: string,
+    tokenHash: string,
+    jti: string,
+    deviceId: string | null,
+    ip: string | null,
+    expiresAt: Date,
+  ): Promise<void>;
   revokeSession(tokenHash: string): Promise<void>;
   revokeAllSessions(userId: string): Promise<void>;
 }
@@ -20,7 +41,15 @@ export class AdminAuthRepository implements IAdminAuthRepository {
   async findAdminByEmail(email: string) {
     // Use raw query to include passwordHash even if Prisma client is stale (no generate)
     try {
-      const rows = await this.prisma.$queryRawUnsafe<Array<{ id: string; email: string; role: string; status: string; passwordHash: string | null }>>(
+      const rows = await this.prisma.$queryRawUnsafe<
+        Array<{
+          id: string;
+          email: string;
+          role: string;
+          status: string;
+          passwordHash: string | null;
+        }>
+      >(
         `SELECT id, email, role, status, "passwordHash" FROM auth_users WHERE email=$1 LIMIT 1`,
         email,
       );
@@ -33,7 +62,19 @@ export class AdminAuthRepository implements IAdminAuthRepository {
 
   async countAdmins(): Promise<number> {
     return this.prisma.user.count({
-      where: { role: { in: ['admin', 'admin_vetting', 'admin_events', 'admin_billing', 'admin_support', 'admin_content', 'superadmin'] } },
+      where: {
+        role: {
+          in: [
+            'admin',
+            'admin_vetting',
+            'admin_events',
+            'admin_billing',
+            'admin_support',
+            'admin_content',
+            'superadmin',
+          ],
+        },
+      },
     });
   }
 
@@ -41,7 +82,9 @@ export class AdminAuthRepository implements IAdminAuthRepository {
     const phone = `+270000000${Math.floor(Math.random() * 900000) + 100000}`;
     try {
       // Raw SQL to avoid needing regenerated Prisma client for passwordHash
-      const rows = await this.prisma.$queryRawUnsafe<Array<{ id: string; email: string; role: string; status: string }>>(
+      const rows = await this.prisma.$queryRawUnsafe<
+        Array<{ id: string; email: string; role: string; status: string }>
+      >(
         `INSERT INTO auth_users (id, email, phone, role, status, "emailVerified", "phoneVerified", "passwordHash", "createdAt", "updatedAt", "tenantId")
          VALUES (gen_random_uuid(), $1, $2, $3::"UserRole", 'active'::"UserStatus", true, true, $4, NOW(), NOW(), 'tnt_bootstrap')
          RETURNING id, email, role::text as role, status::text as status`,
@@ -75,7 +118,14 @@ export class AdminAuthRepository implements IAdminAuthRepository {
     return { userId: s.userId, deviceId: s.deviceId };
   }
 
-  async storeRefreshToken(userId: string, tokenHash: string, jti: string, deviceId: string | null, ip: string | null, expiresAt: Date): Promise<void> {
+  async storeRefreshToken(
+    userId: string,
+    tokenHash: string,
+    jti: string,
+    deviceId: string | null,
+    ip: string | null,
+    expiresAt: Date,
+  ): Promise<void> {
     await this.prisma.session.create({
       data: { userId, tokenHash, jti, deviceId, ipAddress: ip, expiresAt },
     });

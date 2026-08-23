@@ -22,6 +22,9 @@ export interface IChatRepository {
   softDeleteMessage(id: string): Promise<void>;
   recallMessage(id: string): Promise<void>;
   markRead(conversationId: string, userId: string): Promise<void>;
+  /** Counts unread messages (sent by others, not yet read) across every
+   *  conversation the caller participates in. */
+  unreadCountAcross(userId: string): Promise<number>;
 }
 
 export class ChatRepository implements IChatRepository {
@@ -153,6 +156,19 @@ export class ChatRepository implements IChatRepository {
     await this.prisma.message.updateMany({
       where: { conversationId, senderId: { not: userId }, status: { not: 'read' } },
       data: { status: 'read' },
+    });
+  }
+
+  async unreadCountAcross(userId: string): Promise<number> {
+    return this.prisma.message.count({
+      where: {
+        senderId: { not: userId },
+        status: { not: 'read' },
+        conversation: {
+          OR: [{ participant1Id: userId }, { participant2Id: userId }],
+          isActive: true,
+        },
+      },
     });
   }
 }

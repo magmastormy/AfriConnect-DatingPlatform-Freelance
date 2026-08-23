@@ -13,6 +13,10 @@ export function chatRoutes(controller: ChatController, _service: IChatService): 
   const vetted = [authorize(), requireVetted()];
 
   router.get('/conversations', vetted, controller.list);
+  router.post('/conversations', vetted, controller.createConversation);
+  // Must be registered before the `/conversations/:id` param route so it is not
+  // shadowed by it.
+  router.get('/conversations/unread-count', vetted, controller.unreadCount);
   router.get('/conversations/:id', vetted, controller.messages);
   router.post('/conversations/:id', vetted, controller.send);
   router.post('/upload', vetted, controller.upload);

@@ -14,9 +14,7 @@ export interface IEventService {
   rsvp(eventId: string, userId: string): Promise<RSVPResult>;
   cancelRsvp(eventId: string, userId: string): Promise<void>;
   listRsvps(eventId: string): Promise<unknown[]>;
-  listAttendees(
-    eventId: string,
-  ): Promise<
+  listAttendees(eventId: string): Promise<
     Array<{
       userId: string;
       firstName: string;

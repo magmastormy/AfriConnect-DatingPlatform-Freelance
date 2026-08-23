@@ -2,6 +2,7 @@ import { IChatRepository } from './chat.repository';
 import { RealtimeHub } from './chat.ws';
 import { SendMessageInput, EditMessageInput } from './chat.types';
 import { ValidationError, NotFoundError, ConflictError } from '@africonnect/shared';
+import type { IMatchService } from '@modules/match';
 
 export const MESSAGE_RECALL_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -13,12 +14,18 @@ export interface IChatService {
   remove(userId: string, messageId: string): Promise<{ deleted: true }>;
   recall(userId: string, messageId: string): Promise<{ recalled: true }>;
   markRead(userId: string, conversationId: string): Promise<void>;
+  /** Lazily open (or fetch) a 1:1 conversation. Guarded by an isMutual check so a
+   *  member can only message someone they have matched with. */
+  getOrCreateConversation(userId: string, targetId: string): Promise<{ id: string }>;
+  /** Total unread messages across all of the caller's conversations. */
+  unreadCount(userId: string): Promise<number>;
 }
 
 export class ChatService implements IChatService {
   constructor(
     private readonly repo: IChatRepository,
     private readonly realtime?: RealtimeHub,
+    private readonly match?: IMatchService,
   ) {}
 
   async listConversations(userId: string): Promise<unknown[]> {
@@ -84,6 +91,24 @@ export class ChatService implements IChatService {
       content: '',
     });
     return { recalled: true };
+  }
+
+  async getOrCreateConversation(userId: string, targetId: string): Promise<{ id: string }> {
+    if (!targetId || targetId === userId) {
+      throw new ValidationError('Invalid conversation target');
+    }
+    // Conversation creation is a privileged action: a member may only open a
+    // thread with someone they have mutually matched with. The match module is
+    // the source of truth for that relationship (isMutual).
+    if (this.match && !(await this.match.isMutual(userId, targetId))) {
+      throw new ConflictError('You can only message members you have matched with');
+    }
+    const conv = await this.repo.findOrCreateConversation(userId, targetId);
+    return { id: conv.id };
+  }
+
+  async unreadCount(userId: string): Promise<number> {
+    return this.repo.unreadCountAcross(userId);
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {

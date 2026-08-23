@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { IChatService } from './chat.service';
-import { sendMessageSchema, editMessageSchema } from './chat.schema';
+import { sendMessageSchema, editMessageSchema, createConversationSchema } from './chat.schema';
 import { asyncHandler, success, IMediaStorage } from '@africonnect/shared';
 import { z } from 'zod';
 
@@ -64,5 +64,16 @@ export class ChatController {
   read = asyncHandler(async (req: Request, res: Response) => {
     await this.service.markRead(req.user!.userId, req.params.id);
     res.status(200).json(success({ marked: true }));
+  });
+
+  createConversation = asyncHandler(async (req: Request, res: Response) => {
+    const { targetId } = createConversationSchema.parse(req.body);
+    const result = await this.service.getOrCreateConversation(req.user!.userId, targetId);
+    res.status(201).json(success(result));
+  });
+
+  unreadCount = asyncHandler(async (req: Request, res: Response) => {
+    const count = await this.service.unreadCount(req.user!.userId);
+    res.status(200).json(success({ count }));
   });
 }

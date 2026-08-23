@@ -24,6 +24,9 @@ export function matchRoutes(controller: MatchController, _service: IMatchService
   // unverified accounts can sample a capped set of seeded members.
   router.get('/preview', [authorize()], controller.preview);
   router.get('/mutual', vetted, controller.mutual);
+  // Pending superlikes the caller received (anonymous). Mounted before the
+  // `/:id/...` action routes so it is not shadowed by the param route.
+  router.get('/superlikes-received', vetted, controller.superlikesReceived);
   router.post('/:id/like', vetted, controller.like);
   router.post('/:id/pass', vetted, controller.pass);
   router.post('/:id/superlike', vetted, controller.superlike);

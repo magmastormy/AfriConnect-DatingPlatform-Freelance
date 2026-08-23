@@ -224,6 +224,28 @@ export interface MutualMatch {
   city: string | null;
 }
 
+/** Pending superlike the caller has RECEIVED (anonymous until mutual). */
+export interface SuperlikeReceivedView {
+  matchId: string;
+  createdAt: string;
+  anonymous: boolean;
+}
+
+export interface SuperlikesReceivedView {
+  items: SuperlikeReceivedView[];
+  count: number;
+}
+
+/** Lazy conversation creation response (chat guards it on a mutual match). */
+export interface ConversationInit {
+  id: string;
+}
+
+/** Aggregate unread message count across all of the caller's conversations. */
+export interface UnreadCount {
+  count: number;
+}
+
 export interface ConversationView {
   id: string;
   participantName: string;

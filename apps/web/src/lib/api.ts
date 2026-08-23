@@ -12,6 +12,9 @@ import type {
   MemberView,
   NotificationView,
   GlobalSearchResult,
+  SuperlikesReceivedView,
+  ConversationInit,
+  UnreadCount,
 } from './types';
 
 const API_MOUNT = (process.env.NEXT_PUBLIC_API_MOUNT || 'api').replace(/^\/+|\/+$/g, '');
@@ -186,6 +189,21 @@ export const api = {
     const q = qs.toString();
     return request<NearbyProfileView[]>('GET', `/discover/nearby${q ? `?${q}` : ''}`);
   },
+
+  // ── Discovery actions (like / pass / superlike) + superlike inbox ────────
+  /** Like / pass / superlike another member; `mutual` signals a new match. */
+  postMatchAction: (userId: string, action: 'like' | 'pass' | 'superlike') =>
+    request<{ status: string; mutual: boolean }>('POST', `/matches/${userId}/${action}`, {}),
+  /** Pending superlikes the caller has RECEIVED (anonymous until mutual). */
+  getSuperlikesReceived: () =>
+    request<SuperlikesReceivedView>('GET', '/matches/superlikes-received'),
+
+  // ── Messaging (lazy conversation creation + unread badge) ─────────────────
+  /** Lazily opens (or returns) a 1:1 conversation; guarded on a mutual match. */
+  createConversation: (targetId: string) =>
+    request<ConversationInit>('POST', '/chat/conversations', { targetId }),
+  /** Aggregate unread message count across all of the caller's conversations. */
+  getChatUnreadCount: () => request<UnreadCount>('GET', '/chat/conversations/unread-count'),
   /** Tier-gated RedNote card for another member (free viewers see less). */
   getProfile: (targetId: string) => request<ProfileRedNoteView>('GET', `/profile/${targetId}`),
   /** Admin: list vetting applications (optionally filtered by status). */
@@ -241,7 +259,10 @@ export const api = {
     ),
   /** Polled by the desktop to detect when the phone-side check completes. */
   getVettingStatus: () =>
-    request<{ status: string; mode: string | null; verified: boolean }>('GET', '/vetting/smile/status'),
+    request<{ status: string; mode: string | null; verified: boolean }>(
+      'GET',
+      '/vetting/smile/status',
+    ),
   /** Testing-only: completes the sandbox simulator opened by the QR scan. */
   completeVettingSandbox: (sessionId: string) =>
     request<{ approved: boolean }>('POST', '/vetting/smile/sandbox/complete', { sessionId }),

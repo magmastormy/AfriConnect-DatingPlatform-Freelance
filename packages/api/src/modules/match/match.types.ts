@@ -76,6 +76,13 @@ export interface ExpressInterestInput {
   action: MatchAction;
 }
 
+/** A pending superlike the caller received. Sender stays anonymous (POPIA). */
+export interface SuperlikeReceived {
+  matchId: string; // Match row id (for future view/undo)
+  createdAt: string; // ISO 8601
+  anonymous: true; // never carries sender identity until mutual
+}
+
 /** A recommendation card returned by GET /matches/recommend (full algorithm pipeline). */
 export interface RecommendCard extends DiscoverCard {
   distanceKm: number | null;

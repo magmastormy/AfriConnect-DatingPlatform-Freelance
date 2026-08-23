@@ -29,7 +29,8 @@ export class VettingController {
 
   /** Live Smile ID callback. Raw body so the signature verifies over exact bytes. */
   webhook = asyncHandler(async (req: Request, res: Response) => {
-    const raw = (req as Request & { rawBody?: Buffer }).rawBody ?? Buffer.from(JSON.stringify(req.body));
+    const raw =
+      (req as Request & { rawBody?: Buffer }).rawBody ?? Buffer.from(JSON.stringify(req.body));
     const parsed = JSON.parse(raw.toString('utf8'));
     const signature = String(parsed.signature ?? req.headers['x-signature'] ?? '');
     const timestamp = String(parsed.timestamp ?? req.headers['x-timestamp'] ?? '');

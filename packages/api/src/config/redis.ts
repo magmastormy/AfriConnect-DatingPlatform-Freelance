@@ -77,7 +77,9 @@ if (redisConfigured) {
         /* lazy; will retry on next command */
       });
     })
-    .catch((e) => logger.warn({ err: e?.message }, 'ioredis not installed; using in-memory fallback'));
+    .catch((e) =>
+      logger.warn({ err: e?.message }, 'ioredis not installed; using in-memory fallback'),
+    );
 }
 
 export const redisEnabled = redisConfigured;
@@ -100,7 +102,11 @@ export async function redisGetJson<T>(key: string): Promise<T | null> {
   return raw ? (JSON.parse(raw) as T) : null;
 }
 
-export async function redisSetJson(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+export async function redisSetJson(
+  key: string,
+  value: unknown,
+  ttlSeconds?: number,
+): Promise<void> {
   const raw = JSON.stringify(value);
   if (isRedisReady()) {
     try {

@@ -1,6 +1,7 @@
 import { IMediaStorage, UploadResult, ValidationError } from '@africonnect/shared';
 import { UPLOAD_MAX_BYTES, UPLOAD_MAGIC_SIGNATURES } from '@africonnect/shared';
 import { UploadFolder, CanonicalExt } from './upload.types';
+import { sanitizeUpload, noopScan, type ScanAdapter } from './upload.sanitize';
 
 export interface IUploadService {
   upload(buffer: Buffer, folder: UploadFolder): Promise<UploadResult>;
@@ -9,11 +10,15 @@ export interface IUploadService {
 /**
  * Validates an uploaded buffer by magic bytes (never the client-supplied
  * extension — AGENTS.md Clause 3.7) and delegates storage to the configured
- * `IMediaStorage` (R2 in prod, Local/Cloudinary in dev). The module has no DB
- * entity of its own.
+ * `IMediaStorage` (R2 in prod, Local/Cloudinary in dev). Before storage the
+ * buffer is sanitised: EXIF metadata is stripped from images and a (pluggable)
+ * malware-scan adapter runs. The module has no DB entity of its own.
  */
 export class UploadService implements IUploadService {
-  constructor(private readonly storage: IMediaStorage) {}
+  constructor(
+    private readonly storage: IMediaStorage,
+    private readonly scan: ScanAdapter = noopScan,
+  ) {}
 
   /** Returns the canonical extension derived from the file's leading bytes. */
   private detectExt(buf: Buffer): CanonicalExt {
@@ -33,6 +38,7 @@ export class UploadService implements IUploadService {
       throw new ValidationError('File exceeds the maximum allowed size');
     }
     const ext = this.detectExt(buffer);
-    return this.storage.upload(buffer, ext, folder);
+    const safe = await sanitizeUpload(buffer, ext, this.scan);
+    return this.storage.upload(safe, ext, folder);
   }
 }

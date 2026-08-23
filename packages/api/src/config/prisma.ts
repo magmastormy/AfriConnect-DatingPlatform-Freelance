@@ -108,8 +108,14 @@ function makeScopedClient(client: PrismaClient, ctx: RequestContext | null): Pri
           if (bypass) {
             await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
           } else {
-            await tx.$executeRawUnsafe(`SELECT set_config('app.current_user_id', $1, true)`, ctx!.userId);
-            await tx.$executeRawUnsafe(`SELECT set_config('app.current_tenant_id', $1, true)`, ctx!.tenantId);
+            await tx.$executeRawUnsafe(
+              `SELECT set_config('app.current_user_id', $1, true)`,
+              ctx!.userId,
+            );
+            await tx.$executeRawUnsafe(
+              `SELECT set_config('app.current_tenant_id', $1, true)`,
+              ctx!.tenantId,
+            );
           }
           const delegate = tx[camel(model)];
           return delegate[operation](args);
@@ -121,7 +127,8 @@ function makeScopedClient(client: PrismaClient, ctx: RequestContext | null): Pri
 
 let systemClient: PrismaClient | null = null;
 function getSystemClient(): PrismaClient {
-  if (!systemClient) systemClient = makeScopedClient(rawPrisma, { tenantId: BOOTSTRAP_TENANT_ID, bypassRls: true });
+  if (!systemClient)
+    systemClient = makeScopedClient(rawPrisma, { tenantId: BOOTSTRAP_TENANT_ID, bypassRls: true });
   return systemClient;
 }
 
@@ -160,7 +167,23 @@ export async function reconcileRls(): Promise<void> {
     await disableRls();
     return;
   }
-  await enableRls();
+  // RLS is bypassed entirely for SUPERUSERs, so enforcement is silently inert if
+  // the API connects as one (avnadmin on Aiven, POSTGRES_USER locally). Refuse to
+  // boot with RLS "on" unless we are connected as the dedicated least-privilege
+  // role — otherwise we would believe isolation is active when it is not.
+  const role = await rawPrisma.$queryRawUnsafe<{ current_user: string; is_super: boolean }[]>(
+    `SELECT current_user, (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS is_super`,
+  );
+  const current = role[0]?.current_user;
+  if (current === 'africonnect_app' && role[0]?.is_super === false) {
+    await enableRls();
+    return;
+  }
+  throw new Error(
+    `RLS_ENABLED=true but the API is connected as '${current ?? 'unknown'}' (superuser=${role[0]?.is_super}). ` +
+      'RLS is bypassed for superusers, so isolation would be silently inactive. ' +
+      "Connect as the least-privilege 'africonnect_app' role (see migration 20260822000000_provision_rls_app_role) and retry.",
+  );
 }
 
 async function enableRls(): Promise<void> {
@@ -172,7 +195,10 @@ async function enableRls(): Promise<void> {
     // (Verified by the live RLS smoke test: superuser connection leaked all rows.)
     await rawPrisma.$executeRawUnsafe(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
   }
-  logger.info({ tables: RLS_TABLES.length }, 'RLS forced on user-owned tables (non-superuser roles subject)');
+  logger.info(
+    { tables: RLS_TABLES.length },
+    'RLS forced on user-owned tables (non-superuser roles subject)',
+  );
 }
 
 async function disableRls(): Promise<void> {
@@ -189,7 +215,10 @@ rawPrisma.$connect().catch((err) => {
 
 // When RLS is on, make sure enforcement matches the switch as soon as we connect.
 if (RLS_ENABLED) {
-  rawPrisma.$connect().then(reconcileRls).catch(() => {
-    /* connection probe already logged the failure */
-  });
+  rawPrisma
+    .$connect()
+    .then(reconcileRls)
+    .catch(() => {
+      /* connection probe already logged the failure */
+    });
 }

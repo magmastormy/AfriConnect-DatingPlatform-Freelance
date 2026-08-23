@@ -17,9 +17,11 @@ export interface IVettingService {
   createSession(
     userId: string,
   ): Promise<{ sessionId: string; mode: VettingMode; hostedUrl: string }>;
-  getStatus(
-    userId: string,
-  ): Promise<{ status: VettingSessionStatus | 'none'; mode: VettingMode | null; verified: boolean }>;
+  getStatus(userId: string): Promise<{
+    status: VettingSessionStatus | 'none';
+    mode: VettingMode | null;
+    verified: boolean;
+  }>;
   completeSandbox(sessionId: string): Promise<void>;
   handleWebhook(rawBody: Buffer, signature: string, timestamp: string): Promise<void>;
 }
@@ -96,10 +98,16 @@ export class VettingService implements IVettingService {
       return;
     }
     if (decision.approved) {
-      await prisma.vettingSession.update({ where: { id: session.id }, data: { status: 'approved' } });
+      await prisma.vettingSession.update({
+        where: { id: session.id },
+        data: { status: 'approved' },
+      });
       await this.approve(session.userId, session.id);
     } else {
-      await prisma.vettingSession.update({ where: { id: session.id }, data: { status: 'rejected' } });
+      await prisma.vettingSession.update({
+        where: { id: session.id },
+        data: { status: 'rejected' },
+      });
     }
   }
 
@@ -111,7 +119,10 @@ export class VettingService implements IVettingService {
     });
     // Keep any open manual application consistent with the KYC decision.
     await prisma.application.updateMany({
-      where: { userId, status: { in: [ApplicationStatus.Submitted, ApplicationStatus.UnderReview] } },
+      where: {
+        userId,
+        status: { in: [ApplicationStatus.Submitted, ApplicationStatus.UnderReview] },
+      },
       data: { status: ApplicationStatus.Approved },
     });
     try {

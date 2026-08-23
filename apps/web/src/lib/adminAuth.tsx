@@ -1,7 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { adminApi, getAdminAccessToken, setAdminTokens, clearAdminTokens, getAdminRefreshToken } from './adminApi';
+import {
+  adminApi,
+  getAdminAccessToken,
+  setAdminTokens,
+  clearAdminTokens,
+  getAdminRefreshToken,
+} from './adminApi';
 
 export interface AdminUser {
   userId: string;
@@ -52,11 +58,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setUser(res.user as unknown as AdminUser);
   }, []);
 
-  const bootstrapAdmin = useCallback(async (email: string, password: string, setupToken: string) => {
-    const res = await adminApi.bootstrap(email, password, setupToken);
-    setAdminTokens(res.accessToken, res.refreshToken);
-    setUser(res.user as unknown as AdminUser);
-  }, []);
+  const bootstrapAdmin = useCallback(
+    async (email: string, password: string, setupToken: string) => {
+      const res = await adminApi.bootstrap(email, password, setupToken);
+      setAdminTokens(res.accessToken, res.refreshToken);
+      setUser(res.user as unknown as AdminUser);
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     const refresh = getAdminRefreshToken();
@@ -82,7 +91,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AdminAuthContext.Provider value={{ user, loading, login, bootstrap: bootstrapAdmin, logout, refresh }}>
+    <AdminAuthContext.Provider
+      value={{ user, loading, login, bootstrap: bootstrapAdmin, logout, refresh }}
+    >
       {children}
     </AdminAuthContext.Provider>
   );
@@ -96,5 +107,13 @@ export function useAdminAuth(): AdminAuthContextValue {
 
 export function isAdminRole(role: string | undefined): boolean {
   if (!role) return false;
-  return ['admin', 'admin_vetting', 'admin_events', 'admin_billing', 'admin_support', 'admin_content', 'superadmin'].includes(role);
+  return [
+    'admin',
+    'admin_vetting',
+    'admin_events',
+    'admin_billing',
+    'admin_support',
+    'admin_content',
+    'superadmin',
+  ].includes(role);
 }

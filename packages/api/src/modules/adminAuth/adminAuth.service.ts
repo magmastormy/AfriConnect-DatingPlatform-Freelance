@@ -2,7 +2,12 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { IAdminAuthRepository } from './adminAuth.repository';
 import { AdminAuthResult } from './adminAuth.types';
-import { AuthenticationError, AuthorizationError, ValidationError, AuthedUser } from '@africonnect/shared';
+import {
+  AuthenticationError,
+  AuthorizationError,
+  ValidationError,
+  AuthedUser,
+} from '@africonnect/shared';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '@config/jwt';
 import { assertWithinLimit } from '@config/rateLimiter';
 import { config } from '@config/index';
@@ -20,12 +25,28 @@ export interface AdminSessionContext {
 
 export interface IAdminAuthService {
   login(email: string, password: string, ctx: AdminSessionContext): Promise<AdminAuthResult>;
-  bootstrap(email: string, password: string, setupToken: string, ctx: AdminSessionContext): Promise<AdminAuthResult>;
-  refresh(refreshToken: string, ctx: AdminSessionContext): Promise<{ accessToken: string; refreshToken: string }>;
+  bootstrap(
+    email: string,
+    password: string,
+    setupToken: string,
+    ctx: AdminSessionContext,
+  ): Promise<AdminAuthResult>;
+  refresh(
+    refreshToken: string,
+    ctx: AdminSessionContext,
+  ): Promise<{ accessToken: string; refreshToken: string }>;
   logout(refreshToken: string): Promise<void>;
 }
 
-const ADMIN_ROLES = new Set(['admin', 'admin_vetting', 'admin_events', 'admin_billing', 'admin_support', 'admin_content', 'superadmin']);
+const ADMIN_ROLES = new Set([
+  'admin',
+  'admin_vetting',
+  'admin_events',
+  'admin_billing',
+  'admin_support',
+  'admin_content',
+  'superadmin',
+]);
 
 export class AdminAuthService implements IAdminAuthService {
   constructor(private readonly repo: IAdminAuthRepository) {}
@@ -60,7 +81,12 @@ export class AdminAuthService implements IAdminAuthService {
     return this.issueTokens(admin, ctx);
   }
 
-  async bootstrap(email: string, password: string, setupToken: string, ctx: AdminSessionContext): Promise<AdminAuthResult> {
+  async bootstrap(
+    email: string,
+    password: string,
+    setupToken: string,
+    ctx: AdminSessionContext,
+  ): Promise<AdminAuthResult> {
     const expected = config.adminSetupToken;
     if (!expected || setupToken !== expected) {
       throw new AuthorizationError('Invalid setup token');
@@ -76,7 +102,10 @@ export class AdminAuthService implements IAdminAuthService {
     return this.issueTokens({ ...admin, passwordHash: hash }, ctx);
   }
 
-  async refresh(refreshToken: string, ctx: AdminSessionContext): Promise<{ accessToken: string; refreshToken: string }> {
+  async refresh(
+    refreshToken: string,
+    ctx: AdminSessionContext,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     let payload: { sub: string; jti: string };
     try {
       payload = verifyRefreshToken(refreshToken);
@@ -94,7 +123,8 @@ export class AdminAuthService implements IAdminAuthService {
       throw new AuthenticationError('New device detected — sessions revoked');
     }
     const user = await this.repo.findUserById(session.userId);
-    if (!user || !ADMIN_ROLES.has(user.role)) throw new AuthenticationError('Account no longer exists');
+    if (!user || !ADMIN_ROLES.has(user.role))
+      throw new AuthenticationError('Account no longer exists');
     await this.repo.revokeSession(session.tokenHash);
     const issued = await this.issueTokensRaw(user, ctx);
     return { accessToken: issued.accessToken, refreshToken: issued.refreshToken };
@@ -104,7 +134,16 @@ export class AdminAuthService implements IAdminAuthService {
     if (refreshToken) await this.repo.revokeSession(hashToken(refreshToken));
   }
 
-  private async issueTokens(admin: { id: string; email: string; role: string; status: string; passwordHash?: string | null }, ctx: AdminSessionContext): Promise<AdminAuthResult> {
+  private async issueTokens(
+    admin: {
+      id: string;
+      email: string;
+      role: string;
+      status: string;
+      passwordHash?: string | null;
+    },
+    ctx: AdminSessionContext,
+  ): Promise<AdminAuthResult> {
     const issued = await this.issueTokensRaw(admin, ctx);
     return {
       accessToken: issued.accessToken,
@@ -113,7 +152,10 @@ export class AdminAuthService implements IAdminAuthService {
     };
   }
 
-  private async issueTokensRaw(admin: { id: string; email: string; role: string; status: string }, ctx: AdminSessionContext): Promise<{ accessToken: string; refreshToken: string }> {
+  private async issueTokensRaw(
+    admin: { id: string; email: string; role: string; status: string },
+    ctx: AdminSessionContext,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const principal: AuthedUser = {
       userId: admin.id,
       role: asEnum<UserRole>(admin.role),
@@ -124,7 +166,14 @@ export class AdminAuthService implements IAdminAuthService {
     const accessToken = signAccessToken(principal, { jti, deviceId: ctx.deviceId ?? '' });
     const refreshToken = signRefreshToken(admin.id, jti);
     const expiresAt = new Date(Date.now() + config.jwt.refreshTtlDays * 24 * 60 * 60 * 1000);
-    await this.repo.storeRefreshToken(admin.id, hashToken(refreshToken), jti, ctx.deviceId ?? null, ctx.ip ?? null, expiresAt);
+    await this.repo.storeRefreshToken(
+      admin.id,
+      hashToken(refreshToken),
+      jti,
+      ctx.deviceId ?? null,
+      ctx.ip ?? null,
+      expiresAt,
+    );
     return { accessToken, refreshToken };
   }
 }

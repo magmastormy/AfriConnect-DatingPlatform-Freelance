@@ -39,7 +39,13 @@ export default function MessagesPage() {
       try {
         const list = await api.get<Conversation[]>('/chat/conversations');
         setConversations(list);
-        if (list.length) setActive(list[0].id);
+        // Support the ?c=<conversationId> deep link from Discover / Match
+        // celebration: open that thread directly when present.
+        const target = new URLSearchParams(
+          typeof window !== 'undefined' ? window.location.search : '',
+        ).get('c');
+        const found = list.find((c) => c.id === target);
+        setActive(found ? found.id : (list[0]?.id ?? null));
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load messages');
       } finally {

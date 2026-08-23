@@ -5,16 +5,30 @@ import { MatchController } from './match.controller';
 import { matchRoutes } from './match.routes';
 import { prisma } from '@config/prisma';
 import { ProfileRepository } from '@modules/profile/profile.repository';
+import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationRepository } from '@modules/notification/notification.repository';
 
-export function buildMatchModule(): Router {
+/**
+ * Builds the MatchService with its notification dependency wired in so that
+ * superlikes and mutual matches fan out in-app alerts. Shared by the match
+ * router and any consumer that needs `isMutual` (e.g. the chat module guards
+ * conversation creation on a mutual match).
+ */
+export function buildMatchService(): IMatchService {
   const repo = new MatchRepository(prisma);
   const profileRepo = new ProfileRepository(prisma);
-  const service: IMatchService = new MatchService(repo, profileRepo);
+  const notify = new NotificationService(new NotificationRepository(prisma));
+  return new MatchService(repo, profileRepo, notify);
+}
+
+export function buildMatchModule(): Router {
+  const service = buildMatchService();
   const controller = new MatchController(service);
   return matchRoutes(controller, service);
 }
 
 export { MatchService, MatchRepository, MatchController };
+export type { IMatchService };
 export * from './match.types';
 export * from './match.schema';
 export * from './scoring';

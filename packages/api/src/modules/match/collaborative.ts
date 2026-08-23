@@ -88,11 +88,7 @@ export function itemBasedAffinity(
  * similarity-weighted average of other users' ratings of that item. Raw
  * ratings in [-1,2] are mapped to 0..1. Returns 0 when no signal.
  */
-export function userBasedAffinity(
-  viewerId: string,
-  itemId: string,
-  m: InteractionMatrix,
-): number {
+export function userBasedAffinity(viewerId: string, itemId: string, m: InteractionMatrix): number {
   if (!m.userIndex.has(viewerId) || !m.itemIndex.has(itemId)) return 0;
   const viewerIdx = m.userIndex.get(viewerId)!;
   const itemIdx = m.itemIndex.get(itemId)!;

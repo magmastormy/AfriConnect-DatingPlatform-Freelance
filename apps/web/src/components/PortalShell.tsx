@@ -7,6 +7,7 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { useClerkIdentity } from '@/lib/useClerkIdentity';
 import { useClerkSignOut } from '@/app/clerk-provider';
 import { stageLabel } from '@/lib/membership';
+import { BottomNav } from '@/components/navigation/BottomNav';
 
 interface NavItem {
   href: string;
@@ -173,6 +174,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <BottomNav />
       {navOpen && <div className="portal-backdrop" onClick={() => setNavOpen(false)} />}
     </div>
   );

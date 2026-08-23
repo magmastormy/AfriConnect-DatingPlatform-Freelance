@@ -27,7 +27,10 @@ function sha256Hex(s: string): string {
   return createHash('sha256').update(s, 'utf8').digest('hex');
 }
 function uriEncode(s: string): string {
-  return encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  return encodeURIComponent(s).replace(
+    /[!'()*]/g,
+    (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase(),
+  );
 }
 function hmac(key: Buffer | string, data: string): Buffer {
   return createHmac('sha256', key).update(data, 'utf8').digest();
@@ -290,13 +293,9 @@ export class CloudflareR2MediaStorage implements IMediaStorage {
    */
   async getSignedUrl(publicId: string, ttlSeconds: number): Promise<string> {
     const key = publicId.replace(/^\/+/, '');
-    const host = this.cdnDomain
-      ? this.cdnDomain
-      : `${this.accountId}.r2.cloudflarestorage.com`;
+    const host = this.cdnDomain ? this.cdnDomain : `${this.accountId}.r2.cloudflarestorage.com`;
     const proto = 'https';
-    const canonicalUri = this.cdnDomain
-      ? `/${key}`
-      : `/${this.bucket}/${key}`;
+    const canonicalUri = this.cdnDomain ? `/${key}` : `/${this.bucket}/${key}`;
     const now = new Date();
     const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
     const dateStamp = amzDate.slice(0, 8);
@@ -342,12 +341,7 @@ export class CloudflareR2MediaStorage implements IMediaStorage {
     ].join('\n');
 
     const hashedCanonicalRequest = sha256Hex(canonicalRequest);
-    const stringToSign = [
-      algorithm,
-      amzDate,
-      credentialScope,
-      hashedCanonicalRequest,
-    ].join('\n');
+    const stringToSign = [algorithm, amzDate, credentialScope, hashedCanonicalRequest].join('\n');
 
     const signingKey = deriveSigningKey(secretAccessKey, dateStamp, 'auto', service);
     const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');

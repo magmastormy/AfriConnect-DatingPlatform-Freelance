@@ -3,10 +3,7 @@ import { AuthController } from './auth.controller';
 import { IAuthService } from './auth.service';
 import { authorize, rateLimitMiddleware } from '@config/middleware';
 import { deviceBinding, requireDeviceBinding } from '@config/middleware/device';
-import {
-  RATE_LIMIT_AUTH_MAX,
-  RATE_LIMIT_AUTH_WINDOW_MS,
-} from '@africonnect/shared';
+import { RATE_LIMIT_AUTH_MAX, RATE_LIMIT_AUTH_WINDOW_MS } from '@africonnect/shared';
 
 export function authRoutes(controller: AuthController, _service: IAuthService): Router {
   const router = Router();

@@ -84,7 +84,9 @@ export function SmileVerify() {
           </div>
         </div>
         {result.mode === 'sandbox' && (
-          <p className="vet-hint">Testing mode: the link opens a simulator that approves instantly.</p>
+          <p className="vet-hint">
+            Testing mode: the link opens a simulator that approves instantly.
+          </p>
         )}
       </div>
     );

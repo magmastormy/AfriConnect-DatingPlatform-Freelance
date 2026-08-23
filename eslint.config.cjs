@@ -28,6 +28,10 @@ module.exports = [
       '**/scripts/load/**',
       '**/scripts/bench/**',
       '**/scripts/e2e/**',
+      // Top-level maintenance scripts (e.g. migrate-to-r2.ts, test-admin-auth.ts)
+      // are outside the build tsconfig, so the type-aware projectService cannot
+      // resolve them. Excluding them here mirrors the *.test.ts escape hatch.
+      '**/scripts/*.ts',
     ],
   },
   {

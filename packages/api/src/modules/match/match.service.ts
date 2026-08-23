@@ -9,6 +9,7 @@ import {
   DailyMatchEntry,
   DiscoverCard,
   RecommendCard,
+  SuperlikeReceived,
 } from './match.types';
 import { MatchingEngine, buildDefaultConfig } from './engine';
 import { buildInteractionMatrix } from './collaborative';
@@ -19,7 +20,8 @@ import {
   ConflictError,
   NotFoundError,
 } from '@africonnect/shared';
-import { logger } from '@africonnect/shared';
+import { logger, NotificationChannel } from '@africonnect/shared';
+import type { INotificationService } from '@modules/notification/notification.service';
 import { redisGetJson, redisSetJson } from '../../config/redis';
 import {
   DAILY_MATCH_LIMIT,
@@ -38,7 +40,11 @@ export interface IMatchService {
   expressInterest(
     userId: string,
     input: ExpressInterestInput,
-  ): Promise<{ status: string; mutual: boolean; score?: number | null }>;
+  ): Promise<{ status: string; mutual: boolean; score?: number | null; matchId: string }>;
+  /** True when the two users are in a mutual match (used by chat for auth). */
+  isMutual(a: string, b: string): Promise<boolean>;
+  /** Pending superlikes the caller has RECEIVED (anonymous until mutual). */
+  getSuperlikesReceived(userId: string): Promise<{ items: SuperlikeReceived[]; count: number }>;
   getMutual(userId: string): Promise<unknown[]>;
   discover(userId: string, limit?: number): Promise<RecommendCard[]>;
   getPreview(limit?: number): Promise<DiscoverCard[]>;
@@ -85,6 +91,7 @@ export class MatchService implements IMatchService {
   constructor(
     private readonly repo: IMatchRepository,
     private readonly profileRepo: IProfileRepository,
+    private readonly notify?: INotificationService,
   ) {}
 
   async generateDailyMatches(
@@ -155,7 +162,7 @@ export class MatchService implements IMatchService {
   async expressInterest(
     userId: string,
     input: ExpressInterestInput,
-  ): Promise<{ status: string; mutual: boolean; score?: number | null }> {
+  ): Promise<{ status: string; mutual: boolean; score?: number | null; matchId: string }> {
     if (userId === input.targetId) {
       throw new ValidationError('Cannot match with yourself');
     }
@@ -199,10 +206,60 @@ export class MatchService implements IMatchService {
           : 'liked';
     const result = await this.repo.upsertAction(userId, input.targetId, action, score);
     const mutual = result.status === 'mutual';
+
     if (mutual) {
       logger.info({ userId, targetId: input.targetId }, 'Mutual match created');
+      await this.fireMutualNotifications(userId, input.targetId);
+    } else if (input.action === MatchAction.SuperLike && this.notify) {
+      // Recipient gets an anonymous heads-up. POPIA: no sender identity is
+      // carried in the title/body until the match becomes mutual.
+      await this.notify.create({
+        userId: input.targetId,
+        type: 'superlike_received',
+        title: 'Someone superliked you',
+        body: 'A member thinks you stand out. Like them back to match.',
+        channel: NotificationChannel.InApp,
+      });
     }
-    return { status: result.status, mutual, score: result.compatibilityScore };
+
+    return {
+      status: result.status,
+      mutual,
+      score: result.compatibilityScore,
+      matchId: result.id,
+    };
+  }
+
+  /** Fan out an anonymous superlike_received alert + mutual_match alerts. */
+  private async fireMutualNotifications(userId: string, targetId: string): Promise<void> {
+    if (!this.notify) return;
+    const base = {
+      type: 'mutual_match',
+      title: 'It’s a match!',
+      body: 'You and a member like each other. Say hello!',
+      channel: NotificationChannel.InApp,
+    };
+    await Promise.all([
+      this.notify.create({ ...base, userId: userId }),
+      this.notify.create({ ...base, userId: targetId }),
+    ]);
+  }
+
+  async isMutual(a: string, b: string): Promise<boolean> {
+    const row = await this.repo.findActionBetween(a, b);
+    return row?.status === 'mutual';
+  }
+
+  async getSuperlikesReceived(
+    userId: string,
+  ): Promise<{ items: SuperlikeReceived[]; count: number }> {
+    const rows = await this.repo.findSuperlikesReceived(userId);
+    const items: SuperlikeReceived[] = rows.map((r) => ({
+      matchId: r.id,
+      createdAt: r.createdAt.toISOString(),
+      anonymous: true,
+    }));
+    return { items, count: items.length };
   }
 
   async getMutual(userId: string): Promise<unknown[]> {

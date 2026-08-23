@@ -23,7 +23,8 @@ export function AdminLoginForm() {
       router.push('/admin');
       router.refresh();
     } catch (e) {
-      const msg = e instanceof AdminApiError ? e.message : e instanceof Error ? e.message : 'Sign in failed';
+      const msg =
+        e instanceof AdminApiError ? e.message : e instanceof Error ? e.message : 'Sign in failed';
       setErr(msg);
     } finally {
       setBusy(false);
