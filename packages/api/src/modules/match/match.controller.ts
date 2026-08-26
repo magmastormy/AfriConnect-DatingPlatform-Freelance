@@ -77,7 +77,19 @@ export class MatchController {
 
   discover = asyncHandler(async (req: Request, res: Response) => {
     const limit = req.query.limit ? Math.min(50, Number(req.query.limit)) : 20;
-    const cards = await this.service.discover(req.user!.userId, limit);
+    const city = req.query.city as string | undefined;
+    const ageMin = req.query.ageMin ? Number(req.query.ageMin) : undefined;
+    const ageMax = req.query.ageMax ? Number(req.query.ageMax) : undefined;
+    const interests = typeof req.query.interests === 'string'
+      ? req.query.interests.split(',').map((s) => s.trim()).filter(Boolean)
+      : undefined;
+    const cards = await this.service.discover(req.user!.userId, {
+      limit,
+      city: city as never,
+      ageMin: Number.isFinite(ageMin) ? ageMin : undefined,
+      ageMax: Number.isFinite(ageMax) ? ageMax : undefined,
+      interests,
+    });
     res.status(200).json(success(cards));
   });
 

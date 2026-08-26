@@ -31,8 +31,10 @@ export interface DailyMatch {
   score: number;
   displayName: string | null;
   city: City;
-  educationLevel: EducationLevel;
+  educationLevel: EducationLevel | null;
   profession: string | null;
+  photo: string | null;
+  distanceKm: number | null;
 }
 
 export interface DiscoverCard {
@@ -51,6 +53,14 @@ export interface DiscoverCard {
   isPremium: boolean;
 }
 
+/** Opt-in Discover filters — all optional. Mirrors the backend DiscoverQuery. */
+export interface DiscoverFilters {
+  city?: City | '';
+  ageMin?: number | '';
+  ageMax?: number | '';
+  interests?: string;
+}
+
 export interface ChatMessage {
   id: string;
   senderId: string;
@@ -62,6 +72,31 @@ export interface ChatMessage {
   isDeleted: boolean;
   recalledAt: string | null;
   createdAt: string;
+}
+
+/** Enriched conversation for the Messenger-style thread list. */
+export interface ConversationThread {
+  id: string;
+  participant1Id: string;
+  participant2Id: string;
+  lastMessageAt: string | null;
+  other: {
+    userId: string;
+    displayName: string | null;
+    photo: string | null;
+    verified: boolean;
+    isPremium: boolean;
+  } | null;
+  lastMessage: {
+    id: string;
+    senderId: string;
+    content: string;
+    imageUrl: string | null;
+    isDeleted: boolean;
+    recalledAt: string | null;
+    createdAt: string;
+  } | null;
+  unread: number;
 }
 
 export interface ApplicationView {
@@ -146,6 +181,8 @@ export interface EventView {
   ticketPrice: number;
   status: EventStatus;
   featured: boolean;
+  /** Confirmed + waitlisted attendee count for the card footer. */
+  attendeeCount: number;
 }
 
 /** A member returned by the WeChat-Nearby (district-scoped, premium) endpoint. */
@@ -165,6 +202,8 @@ export interface NearbyProfileView {
   educationLevel: EducationLevel | null;
   isPremium: boolean;
   verified: boolean;
+  /** Great-circle distance from the viewer, in km. Null when coords are absent. */
+  distanceKm: number | null;
 }
 
 /** RedNote-style drill-down card returned by GET /profile/:userId (tier-gated). */

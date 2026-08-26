@@ -33,7 +33,7 @@ export class EventService implements IEventService {
   /** Normalises a stored Event for the API: Prisma Decimals and Dates cannot be
    *  JSON-serialised as-is (a Decimal serialises to {"s":...,"e":...}, which is
    *  what made ticket prices render as an object on the events page). */
-  private toView(event: {
+  private async toView(event: {
     id: string;
     title: string;
     description: string;
@@ -47,7 +47,10 @@ export class EventService implements IEventService {
     status: string;
     featured: boolean;
   }) {
-    const price = event.ticketPrice as { toString?: () => string } | null | undefined;
+    const [price, attendeeCount] = [
+      event.ticketPrice as { toString?: () => string } | null | undefined,
+      await this.repo.countConfirmed(event.id),
+    ];
     return {
       id: event.id,
       title: event.title,
@@ -61,6 +64,7 @@ export class EventService implements IEventService {
       ticketPrice: price && typeof price.toString === 'function' ? Number(price.toString()) : 0,
       status: event.status,
       featured: event.featured,
+      attendeeCount,
     };
   }
 
@@ -70,12 +74,12 @@ export class EventService implements IEventService {
       const cached = await redisGetJson<unknown[]>(cacheKey).catch(() => null);
       if (cached) return cached;
       const events = await this.repo.listUpcoming();
-      const views = events.map((e) => this.toView(e));
+      const views = await Promise.all(events.map((e) => this.toView(e)));
       await redisSetJson(cacheKey, views, 30).catch(() => {});
       return views;
     }
     const events = await this.repo.listUpcoming();
-    return events.map((e) => this.toView(e));
+    return Promise.all(events.map((e) => this.toView(e)));
   }
 
   async getById(id: string): Promise<unknown> {
@@ -85,7 +89,7 @@ export class EventService implements IEventService {
       if (cached) return cached;
       const event = await this.repo.getById(id);
       if (!event) throw new NotFoundError('Event not found', { id });
-      const view = this.toView(event);
+      const view = await this.toView(event);
       await redisSetJson(cacheKey, view, 30).catch(() => {});
       return view;
     }
@@ -96,7 +100,7 @@ export class EventService implements IEventService {
 
   async listForAdmin(): Promise<unknown[]> {
     const events = await this.repo.listAll();
-    return events.map((e) => this.toView(e));
+    return Promise.all(events.map((e) => this.toView(e)));
   }
 
   async create(input: CreateEventInput, adminId: string): Promise<unknown> {
@@ -135,7 +139,7 @@ export class EventService implements IEventService {
   /** Events created by the calling member, newest first (all statuses). */
   async listMine(userId: string): Promise<unknown[]> {
     const events = await this.repo.listByCreator(userId);
-    return events.map((e) => this.toView(e));
+    return Promise.all(events.map((e) => this.toView(e)));
   }
 
   async rsvp(eventId: string, userId: string): Promise<RSVPResult> {

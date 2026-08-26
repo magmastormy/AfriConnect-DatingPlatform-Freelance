@@ -65,18 +65,24 @@ export default function AnalyticsPage() {
   }, [win]);
 
   return (
-    <div>
+    <div style={{ maxWidth: 980, margin: '0 auto' }}>
       <div className="page-head">
         <h1>Your analytics</h1>
-        <p>How your profile is performing over time.</p>
+        <p>How your profile is performing — views, likes, matches, RSVPs. Like IG Insights, but for dating.</p>
       </div>
 
-      <div className="tabs" style={{ marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1rem' }}>
         {WINDOWS.map((w) => (
-          <button key={w} data-active={win === w} onClick={() => setWin(w)}>
+          <button
+            key={w}
+            onClick={() => setWin(w)}
+            className={`btn ${win === w ? 'btn-primary' : 'btn-subtle'}`}
+            style={{ borderRadius: 999, minHeight: 36, padding: '0 14px', fontSize: '.84rem' }}
+          >
             {w} days
           </button>
         ))}
+        {bundle && <span style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--muted)', fontSize: '.82rem' }}>{bundle.totals.profileViews} views · {bundle.totals.mutualMatches} matches total</span>}
       </div>
 
       <ApiState loading={loading} error={error}>

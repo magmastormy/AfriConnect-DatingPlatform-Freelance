@@ -6,6 +6,7 @@ import type {
   EventView,
   NearbyProfileView,
   ProfileRedNoteView,
+  DiscoverCard,
   ApplicationAdminView,
   PlatformSettingsView,
   UpdateSettingsInput,
@@ -188,6 +189,23 @@ export const api = {
     if (params?.limit) qs.set('limit', String(params.limit));
     const q = qs.toString();
     return request<NearbyProfileView[]>('GET', `/discover/nearby${q ? `?${q}` : ''}`);
+  },
+  /** Discover deck with opt-in filters (city, age band, interests). */
+  getDiscover: (filters?: {
+    city?: string;
+    ageMin?: number;
+    ageMax?: number;
+    interests?: string;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (filters?.city) qs.set('city', filters.city);
+    if (filters?.ageMin != null) qs.set('ageMin', String(filters.ageMin));
+    if (filters?.ageMax != null) qs.set('ageMax', String(filters.ageMax));
+    if (filters?.interests) qs.set('interests', filters.interests);
+    if (filters?.limit) qs.set('limit', String(filters.limit));
+    const q = qs.toString();
+    return request<DiscoverCard[]>('GET', `/matches/discover${q ? `?${q}` : ''}`);
   },
 
   // ── Discovery actions (like / pass / superlike) + superlike inbox ────────

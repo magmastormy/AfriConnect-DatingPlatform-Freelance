@@ -1,0 +1,59 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant P as ProfileCardFull
+    participant H as useSwipeGesture
+    participant API as api (web)
+    participant MC as MatchController
+    participant MS as MatchService
+    participant MR as MatchRepository
+    participant NS as NotificationService
+    participant CC as ChatController
+    participant CS as ChatService
+    participant CR as ChatRepository
+
+    Note over U,P: LIKE / SUPERLIKE (swipe or button)
+    U->>P: swipe right / tap Like
+    P->>H: drag > threshold
+    H-->>P: onSwipe('right')
+    P->>API: postMatchAction(userId,'like')
+    API->>MC: like
+    MC->>MS: expressInterest(like)
+    MS->>MR: upsertAction('liked')
+    MR-->>MS: Match(status)
+    alt becomes mutual (other already liked/superliked)
+        MS->>NS: create 'mutual_match' (both users)
+    else action is superlike (not yet mutual)
+        MS->>NS: create 'superlike_received' (target, anonymous)
+    end
+    MS-->>MC: {status, mutual, matchId}
+    MC-->>API: success(result)
+    API-->>P: resolve
+    P->>P: animate card out, advance deck
+    opt mutual
+        P->>P: show MatchCelebration + "Message" CTA
+    end
+
+    Note over U,BottomNav: RECIPIENT LATER (badge poll)
+    BottomNav->>API: getSuperlikesReceived()
+    API->>MC: superlikesReceived
+    MC->>MS: getSuperlikesReceived()
+    MS->>MR: findSuperlikesReceived(userId)
+    MR-->>MS: Match[] (anonymous)
+    MS-->>MC: {items, count}
+    MC-->>API: success({items,count})
+    API-->>BottomNav: count -> Matches badge
+
+    Note over U,P: START CHAT FROM MUTUAL MATCH
+    U->>P: tap "Message"
+    P->>API: createConversation(targetUserId)
+    API->>CC: create
+    CC->>CS: getOrCreateConversation(me, target)
+    CS->>MS: isMutual(me, target)
+    MS-->>CS: true
+    CS->>CR: findOrCreateConversation(me, target)
+    CR-->>CS: Conversation
+    CS-->>CC: {id,...}
+    CC-->>API: success(conversation)
+    API-->>P: conversationId
+    P->>P: router.push(/portal/messages?c=id)

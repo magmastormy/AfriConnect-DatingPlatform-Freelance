@@ -19,6 +19,8 @@ export interface IViewerContext {
   district: string | null;
   nearbyEnabled: boolean;
   isPremium: boolean;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface IDiscoverRepository {
@@ -55,6 +57,8 @@ export class DiscoverRepository implements IDiscoverRepository {
         district: profile.district,
         nearbyEnabled: profile.nearbyEnabled,
         isPremium: isPremiumSubscription(profile.user.subscriptions),
+        latitude: profile.latitude ?? null,
+        longitude: profile.longitude ?? null,
       };
     } catch (error) {
       logger.error({ error, userId }, 'DiscoverRepository: getViewerContext failed');

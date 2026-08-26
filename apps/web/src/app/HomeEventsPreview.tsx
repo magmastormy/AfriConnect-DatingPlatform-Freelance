@@ -54,7 +54,7 @@ export function HomeEventsPreview() {
       ) : (
         <div className="event-grid">
           {events.map((ev) => (
-            <Link key={ev.id} className="event-card" href={`/events/${ev.id}`}>
+            <Link key={ev.id} className="event-card" href="/events">
               <div className="event-card-top">
                 <span className="badge badge-neutral">{ev.eventType}</span>
                 {ev.featured && <span className="badge badge-good">Featured</span>}

@@ -19,7 +19,7 @@ export class ChatController {
   ) {}
 
   list = asyncHandler(async (req: Request, res: Response) => {
-    const list = await this.service.listConversations(req.user!.userId);
+    const list = await this.service.listConversationsDetailed(req.user!.userId);
     res.status(200).json(success(list));
   });
 

@@ -18,6 +18,11 @@ export interface NearbyProfileView {
   educationLevel: EducationLevel | null;
   isPremium: boolean;
   verified: boolean;
+  /** Precise opt-in coordinates (only present when the member shared them). */
+  latitude: number | null;
+  longitude: number | null;
+  /** Great-circle distance from the viewer, in km. Null when either side lacks coords. */
+  distanceKm: number | null;
 }
 
 export interface GetNearbyQuery {

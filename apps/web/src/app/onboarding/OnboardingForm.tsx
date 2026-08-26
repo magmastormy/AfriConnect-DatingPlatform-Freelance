@@ -213,7 +213,7 @@ export function OnboardingForm() {
 
       await refreshApplication();
       toast('Application submitted — our team will review it shortly', 'success');
-      router.push('/portal');
+      router.push('/portal/discover');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not submit your application');
     } finally {

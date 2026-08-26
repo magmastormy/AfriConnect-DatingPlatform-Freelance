@@ -7,6 +7,7 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/Toast';
 import { useSignOut } from '@/lib/useSignOut';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export function SiteNav() {
   const { user, loading } = useAuth();
@@ -48,6 +49,7 @@ export function SiteNav() {
 
   const homeHref = user ? (isAdmin(user.role) ? '/admin' : '/portal') : '/';
   const homeLabel = user && isAdmin(user.role) ? 'Admin' : 'Portal';
+  const isMember = !!user && !isAdmin(user.role);
 
   return (
     <nav className="nav" aria-label="Primary">
@@ -79,10 +81,18 @@ export function SiteNav() {
 
       <div className="links desktop-links">
         <ThemeToggle />
+        {user && !loading && <NotificationBell />}
         {loading ? (
           <span className="spinner" aria-label="Loading session" />
         ) : user ? (
           <>
+            {isMember && (
+              <>
+                <Link className="navlink" href="/portal/discover" prefetch>Discover</Link>
+                <Link className="navlink" href="/portal/matches" prefetch>Matches</Link>
+                <Link className="navlink" href="/portal/messages" prefetch>Messages</Link>
+              </>
+            )}
             <Link className="navlink" href={homeHref} prefetch>
               {homeLabel}
             </Link>
@@ -92,6 +102,8 @@ export function SiteNav() {
           </>
         ) : (
           <>
+            <Link className="navlink" href="/discover" prefetch>Discover</Link>
+            <Link className="navlink" href="/events" prefetch>Events</Link>
             <Link className="navlink" href="/sign-in" prefetch>
               Sign in
             </Link>
@@ -121,7 +133,10 @@ export function SiteNav() {
 
       <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="mobile-menu-content">
-          <ThemeToggle />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <ThemeToggle />
+            {user && <NotificationBell />}
+          </div>
           {loading ? (
             <span className="spinner" aria-label="Loading session" />
           ) : user ? (
@@ -129,8 +144,20 @@ export function SiteNav() {
               <Link className="mobile-navlink" href={homeHref} prefetch>
                 {homeLabel}
               </Link>
+              {isMember && (
+                <>
+                  <Link className="mobile-navlink" href="/portal/discover" prefetch>Discover</Link>
+                  <Link className="mobile-navlink" href="/portal/matches" prefetch>Matches</Link>
+                  <Link className="mobile-navlink" href="/portal/messages" prefetch>Messages</Link>
+                  <Link className="mobile-navlink" href="/portal/events" prefetch>Events</Link>
+                  <Link className="mobile-navlink" href="/portal/notifications" prefetch>Notifications</Link>
+                </>
+              )}
               <Link className="mobile-navlink" href="/portal/profile" prefetch>
                 My profile
+              </Link>
+              <Link className="mobile-navlink" href="/portal/settings" prefetch>
+                Settings
               </Link>
               <button
                 className="mobile-btn btn btn-subtle"
@@ -142,6 +169,8 @@ export function SiteNav() {
             </>
           ) : (
             <>
+              <Link className="mobile-navlink" href="/discover" prefetch>Discover</Link>
+              <Link className="mobile-navlink" href="/events" prefetch>Events</Link>
               <Link className="mobile-navlink" href="/sign-in" prefetch>
                 Sign in
               </Link>

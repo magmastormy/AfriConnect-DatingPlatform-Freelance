@@ -95,17 +95,44 @@ export function ApiState({
   loading,
   error,
   empty,
+  emptyText,
   children,
 }: {
   loading: boolean;
   error: string | null;
   empty?: boolean;
+  emptyText?: string;
   children: React.ReactNode;
 }) {
-  if (loading) return <div className="state">Loading…</div>;
-  if (error) return <div className="state state-error">{error}</div>;
-  if (empty) return <div className="state">Nothing here yet.</div>;
+  if (loading) return (
+    <div className="state" style={{ display: 'grid', gap: 10, placeItems: 'center', padding: '2.2rem 1rem' }}>
+      <span className="spinner" style={{ width: 22, height: 22 }} aria-label="Loading" />
+      <span style={{ color: 'var(--muted)', fontSize: '.88rem' }}>Loading…</span>
+    </div>
+  );
+  if (error) return (
+    <div className="state state-error" style={{ display: 'grid', gap: 8, placeItems: 'center', padding: '1.6rem 1rem' }}>
+      <span style={{ fontSize: '1.3rem' }} aria-hidden>⚠</span>
+      <span>{error}</span>
+    </div>
+  );
+  if (empty) return (
+    <div className="state" style={{ display: 'grid', gap: 8, placeItems: 'center', padding: '2rem 1rem', textAlign: 'center' }}>
+      <span style={{ width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--surface-3)', color: 'var(--muted)' }} aria-hidden>—</span>
+      <span style={{ color: 'var(--muted)', maxWidth: '32ch' }}>{emptyText ?? 'Nothing here yet.'}</span>
+    </div>
+  );
   return <>{children}</>;
+}
+
+export function SkeletonCard() {
+  return (
+    <div className="card" style={{ display: 'grid', gap: 10 }}>
+      <div style={{ height: 14, width: '42%', background: 'var(--line)', borderRadius: 6 }} />
+      <div style={{ height: 10, width: '88%', background: 'var(--line)', borderRadius: 6, opacity: .7 }} />
+      <div style={{ height: 10, width: '66%', background: 'var(--line)', borderRadius: 6, opacity: .5 }} />
+    </div>
+  );
 }
 
 export function SearchInput({

@@ -1,17 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { api, ApiError } from '@/lib/api';
-import { DiscoverCard, NearbyProfileView, ProfileRedNoteView } from '@/lib/types';
+import { DiscoverCard, NearbyProfileView, ProfileRedNoteView, City, DiscoverFilters } from '@/lib/types';
 import { isPremium, SubscriptionView, can, Capability } from '@/lib/membership';
 import { ApiState, Badge, Card, Button } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import { AwarenessBanner } from '@/components/AwarenessBanner';
 import { useTrackProfileView } from '@/lib/useProfileView';
 import { useAuth } from '@/lib/auth';
 import { useViewport } from '@/lib/use-viewport';
 import { FullScreenDiscover } from '@/components/discover/FullScreenDiscover';
+import { MatchCelebration } from '@/components/discover/MatchCelebration';
 
 type Mode = 'discover' | 'nearby';
 type ActAction = 'like' | 'pass' | 'superlike';
@@ -28,6 +30,7 @@ interface GridMember {
   verified: boolean;
   isPremium: boolean;
   tags: string[];
+  distanceKm: number | null;
 }
 
 function normalizeDiscover(card: DiscoverCard): GridMember {
@@ -42,6 +45,7 @@ function normalizeDiscover(card: DiscoverCard): GridMember {
     verified: card.verified,
     isPremium: card.isPremium,
     tags: card.sharedInterests ?? [],
+    distanceKm: (card as { distanceKm?: number | null }).distanceKm ?? null,
   };
 }
 
@@ -58,10 +62,96 @@ function normalizeNearby(card: NearbyProfileView): GridMember {
     verified: card.verified,
     isPremium: card.isPremium,
     tags: [],
+    distanceKm: card.distanceKm ?? null,
   };
 }
 
 // ── Heart glyph (decorative match indicator on the feed card footer) ─────────
+function formatDistance(distanceKm: number | null): string | null {
+  if (distanceKm == null) return null;
+  if (distanceKm < 1) return 'Under 1 km away';
+  if (distanceKm < 10) return `${distanceKm.toFixed(1)} km away`;
+  return `${Math.round(distanceKm)} km away`;
+}
+
+const CITY_OPTIONS = ['johannesburg', 'cape_town', 'durban', 'pretoria', 'pietermaritzburg'] as const;
+
+// Presentational filter bar. All fields optional — clearing everything returns
+// to the default engine-ranked deck. `onChange` lifts the draft to the page so
+// the deck reloads only when the user applies.
+const DiscoverFiltersBar = memo(function DiscoverFiltersBar({
+  value,
+  onChange,
+  onApply,
+  onReset,
+}: {
+  value: DiscoverFilters;
+  onChange: (next: DiscoverFilters) => void;
+  onApply: () => void;
+  onReset: () => void;
+}) {
+  const hasFilters = Boolean(value.city || value.ageMin || value.ageMax || value.interests);
+  return (
+    <div className="discover-filters" aria-label="Discover filters">
+      <label className="field field-inline">
+        <span>City</span>
+        <select
+          value={value.city ?? ''}
+          onChange={(e) => onChange({ ...value, city: (e.target.value || undefined) as City | undefined })}
+        >
+          <option value="">Any</option>
+          {CITY_OPTIONS.map((c) => (
+            <option key={c} value={c}>
+              {c.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field field-inline">
+        <span>Min age</span>
+        <input
+          type="number"
+          min={18}
+          max={99}
+          placeholder="18"
+          value={value.ageMin ?? ''}
+          onChange={(e) => onChange({ ...value, ageMin: (e.target.value || undefined) as number | undefined })}
+        />
+      </label>
+      <label className="field field-inline">
+        <span>Max age</span>
+        <input
+          type="number"
+          min={18}
+          max={99}
+          placeholder="99"
+          value={value.ageMax ?? ''}
+          onChange={(e) => onChange({ ...value, ageMax: (e.target.value || undefined) as number | undefined })}
+        />
+      </label>
+      <label className="field field-inline field-grow">
+        <span>Interests (comma-separated)</span>
+        <input
+          type="text"
+          placeholder="travel, music"
+          value={value.interests ?? ''}
+          onChange={(e) => onChange({ ...value, interests: e.target.value })}
+        />
+      </label>
+      <div className="row-actions" style={{ marginLeft: 'auto', gap: 8 }}>
+        <button className="btn btn-subtle" type="button" onClick={onApply}>
+          Apply
+        </button>
+        {hasFilters && (
+          <button className="btn btn-ghost" type="button" onClick={onReset}>
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
 function HeartIcon() {
   return (
     <svg
@@ -78,28 +168,33 @@ function HeartIcon() {
   );
 }
 
-// ── Discover / Nearby grid card (Xiaohongshu-style, browse-only) ────────────
-function DiscoverGridCard({
+// ── Discover / Nearby grid card (lean, memoized, single-image) ────────────
+// Rendered potentially hundreds of times, so it is:
+//  • memo()'d — parent re-renders (e.g. switching tabs) don't re-render every card
+//  • stateless — no per-card effects or handlers; the click handler is passed in
+//  • one <Image> — the footer reuses the same photo via CSS background, no 2nd fetch
+//  • formatDistance() computed once, not twice
+const DiscoverGridCard = memo(function DiscoverGridCard({
   member,
   onOpen,
   priority = false,
 }: {
   member: GridMember;
-  onOpen: () => void;
+  onOpen: (userId: string) => void;
   priority?: boolean;
 }) {
-  const initial = (member.displayName.charAt(0) || '?').toUpperCase();
+  const distance = formatDistance(member.distanceKm);
   return (
     <div
       className="discover-card"
       role="button"
       tabIndex={0}
       aria-label={`View ${member.displayName}`}
-      onClick={onOpen}
+      onClick={() => onOpen(member.userId)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onOpen();
+          onOpen(member.userId);
         }
       }}
     >
@@ -134,44 +229,21 @@ function DiscoverGridCard({
             {member.city}
             {member.score != null && ` · Match ${member.score}%`}
           </div>
+          {distance && <div className="discover-card-distance">{distance}</div>}
         </div>
       </div>
 
       <div className="discover-card-footer">
-        <span
-          className="discover-card-avatar"
-          style={{
-            overflow: 'hidden',
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {member.photo ? (
-            <Image
-              src={member.photo}
-              alt=""
-              width={40}
-              height={40}
-              style={{ objectFit: 'cover' }}
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            initial
-          )}
-        </span>
         <span className="discover-card-id">
           <b>{member.displayName}</b>
           {member.headline && <span>{member.headline}</span>}
         </span>
-        <span className="discover-card-match" aria-hidden="true">
-          <HeartIcon />
-          {member.score != null && <span>{member.score}%</span>}
-        </span>
+        {member.score != null && (
+          <span className="discover-card-match" aria-hidden="true">
+            <HeartIcon />
+            <span>{member.score}%</span>
+          </span>
+        )}
       </div>
 
       {member.tags.length > 0 && (
@@ -185,7 +257,7 @@ function DiscoverGridCard({
       )}
     </div>
   );
-}
+});
 
 // ── Skeleton for fast perceived load ───────────────────────────────────────
 function DiscoverSkeletonGrid() {
@@ -369,11 +441,17 @@ export default function DiscoverPage() {
   const { stage } = useAuth();
   // Unvetted members can preview members but cannot act (connect) yet.
   const canConnect = can(stage, Capability.Match);
-  const isMobile = useViewport();
+  const isMobile = useViewport(860);
   const [mode, setMode] = useState<Mode>('discover');
+  // When a Like/Superlike completes a mutual match on desktop, celebrate and
+  // offer to open the (lazily created) conversation — mirrors the mobile flow.
+  const [celebrate, setCelebrate] = useState<string | null>(null);
 
   // ── Discover deck (match scoring) ──────────────────────────────────────────
   const [deck, setDeck] = useState<DiscoverCard[]>([]);
+  const [filters, setFilters] = useState<DiscoverFilters>({});
+  const [draft, setDraft] = useState<DiscoverFilters>({});
+  const [superCount, setSuperCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -382,14 +460,26 @@ export default function DiscoverPage() {
     setLoading(true);
     setError(null);
     try {
-      const cards = await api.get<DiscoverCard[]>('/matches/discover?limit=20');
+      const cards = await api.getDiscover({
+        city: filters.city || undefined,
+        ageMin: filters.ageMin ? Number(filters.ageMin) : undefined,
+        ageMax: filters.ageMax ? Number(filters.ageMax) : undefined,
+        interests: filters.interests?.trim() || undefined,
+        limit: 20,
+      });
       setDeck(cards);
+      try {
+        const s = await api.get<{ count: number }>('/matches/superlikes-received');
+        setSuperCount(s.count);
+      } catch {
+        // Superlike count is a nice-to-have; never block the deck on it.
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load discovery');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     if (mode === 'discover') void load();
@@ -404,7 +494,10 @@ export default function DiscoverPage() {
     if (busy) return;
     setBusy(true);
     try {
-      await api.post(`/matches/${userId}/${action}`, {});
+      const res = await api.post<{ mutual: boolean }>(`/matches/${userId}/${action}`, {});
+      // A completed mutual match unlocks chat — surface the celebration that
+      // lazily opens the conversation (same moment mobile users get).
+      if (res.mutual) setCelebrate(userId);
     } catch (e) {
       toast(e instanceof ApiError ? e.message : 'Action failed', 'error');
     } finally {
@@ -425,16 +518,14 @@ export default function DiscoverPage() {
     setNearbyError(null);
     try {
       const [s, me] = await Promise.all([
-        api.get<SubscriptionView>('/billing/subscription'),
+        api.get<SubscriptionView>('/billing/subscription').catch(() => null),
         api.get<{ nearbyEnabled: boolean }>('/profile/me').catch(() => ({ nearbyEnabled: false })),
       ]);
       setSub(s);
-      if (!isPremium(s)) {
-        setNearby([]);
-        setNearbyOptIn(me.nearbyEnabled);
-        return;
-      }
       setNearbyOptIn(me.nearbyEnabled);
+      // Nearby is ungated: any vetted member can see the people around them. The
+      // server returns the full list for Premium and a 2-person teaser for
+      // free+vetted, so we just render whatever comes back.
       if (!me.nearbyEnabled) {
         setNearby([]);
         return;
@@ -461,27 +552,40 @@ export default function DiscoverPage() {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
           timeout: 10000,
+          maximumAge: 0,
         }),
       );
+      const { latitude, longitude } = pos.coords;
       await api.put('/profile/me/nearby', {
         nearbyEnabled: true,
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
+        latitude,
+        longitude,
       });
       setNearbyOptIn(true);
       await loadNearby();
     } catch (e) {
-      const msg =
-        e instanceof ApiError
-          ? e.message
-          : e instanceof Error
-            ? e.message
-            : 'Could not get your location.';
+      // Translate the browser/permission failures into an honest, actionable
+      // message instead of the generic "Could not get your location".
+      const msg = geolocationMessage(e);
       setNearbyError(msg);
       toast(msg, 'error');
     } finally {
       setLocBusy(false);
     }
+  }
+
+  /** Maps a GeolocationPositionError (or generic throw) to a clear message. */
+  function geolocationMessage(e: unknown): string {
+    if (e instanceof ApiError) return e.message;
+    if (e instanceof Error) {
+      // GeolocationPositionError carries a numeric `code` (1=denied, 2=unavailable, 3=timeout).
+      const code = (e as { code?: number }).code;
+      if (code === 1) return 'Location permission was denied. Enable it in your browser settings, then try again.';
+      if (code === 3) return 'Your device took too long to find your location. Check your signal and try again.';
+      if (code === 2) return 'Location is unavailable right now. We’ll still show members in your city.';
+      return e.message || 'Could not get your location.';
+    }
+    return 'Could not get your location.';
   }
 
   async function forgetLocation() {
@@ -511,7 +615,8 @@ export default function DiscoverPage() {
     if (busy) return;
     setBusy(true);
     try {
-      await api.post(`/matches/${userId}/${action}`, {});
+      const res = await api.post<{ mutual: boolean }>(`/matches/${userId}/${action}`, {});
+      if (res.mutual) setCelebrate(userId);
     } catch (e) {
       toast(e instanceof ApiError ? e.message : 'Action failed', 'error');
     } finally {
@@ -524,6 +629,9 @@ export default function DiscoverPage() {
   const [redNoteLoading, setRedNoteLoading] = useState(false);
   const [redNoteError, setRedNoteError] = useState<string | null>(null);
   const [redNoteSource, setRedNoteSource] = useState<Mode | null>(null);
+  // Unvetted members can preview cards but cannot open a profile — clicking a
+  // card surfaces this verification-needed gate instead of the detail sheet.
+  const [unvettedGate, setUnvettedGate] = useState<string | null>(null);
 
   const openRedNote = useCallback(
     async (userId: string) => {
@@ -544,10 +652,22 @@ export default function DiscoverPage() {
 
   const openRedNoteFromCard = useCallback(
     (userId: string) => {
+      if (!canConnect) {
+        // Preview-only: don't load the protected profile, just surface the gate.
+        setUnvettedGate(userId);
+        return;
+      }
       setRedNoteSource(mode);
       void openRedNote(userId);
     },
-    [mode, openRedNote],
+    [mode, openRedNote, canConnect],
+  );
+
+  // Stable card-open handler — memo keeps card onClick identities constant
+  // across parent re-renders so React.memo'ed DiscoverGridCards don't re-render.
+  const handleCardOpen = useCallback(
+    (userId: string) => openRedNoteFromCard(userId),
+    [openRedNoteFromCard],
   );
 
   // Source-aware action dispatcher for the modal bar (discover vs nearby list).
@@ -573,6 +693,17 @@ export default function DiscoverPage() {
         <p>Meet members through curated matches or find people right around you.</p>
       </div>
 
+      {superCount > 0 && (
+        <AwarenessBanner
+          tone="superlike"
+          icon="★"
+          title={`${superCount} new ${superCount === 1 ? 'superlike' : 'superlikes'}`}
+          cta={{ label: 'Like them back', href: '/portal/matches?tab=daily' }}
+        >
+          Someone thinks you stand out — open Matches to superlike them back and match.
+        </AwarenessBanner>
+      )}
+
       <div className="tabs" style={{ marginBottom: '1.25rem' }}>
         <button data-active={mode === 'discover'} onClick={() => setMode('discover')}>
           Curated matches
@@ -581,6 +712,18 @@ export default function DiscoverPage() {
           Nearby
         </button>
       </div>
+
+      {mode === 'discover' && (
+        <DiscoverFiltersBar
+          value={draft}
+          onChange={setDraft}
+          onApply={() => setFilters(draft)}
+          onReset={() => {
+            setDraft({});
+            setFilters({});
+          }}
+        />
+      )}
 
       {mode === 'discover' && (
         <>
@@ -595,7 +738,7 @@ export default function DiscoverPage() {
                       <DiscoverGridCard
                         key={card.userId}
                         member={normalizeDiscover(card)}
-                        onOpen={() => openRedNoteFromCard(card.userId)}
+                        onOpen={handleCardOpen}
                         priority={idx < 2}
                       />
                     ))}
@@ -614,17 +757,17 @@ export default function DiscoverPage() {
               ) : (
                 <>
                   <div className="stage-banner">
-                    <p>Get vetted to like &amp; message members.</p>
+                    <p>You're previewing members. Get vetted to like, match and message.</p>
                     <Link href="/get-vetted" className="btn btn-primary">
                       Get vetted
                     </Link>
                   </div>
                   <div className="discover-grid">
-                    {deck.slice(0, 3).map((card, idx) => (
+                    {deck.map((card, idx) => (
                       <DiscoverGridCard
                         key={card.userId}
                         member={normalizeDiscover(card)}
-                        onOpen={() => openRedNoteFromCard(card.userId)}
+                        onOpen={handleCardOpen}
                         priority={idx < 2}
                       />
                     ))}
@@ -646,72 +789,69 @@ export default function DiscoverPage() {
               error={nearbyError}
               empty={!nearbyError && nearbyOptIn === true && nearby.length === 0}
             >
-              {!isPremium(sub) ? (
-                <Card title="Nearby is a Premium feature">
-                  <p style={{ color: 'var(--muted)', marginBottom: '1rem' }}>
-                    See vetted members in your district who have Nearby turned on — like
-                    WeChat&apos;s people-nearby, scoped to your neighbourhood. Upgrade to browse and
-                    be discovered.
-                  </p>
-                  <Link className="btn btn-primary" href="/portal/account">
-                    Upgrade to Premium
-                  </Link>
-                </Card>
-              ) : (
-                <div style={{ maxWidth: 720, margin: '0 auto' }}>
-                  <Card title="Your location">
-                    {nearbyOptIn ? (
-                      <>
-                        <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
-                          You’re sharing your location. We surface vetted members in your area.
-                        </p>
-                        <Button variant="ghost" disabled={locBusy} onClick={forgetLocation}>
-                          {locBusy ? 'Working…' : 'Forget my location'}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
-                          Share your device location to discover vetted members around you. Your
-                          coordinates are stored and cleared the moment you drop the feature.
-                        </p>
-                        <Button disabled={locBusy} onClick={shareLocation}>
-                          {locBusy ? 'Locating…' : 'Share my location'}
-                        </Button>
-                      </>
-                    )}
-                  </Card>
-
-                  {nearbyOptIn && (
+              <div style={{ maxWidth: 720, margin: '0 auto' }}>
+                <Card title="Your location">
+                  {nearbyOptIn ? (
                     <>
-                      <div className="discover-grid">
-                        {nearby.map((card, idx) => (
-                          <DiscoverGridCard
-                            key={card.userId}
-                            member={normalizeNearby(card)}
-                            onOpen={() => openRedNoteFromCard(card.userId)}
-                            priority={idx < 2}
-                          />
-                        ))}
-                      </div>
-                      {nearby.length > 0 && (
-                        <div
-                          className="row-actions"
-                          style={{ justifyContent: 'center', marginTop: 14 }}
-                        >
-                          <button
-                            className="btn btn-subtle"
-                            disabled={nearbyLoading}
-                            onClick={loadNearby}
-                          >
-                            Reload Nearby
-                          </button>
-                        </div>
-                      )}
+                      <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
+                        You’re sharing your location. We surface vetted members in your area.
+                      </p>
+                      <Button variant="ghost" disabled={locBusy} onClick={forgetLocation}>
+                        {locBusy ? 'Working…' : 'Forget my location'}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ color: 'var(--muted)', margin: '0 0 0.9rem' }}>
+                        Share your device location to discover vetted members around you. Your
+                        coordinates are stored and cleared the moment you drop the feature.
+                      </p>
+                      <Button disabled={locBusy} onClick={shareLocation}>
+                        {locBusy ? 'Locating…' : 'Share my location'}
+                      </Button>
                     </>
                   )}
-                </div>
-              )}
+                </Card>
+
+                {nearbyOptIn && (
+                  <>
+                    <div className="discover-grid">
+                      {nearby.map((card, idx) => (
+                        <DiscoverGridCard
+                          key={card.userId}
+                          member={normalizeNearby(card)}
+                          onOpen={handleCardOpen}
+                          priority={idx < 2}
+                        />
+                      ))}
+                    </div>
+                    {nearby.length > 0 && (
+                      <div
+                        className="row-actions"
+                        style={{ justifyContent: 'center', marginTop: 14 }}
+                      >
+                        <button
+                          className="btn btn-subtle"
+                          disabled={nearbyLoading}
+                          onClick={loadNearby}
+                        >
+                          Reload Nearby
+                        </button>
+                      </div>
+                    )}
+                    {/* Free+vetted members hit the server-side 2-person cap — point
+                        them to Premium for the full district list. */}
+                    {!isPremium(sub) && nearby.length > 0 && (
+                      <p className="notice" style={{ marginTop: 12 }}>
+                        Showing {nearby.length} nearby {nearby.length === 1 ? 'member' : 'members'}.
+                        Upgrade to Premium to see everyone around you.
+                        {' '}
+                        <Link href="/portal/account">Upgrade →</Link>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </ApiState>
           )}
         </>
@@ -735,6 +875,35 @@ export default function DiscoverPage() {
           onAct={handleRedNoteAct}
           onClose={() => setRedNote(null)}
         />
+      )}
+
+      {celebrate && (
+        <MatchCelebration userId={celebrate} onClose={() => setCelebrate(null)} />
+      )}
+
+      {unvettedGate && (
+        <div className="modal-backdrop" onClick={() => setUnvettedGate(null)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Verification required</h3>
+            <p className="muted">
+              You're previewing members while your profile is still being verified. Get
+              vetted to open profiles, like, match and message.
+            </p>
+            <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+              <button className="btn btn-subtle" onClick={() => setUnvettedGate(null)}>
+                Close
+              </button>
+              <Link href="/get-vetted" className="btn btn-primary" onClick={() => setUnvettedGate(null)}>
+                Get vetted
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
 import { DiscoverService } from './discover.service';
 import { IDiscoverRepository, IViewerContext, NearbyProfile } from './discover.repository';
 import {
-  AuthorizationError,
   City,
   EducationLevel,
   Gender,
@@ -40,7 +39,7 @@ function makeRepo(
         ReturnType<IDiscoverRepository['findNearby']>,
         Parameters<IDiscoverRepository['findNearby']>
       >()
-      .mockResolvedValue(overrides.profiles ?? []),
+      .mockImplementation(async (opts) => (overrides.profiles ?? []).slice(0, opts.limit)),
   };
 }
 
@@ -86,11 +85,24 @@ function profile(patch: Partial<NearbyProfile> = {}): NearbyProfile {
 }
 
 describe('DiscoverService.nearby', () => {
-  it('refuses non-premium viewers', async () => {
-    const repo = makeRepo({ ctxPatch: { isPremium: false } });
+  it('lets a free+vetted viewer see up to FREE_NEARBY_LIMIT people (ungated)', async () => {
+    const profiles = [profile(), profile({ userId: 'u3' }), profile({ userId: 'u4' })];
+    const repo = makeRepo({ ctxPatch: { isPremium: false }, profiles });
     const svc = new DiscoverService(repo);
-    await expect(svc.nearby('u1', {})).rejects.toBeInstanceOf(AuthorizationError);
-    expect(repo.findNearby).not.toHaveBeenCalled();
+    const out = await svc.nearby('u1', {});
+    // Ungated: results are returned, but capped for free+vetted viewers.
+    expect(out.length).toBe(2);
+    expect(repo.findNearby).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 2 }),
+    );
+  });
+
+  it('lets a premium viewer see the full district list', async () => {
+    const profiles = [profile(), profile({ userId: 'u3' }), profile({ userId: 'u4' })];
+    const repo = makeRepo({ ctxPatch: { isPremium: true }, profiles });
+    const svc = new DiscoverService(repo);
+    const out = await svc.nearby('u1', {});
+    expect(out.length).toBe(3);
   });
 
   it('refuses viewers who have not opted into Nearby', async () => {

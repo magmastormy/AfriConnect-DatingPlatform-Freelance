@@ -52,6 +52,8 @@ export interface DailyMatchEntry {
   city: City;
   educationLevel: EducationLevel | null;
   profession: string | null;
+  photo: string | null;
+  distanceKm: number | null;
 }
 
 /** A swipe card surfaced by GET /matches/discover. */

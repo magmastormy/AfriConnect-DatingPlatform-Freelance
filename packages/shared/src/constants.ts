@@ -53,7 +53,7 @@ export const POPULARITY_ELO_K = 32; // Elo update factor for popularity normaliz
 export const ELO_INITIAL = 1500; // starting Elo for every profile
 export const POPULARITY_ADJUST_MAX = 6; // max |points| from popularity damping (bias mitigation)
 export const FAIRNESS_MIN_GROUP_RATIO = 0.2; // min exposure share reserved per protected group
-export const RECOMMEND_TOP_N = 20; // default page size for GET /matches/recommend
+export const RECOMMEND_TOP_N = 30; // default page size for GET /matches/recommend + discover
 export const CF_SAMPLE_SIZE = 2000; // interaction rows sampled to build the CF matrix
 
 // ── Profile (Technical Stack §3 Module 3) ──────────────────────────────────
@@ -126,7 +126,11 @@ export const FREE_VIEW_MAX_EXTRA_PHOTOS = 1;
 // Unverified (still-in-review) members may preview up to this many seeded,
 // complete+verified discovery cards. Only the act of connecting is gated by
 // vetting — browsing a curated sample is allowed to encourage profile completion.
-export const DISCOVER_PREVIEW_LIMIT = 3;
+export const DISCOVER_PREVIEW_LIMIT = 8;
+
+// Nearby is ungated for any vetted member, but a free+vetted member only sees
+// up to this many people around them (Premium/Platinum see the full list).
+export const FREE_NEARBY_LIMIT = 2;
 
 // ── Events (Technical Stack §3 Module 6) ───────────────────────────────────
 export const EVENT_MAX_CAPACITY_MVP = 40;

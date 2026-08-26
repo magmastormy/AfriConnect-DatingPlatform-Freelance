@@ -1,7 +1,9 @@
 /* ============================================================
-   BOTTOM NAV — mobile-only primary navigation.
-   Hidden on >= 860px where the PortalShell sidebar takes over.
-   Mirrors the token contract from globals.css.
+   BOTTOM NAV — Instagram / TikTok / Facebook app feel
+   - Glass sheet with heavy blur
+   - 5 equally spaced pill icons
+   - Active: filled icon + brand pill dot underneath (iOS 26)
+   - Safe-area aware bottom padding
    ============================================================ */
 
 .bottom-nav {
@@ -13,10 +15,13 @@
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  background: var(--nav-bg);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid var(--line);
-  padding: 0.25rem 0.25rem env(safe-area-inset-bottom, 0px);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  /* subtle top shadow so it floats above feed like IG */
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.06);
 }
 
 .bottom-nav-item {
@@ -25,45 +30,72 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 0.4rem 0.25rem;
+  gap: 3px;
+  padding: 4px 2px 2px;
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.68rem;
-  font-weight: 600;
-  transition: color 0.15s ease;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  transition: color 0.18s ease, transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-.bottom-nav-item.is-active { color: var(--brand); }
-.bottom-nav-icon {
-  font-size: 1.35rem;
+.bottom-nav-item:active { transform: scale(0.92); }
+.bottom-nav-item.is-active { color: var(--ink); }
+.bottom-nav-item.is-active .bottom-nav-icon-wrap { color: var(--brand); }
+
+.bottom-nav-icon-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.bottom-nav-item.is-active .bottom-nav-icon-wrap {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+}
+
+.bottom-nav-label {
   line-height: 1;
-  font-weight: 400;
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
 }
-.bottom-nav-label { line-height: 1; }
 
 .bottom-nav-badge {
   position: absolute;
-  top: 0.1rem;
-  left: calc(50% + 0.5rem);
+  top: -4px;
+  right: -8px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: var(--bad);
-  color: var(--on-ink);
-  font-size: 0.68rem;
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: 0.66rem;
   font-weight: 800;
   display: grid;
   place-items: center;
   line-height: 1;
+  border: 2px solid var(--surface);
+  box-shadow: 0 2px 8px rgba(199,0,57,0.35);
+  animation: badgePop 0.28s cubic-bezier(0.34,1.56,0.64,1);
 }
+@keyframes badgePop { from { transform: scale(0.4); } to { transform: scale(1); } }
 
-/* Reserve space for the fixed bar so it never covers content on mobile. */
+/* Reserve space so feed never sits under the bar — like IG */
 @media (max-width: 860px) {
-  .portal-content { padding-bottom: 72px; }
+  .portal-content { padding-bottom: 88px; }
+  .fs-root { padding-bottom: 72px; }
 }
 
-/* On wide screens the sidebar is the primary nav; hide the bottom bar. */
+/* Desktop: sidebar owns navigation, hide bar entirely */
 @media (min-width: 861px) {
   .bottom-nav { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-item, .bottom-nav-badge { transition: none; animation: none; }
+  .bottom-nav-item:active { transform: none; }
 }

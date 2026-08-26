@@ -1,5 +1,5 @@
 import { scoreCompatibility, applyPenalties, passesThreshold, rankCandidates } from './scoring';
-import { Gender, City, EducationLevel, RelationshipGoal } from '@africonnect/shared';
+import { Gender, City, EducationLevel, RelationshipGoal, DISCOVER_PREVIEW_LIMIT } from '@africonnect/shared';
 import { MatchCandidate } from './match.types';
 
 const viewerPrefs = {
@@ -91,6 +91,7 @@ function fakeProfileRepo(over: Record<string, unknown> = {}) {
       },
       ...over,
     }),
+    findByUserIds: async () => [],
   } as unknown as ProfileRepository;
 }
 
@@ -100,6 +101,7 @@ function fakeMatchRepo(candidates: unknown[], excludeIds: string[] = []) {
     getExcludedIds: async () => excludeIds,
     findMatchableCandidates: async () => candidates,
     createDailyQueue: async () => undefined,
+    loadUserTier: async () => ({ isPremium: false, isVetted: true }),
   } as unknown as MatchRepository;
 }
 
@@ -182,14 +184,14 @@ describe('MatchService.generateDailyMatches', () => {
   });
 });
 
-// ── discover strict vetting gate (engine) ──────────────────────────────────
-describe('MatchService.discover strict vetting gate', () => {
+// ── discover vetting behaviour ─────────────────────────────────────────────
+describe('MatchService.discover vetting behaviour', () => {
   it('rejects a viewer with an incomplete profile', async () => {
     const service = new MatchService(fakeMatchRepo([]), fakeProfileRepo({ isComplete: false }));
-    await expect(service.discover('viewer', 20)).rejects.toThrow(/Complete your profile/);
+    await expect(service.discover('viewer', {})).rejects.toThrow(/Complete your profile/);
   });
 
-  it('rejects an un-vetted viewer (service-level defense-in-depth)', async () => {
+  it('serves a capped, non-personalised preview to an un-vetted viewer (no 403)', async () => {
     const repo = {
       getExcludedIds: async () => [],
       loadUserTier: async () => ({ isPremium: false, isVetted: false }),
@@ -197,7 +199,16 @@ describe('MatchService.discover strict vetting gate', () => {
       getViewerLikes: async () => [],
       getInteractionSample: async () => [],
     } as unknown as MatchRepository;
-    const service = new MatchService(repo, fakeProfileRepo());
-    await expect(service.discover('viewer', 20)).rejects.toThrow(/vetting/i);
+    const findMatchableCandidates = jest.fn(async () => [
+      { id: 'p1', userId: 'u1', displayName: 'A', photos: [], user: { emailVerified: true, phoneVerified: true } },
+      { id: 'p2', userId: 'u2', displayName: 'B', photos: [], user: { emailVerified: true, phoneVerified: true } },
+    ]);
+    const service = new MatchService(
+      { ...repo, findMatchableCandidates } as unknown as MatchRepository,
+      fakeProfileRepo(),
+    );
+    const cards = await service.discover('viewer', {});
+    expect(Array.isArray(cards)).toBe(true);
+    expect(cards.length).toBeLessThanOrEqual(DISCOVER_PREVIEW_LIMIT);
   });
 });

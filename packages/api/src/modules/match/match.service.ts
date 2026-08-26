@@ -14,6 +14,7 @@ import {
 import { MatchingEngine, buildDefaultConfig } from './engine';
 import { buildInteractionMatrix } from './collaborative';
 import { EngineViewer, EngineCandidate } from './algorithms.types';
+import { haversineKm } from './geo';
 import {
   ValidationError,
   AuthorizationError,
@@ -35,6 +36,17 @@ import {
 import { Gender, City, EducationLevel, MatchAction } from '@africonnect/shared';
 import { getPlatformSettings } from '@modules/settings';
 
+/** Opt-in Discover filters. All fields optional — the matching engine still
+ *  ranks the result; these only narrow the candidate pool up front. */
+export interface DiscoverQuery {
+  city?: City;
+  ageMin?: number;
+  ageMax?: number;
+  /** Require at least one overlapping interest (OR semantics). */
+  interests?: string[];
+  limit?: number;
+}
+
 export interface IMatchService {
   generateDailyMatches(userId: string): Promise<{ matches: DailyMatchEntry[]; cached: boolean }>;
   expressInterest(
@@ -46,7 +58,13 @@ export interface IMatchService {
   /** Pending superlikes the caller has RECEIVED (anonymous until mutual). */
   getSuperlikesReceived(userId: string): Promise<{ items: SuperlikeReceived[]; count: number }>;
   getMutual(userId: string): Promise<unknown[]>;
-  discover(userId: string, limit?: number): Promise<RecommendCard[]>;
+  /**
+   * Opt-in Discover filters (all optional — the engine still drives ranking).
+   * Kept deliberately narrow: city, age band, and shared interests. Education /
+   * verified / premium are intentionally excluded to avoid a "filter everyone
+   * out" dead-end and to keep the pool broad for new members.
+   */
+  discover(userId: string, opts?: DiscoverQuery): Promise<RecommendCard[]>;
   getPreview(limit?: number): Promise<DiscoverCard[]>;
   /** Full hybrid recommender (content + CF + diversity + business rules). */
   recommend(userId: string, opts?: { limit?: number; radiusKm?: number }): Promise<RecommendCard[]>;
@@ -131,6 +149,14 @@ export class MatchService implements IMatchService {
       take: DAILY_MATCH_LIMIT * 4, // over-fetch so scoring can rank down to the limit
     });
 
+    // Enrich candidates with photo + distance so daily-match cards carry a face
+    // and a proximity cue (mirrors the discover feed). The web client renders
+    // these richer fields; a raw queue row previously rendered faceless cards.
+    const enriched = await this.profileRepo.findByUserIds(candidates.map((c) => c.userId));
+    const byUser = new Map(enriched.map((p) => [p.userId, p]));
+    const viewerLat = viewer.latitude ?? null;
+    const viewerLon = viewer.longitude ?? null;
+
     const viewerPrefs: MatchPreferences = { ...prefs, interests: prefs.interests ?? [] };
     const scored = candidates
       .map((c) => {
@@ -145,14 +171,26 @@ export class MatchService implements IMatchService {
       .sort((a, b) => b.score - a.score)
       .slice(0, DAILY_MATCH_LIMIT);
 
-    const entries: DailyMatchEntry[] = scored.map(({ candidate, score }) => ({
-      userId: candidate.userId,
-      score,
-      displayName: null,
-      city: candidate.city,
-      educationLevel: candidate.educationLevel,
-      profession: candidate.profession ?? null,
-    }));
+    const entries: DailyMatchEntry[] = scored.map(({ candidate, score }) => {
+      const profile = byUser.get(candidate.userId);
+      const photo = Array.isArray(profile?.photos)
+        ? (((profile!.photos as unknown[])[0] as { url?: string } | undefined)?.url ?? null)
+        : null;
+      const distanceKm = haversineKm(
+        { latitude: viewerLat, longitude: viewerLon },
+        { latitude: profile?.latitude ?? null, longitude: profile?.longitude ?? null },
+      );
+      return {
+        userId: candidate.userId,
+        score,
+        displayName: profile?.displayName ?? null,
+        city: candidate.city,
+        educationLevel: candidate.educationLevel,
+        profession: candidate.profession ?? null,
+        photo,
+        distanceKm,
+      };
+    });
 
     await this.repo.createDailyQueue(userId, entries);
     logger.info({ userId, generated: entries.length }, 'Daily matches generated');
@@ -219,6 +257,7 @@ export class MatchService implements IMatchService {
         title: 'Someone superliked you',
         body: 'A member thinks you stand out. Like them back to match.',
         channel: NotificationChannel.InApp,
+        link: '/portal/matches?tab=daily',
       });
     }
 
@@ -238,6 +277,7 @@ export class MatchService implements IMatchService {
       title: 'It’s a match!',
       body: 'You and a member like each other. Say hello!',
       channel: NotificationChannel.InApp,
+      link: '/portal/messages',
     };
     await Promise.all([
       this.notify.create({ ...base, userId: userId }),
@@ -300,8 +340,16 @@ export class MatchService implements IMatchService {
    * web clients keep working while gaining the richer explainability fields.
    * No ML/AI involved.
    */
-  async discover(userId: string, limit = 20): Promise<RecommendCard[]> {
-    return this.runEngine(userId, { limit });
+  async discover(userId: string, opts: DiscoverQuery & { limit?: number } = {}): Promise<RecommendCard[]> {
+    const tier = await this.repo.loadUserTier(userId);
+    if (!tier.isVetted) {
+      // Unvetted members get a small, capped, non-personalised preview instead
+      // of a 403 — they can see who is on the platform but cannot act or see a
+      // personalised deck. Personalisation + action stay gated behind vetting.
+      const preview = await this.getPreview(opts.limit);
+      return preview as unknown as RecommendCard[];
+    }
+    return this.runEngine(userId, { ...opts, limit: opts.limit });
   }
 
   /**
@@ -325,7 +373,7 @@ export class MatchService implements IMatchService {
    */
   private async runEngine(
     userId: string,
-    opts: { limit?: number; radiusKm?: number } = {},
+    opts: { limit?: number; radiusKm?: number; city?: City; ageMin?: number; ageMax?: number; interests?: string[] } = {},
   ): Promise<RecommendCard[]> {
     const viewer = await this.profileRepo.findByUserId(userId);
     if (!viewer) throw new NotFoundError('Complete your profile before discovering');
@@ -393,6 +441,22 @@ export class MatchService implements IMatchService {
       NOT: { userId: { in: excludeIds } },
       gender: prefs.genderPreference ?? undefined,
     };
+
+    // ── Opt-in Discover filters (narrow the candidate pool up front) ──
+    if (opts.city) where.city = opts.city;
+    if (opts.ageMin != null || opts.ageMax != null) {
+      const now = Date.now();
+      const YR = 365.25 * 24 * 3600 * 1000;
+      const dob: Prisma.DateTimeFilter = {};
+      // ageMin N  => born on/before (now - N years)
+      if (opts.ageMin != null) dob.lte = new Date(now - opts.ageMin * YR);
+      // ageMax N  => born on/after  (now - (N+1) years) so age N is included
+      if (opts.ageMax != null) dob.gte = new Date(now - (opts.ageMax + 1) * YR);
+      where.dateOfBirth = dob;
+    }
+    if (opts.interests && opts.interests.length > 0) {
+      where.interests = { hasSome: opts.interests };
+    }
 
     const candidates = await this.repo.findMatchableCandidates(where, {
       skip: 0,

@@ -75,19 +75,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 0.5rem 0.75rem 0.25rem;
   overflow: hidden;
 }
 
 .fs-card {
   position: absolute;
-  inset: 0.5rem;
-  border-radius: 22px;
+  inset: 0.35rem 0.35rem 0.35rem;
+  border-radius: 26px;
   overflow: hidden;
   background: var(--surface-2);
-  box-shadow: var(--shadow);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   touch-action: none;
   will-change: transform;
+  animation: fs-deal 0.28s ease;
+}
+@keyframes fs-deal {
+  from { transform: scale(0.96) translateY(10px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
 }
 .fs-card--behind {
   transform: scale(0.94) translateY(14px);

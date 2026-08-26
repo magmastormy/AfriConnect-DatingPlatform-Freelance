@@ -7,6 +7,35 @@ export interface IChatRepository {
   findOrCreateConversation(a: string, b: string): Promise<Conversation>;
   findConversation(id: string): Promise<Conversation | null>;
   listConversations(userId: string): Promise<Conversation[]>;
+  /**
+   * Conversations for the sidebar, enriched with the *other* participant's
+   * display name, photo, verified/premium flags, the last message preview, and
+   * the caller's unread count. The client renders this directly as a
+   * Messenger-style thread list.
+   */
+  listConversationsWithDetails(
+    userId: string,
+  ): Promise<
+    (Conversation & {
+      other: {
+        userId: string;
+        displayName: string | null;
+        photo: string | null;
+        verified: boolean;
+        isPremium: boolean;
+      } | null;
+      lastMessage: {
+        id: string;
+        senderId: string;
+        content: string;
+        imageUrl: string | null;
+        isDeleted: boolean;
+        recalledAt: Date | null;
+        createdAt: Date;
+      } | null;
+      unread: number;
+    })[]
+  >;
   getMessages(
     conversationId: string,
     pagination: { skip: number; take: number },
@@ -59,6 +88,66 @@ export class ChatRepository implements IChatRepository {
       where: { OR: [{ participant1Id: userId }, { participant2Id: userId }], isActive: true },
       orderBy: { lastMessageAt: 'desc' },
     });
+  }
+
+  async listConversationsWithDetails(userId: string) {
+    const convs = await this.prisma.conversation.findMany({
+      where: { OR: [{ participant1Id: userId }, { participant2Id: userId }], isActive: true },
+      orderBy: { lastMessageAt: 'desc' },
+      include: {
+        participant1: { include: { profile: true, subscriptions: true } },
+        participant2: { include: { profile: true, subscriptions: true } },
+        messages: {
+          where: { senderId: { not: userId }, status: { not: 'read' } },
+          select: { id: true },
+        },
+      },
+    });
+    return Promise.all(
+      convs.map(async (conv) => {
+        const otherId =
+          conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
+        const otherUser =
+          conv.participant1Id === userId ? conv.participant2 : conv.participant1;
+        const otherProfile = otherUser.profile;
+        const photos = Array.isArray(otherProfile?.photos)
+          ? (otherProfile!.photos as { url: string }[]).map((p) => p.url).filter(Boolean)
+          : [];
+        const verified = Boolean(otherUser.status === 'active');
+        const isPremium = Boolean(
+          otherUser.subscriptions?.plan === 'premium' ||
+            otherUser.subscriptions?.plan === 'platinum',
+        );
+        // lastMessageId is a scalar FK; resolve the row separately (no relation).
+        const lm = conv.lastMessageId
+          ? await this.prisma.message.findUnique({ where: { id: conv.lastMessageId } })
+          : null;
+        return {
+          ...conv,
+          other: otherProfile
+            ? {
+                userId: otherId,
+                displayName: otherProfile.displayName ?? null,
+                photo: photos[0] ?? null,
+                verified,
+                isPremium,
+              }
+            : null,
+          lastMessage: lm
+            ? {
+                id: lm.id,
+                senderId: lm.senderId,
+                content: lm.content,
+                imageUrl: lm.imageUrl ?? null,
+                isDeleted: lm.isDeleted,
+                recalledAt: lm.recalledAt,
+                createdAt: lm.createdAt,
+              }
+            : null,
+          unread: conv.messages.length,
+        };
+      }),
+    );
   }
 
   async getMessages(

@@ -42,6 +42,7 @@ function makeRepo() {
       calls.listByCreator.push(userId);
       return [] as never;
     },
+    countConfirmed: async () => 0,
   };
   return { repo: repo as IEventRepository, calls };
 }

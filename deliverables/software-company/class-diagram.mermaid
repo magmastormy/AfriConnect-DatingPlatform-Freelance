@@ -1,0 +1,35 @@
+classDiagram
+    class DiscoverCard { +string userId +string displayName +number age +string[] photos +boolean verified }
+    class SuperlikeReceived { +string matchId +string createdAt +boolean anonymous }
+    class ConversationInit { +string targetUserId }
+    class UnreadCount { +number count }
+    class useSwipeGesture { +bind() +number x +number y +boolean dragging +reset() }
+    class FullScreenDiscover { +DiscoverCard[] deck +onAct() }
+    class ProfileCardFull { +DiscoverCard card +onAct() }
+    class ActionColumn { +onAct(action) }
+    class DetailSheet { +DiscoverCard card +open }
+    class PhotoDots { +number count +number index }
+    class MatchCelebration { +onMessage() }
+    class BottomNav { +badges }
+    class MatchController { +like() +superlikesReceived() }
+    class MatchService { +expressInterest() +getSuperlikesReceived() }
+    class MatchRepository { +upsertAction() +findSuperlikesReceived() }
+    class ChatController { +create() +unreadCount() }
+    class ChatService { +getOrCreateConversation() +unreadCount() }
+    class ChatRepository { +findOrCreateConversation() +unreadCountAcross() }
+    class NotificationService { +create() }
+
+    FullScreenDiscover "1..*" --> ProfileCardFull : stacks
+    ProfileCardFull --> ActionColumn : right-edge
+    ProfileCardFull --> DetailSheet : tap
+    ProfileCardFull --> PhotoDots : gallery
+    ProfileCardFull ..> useSwipeGesture : uses
+    FullScreenDiscover ..> MatchCelebration : mutual
+    BottomNav ..> UnreadCount : messages-badge
+    BottomNav ..> SuperlikeReceived : matches-badge
+    MatchController --> MatchService
+    MatchService --> MatchRepository
+    MatchService --> NotificationService : inject
+    ChatController --> ChatService
+    ChatService --> ChatRepository
+    ChatService --> MatchService : verify mutual

@@ -11,6 +11,7 @@ import { ThemeProvider } from '@/lib/theme';
 import { THEME_COOKIE, isThemeSetting, type ThemeSetting } from '@/lib/theme.utils';
 import { ClerkProvider } from './clerk-provider';
 import { BFCacheHandler } from '@/components/BFCacheHandler';
+import { NotificationProvider } from '@/lib/notifications';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://africonnect.pro';
 
@@ -71,6 +72,7 @@ export const viewport: Viewport = {
   themeColor: '#581845',
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -111,11 +113,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* AuthProvider must sit OUTSIDE ClerkProvider: the Clerk session
               bridge calls useAuth() to publish the exchanged session. */}
           <AuthProvider>
-            <ClerkProvider>
-              <ToastProvider>
-                <ErrorBoundary>
-                  <SiteNav />
-                  <main className="app">{children}</main>
+            <NotificationProvider>
+              <ClerkProvider>
+                <ToastProvider>
+                  <ErrorBoundary>
+                    <SiteNav />
+                    <main className="app">{children}</main>
                   <footer className="lp-footer">
                     <div className="lp-footer-inner">
                       <div>
@@ -154,6 +157,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </ErrorBoundary>
               </ToastProvider>
             </ClerkProvider>
+            </NotificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

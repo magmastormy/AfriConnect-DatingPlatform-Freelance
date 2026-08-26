@@ -8,6 +8,8 @@ export const MESSAGE_RECALL_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface IChatService {
   listConversations(userId: string): Promise<unknown[]>;
+  /** Conversations enriched for the sidebar (other participant + last message + unread). */
+  listConversationsDetailed(userId: string): Promise<unknown[]>;
   getMessages(userId: string, conversationId: string): Promise<unknown[]>;
   send(userId: string, conversationId: string, input: SendMessageInput): Promise<unknown>;
   edit(userId: string, messageId: string, input: EditMessageInput): Promise<unknown>;
@@ -30,6 +32,10 @@ export class ChatService implements IChatService {
 
   async listConversations(userId: string): Promise<unknown[]> {
     return this.repo.listConversations(userId);
+  }
+
+  async listConversationsDetailed(userId: string): Promise<unknown[]> {
+    return this.repo.listConversationsWithDetails(userId);
   }
 
   async getMessages(userId: string, conversationId: string): Promise<unknown[]> {
