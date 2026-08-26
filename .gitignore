@@ -37,6 +37,8 @@ uploads/
 *.md
 !AGENTS.md
 !README.md
+!DEPLOY.md
+!CHANGELOG.md
 
 # Scripts
 scripts/
