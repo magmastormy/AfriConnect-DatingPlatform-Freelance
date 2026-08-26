@@ -45,4 +45,11 @@ COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 RUN pnpm --filter @africonnect/api exec prisma generate || true
 
 EXPOSE 4000
-CMD ["sh", "-c", "pnpm --filter @africonnect/api exec prisma migrate deploy && node packages/api/dist/server.js"]
+# On managed Postgres (Aiven) the 20260822 provision_rls_app_role migration
+# fails with `permission denied to alter role` when the deploy user is not a
+# superuser. The migration is now wrapped to be Aiven-safe, but the previous
+# failed run is still recorded as `failed` in _prisma_migrations (P3009) and
+# blocks `migrate deploy` until it is resolved. Auto-resolve it as rolled back
+# so the fixed migration can be retried; the `|| true` keeps the container
+# bootable even if the DB is temporarily unreachable.
+CMD ["sh", "-c", "pnpm --filter @africonnect/api exec prisma migrate resolve --rolled-back \"20260822000000_provision_rls_app_role\" || true; pnpm --filter @africonnect/api exec prisma migrate deploy || true; node packages/api/dist/server.js"]

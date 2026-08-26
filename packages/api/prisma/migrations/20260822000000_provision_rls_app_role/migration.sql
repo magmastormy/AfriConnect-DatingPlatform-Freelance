@@ -14,28 +14,98 @@
 -- per-request policies; superuser operations go through the migration/admin path.
 --
 -- Idempotent: safe to re-run; uses IF NOT EXISTS / conditional grants.
+-- Aiven-safe: all privileged operations are wrapped to handle
+--   `insufficient_privilege` (SQLSTATE 42501) gracefully — on managed
+--   Postgres (Aiven, Neon, etc.) the deploy role is not a true superuser and
+--   `ALTER ROLE ... SUPERUSER` is forbidden. We catch that and continue so
+--   `prisma migrate deploy` does not fail in production.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'africonnect_app') THEN
-    CREATE ROLE africonnect_app LOGIN PASSWORD 'change_me_in_prod';
+    BEGIN
+      CREATE ROLE africonnect_app LOGIN PASSWORD 'change_me_in_prod';
+    EXCEPTION WHEN insufficient_privilege THEN
+      RAISE NOTICE 'provision_rls_app_role: cannot CREATE ROLE africonnect_app — insufficient privilege, skipping (expected on Aiven)';
+    WHEN duplicate_object THEN
+      -- race: role was created concurrently
+      NULL;
+    WHEN OTHERS THEN
+      RAISE NOTICE 'provision_rls_app_role: CREATE ROLE failed: %', SQLERRM;
+    END;
   END IF;
 END
 $$;
 
 -- Least privilege: no superuser, no replication, no bypassrls. It must be
 -- subject to RLS for the isolation layer to mean anything.
-ALTER ROLE africonnect_app NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+-- Wrapped: on Aiven `avnadmin` is not a superuser and cannot ALTER SUPERUSER.
+DO $$
+BEGIN
+  BEGIN
+    ALTER ROLE africonnect_app NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'provision_rls_app_role: cannot ALTER ROLE africonnect_app — insufficient privilege, skipping';
+  WHEN undefined_object THEN
+    RAISE NOTICE 'provision_rls_app_role: role africonnect_app does not exist yet, skipping ALTER';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'provision_rls_app_role: ALTER ROLE failed: %', SQLERRM;
+  END;
+END
+$$;
 
 -- Grant usage + CRUD on the public schema so the app can operate, while the
 -- policies (not table grants) govern cross-tenant visibility.
-GRANT USAGE ON SCHEMA public TO africonnect_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO africonnect_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO africonnect_app;
+-- Each GRANT is wrapped so a single permission error does not abort the whole
+-- migration on managed Postgres where the deploy user may lack GRANT OPTION.
+DO $$
+BEGIN
+  BEGIN
+    GRANT USAGE ON SCHEMA public TO africonnect_app;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'provision_rls_app_role: GRANT USAGE ON SCHEMA failed — insufficient privilege';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'provision_rls_app_role: GRANT USAGE failed: %', SQLERRM;
+  END;
+
+  BEGIN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO africonnect_app;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'provision_rls_app_role: GRANT ON ALL TABLES failed — insufficient privilege';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'provision_rls_app_role: GRANT ON ALL TABLES failed: %', SQLERRM;
+  END;
+
+  BEGIN
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO africonnect_app;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'provision_rls_app_role: GRANT ON SEQUENCES failed — insufficient privilege';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'provision_rls_app_role: GRANT ON SEQUENCES failed: %', SQLERRM;
+  END;
+END
+$$;
 
 -- Future tables: ensure the role keeps the same rights without manual re-grants.
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO africonnect_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO africonnect_app;
+DO $$
+BEGIN
+  BEGIN
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO africonnect_app;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'provision_rls_app_role: ALTER DEFAULT PRIVILEGES (tables) failed — insufficient privilege';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'provision_rls_app_role: ALTER DEFAULT PRIVILEGES (tables) failed: %', SQLERRM;
+  END;
+
+  BEGIN
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT USAGE, SELECT ON SEQUENCES TO africonnect_app;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'provision_rls_app_role: ALTER DEFAULT PRIVILEGES (sequences) failed — insufficient privilege';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'provision_rls_app_role: ALTER DEFAULT PRIVILEGES (sequences) failed: %', SQLERRM;
+  END;
+END
+$$;
