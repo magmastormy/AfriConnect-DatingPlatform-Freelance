@@ -7,6 +7,7 @@ import { useClerkIdentity } from '@/lib/useClerkIdentity';
 import { Card, ApiState, Button, Input, Select, Badge } from '@/components/ui';
 import { ProfileBadges } from '@/components/ProfileBadges';
 import { SubscriptionPlan, SubscriptionStatus, City, Gender, EducationLevel } from '@/lib/shared';
+import { labelCity } from '@/lib/labels';
 import Link from 'next/link';
 
 interface Profile {
@@ -192,7 +193,7 @@ export default function AccountPage() {
                 </div>
                 <div className="acct-hero-meta">
                   <div className="acct-hero-name">{displayName} {profile.isComplete && <span className="badge badge-good" style={{ verticalAlign: 'middle', marginLeft: 8 }}>Complete</span>}</div>
-                  <div className="acct-hero-sub">{clerkUser?.email ?? ''} {profile.city ? `· ${profile.city}` : ''} {profile.profession ? `· ${profile.profession}` : ''}</div>
+                  <div className="acct-hero-sub">{clerkUser?.email ?? ''} {profile.city ? `· ${labelCity(profile.city)}` : ''} {profile.profession ? `· ${profile.profession}` : ''}</div>
                   <div className="acct-progress">
                     <div className="acct-progress-bar"><i style={{ width: `${completeness}%` }} /></div>
                     <span className="acct-progress-label">{completeness}% complete</span>

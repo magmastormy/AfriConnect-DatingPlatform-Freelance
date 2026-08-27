@@ -59,7 +59,10 @@ export function NotificationBell() {
 
   function openNotification(n: NotificationView) {
     markRead(n.id);
-    if (n.link) { setOpen(false); router.push(n.link); }
+    // Always close: a link-less notification used to leave the popover open
+    // with no feedback beyond the read-state flip, which read as "broken".
+    setOpen(false);
+    if (n.link) router.push(n.link);
   }
 
   return (
@@ -153,7 +156,8 @@ function FallbackBell() {
     setItems((p) => p.map((x) => x.id === n.id ? { ...x, isRead: true } : x));
     setCount((c) => Math.max(0, c - 1));
     void api.markNotificationRead(n.id).catch(() => {});
-    if (n.link) { setOpen(false); router.push(n.link); }
+    setOpen(false);
+    if (n.link) router.push(n.link);
   }
 
   return (

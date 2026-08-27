@@ -51,6 +51,14 @@ export function SiteNav() {
   const homeLabel = user && isAdmin(user.role) ? 'Admin' : 'Portal';
   const isMember = !!user && !isAdmin(user.role);
 
+  // Portal and admin render their own app chrome (PortalShell's mobile top
+  // bar + sidebar, AdminShell's topbar). The marketing nav would stack a
+  // second hamburger/control set on top of theirs. Early return stays AFTER
+  // every hook so the hook order is unconditional.
+  if (pathname.startsWith('/portal') || pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <nav className="nav" aria-label="Primary">
       <Link href="/" className="brand" aria-label="AfriConnect Professionals home">

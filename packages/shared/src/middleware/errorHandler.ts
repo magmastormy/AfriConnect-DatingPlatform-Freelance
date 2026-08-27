@@ -13,15 +13,22 @@ export const errorHandler = (
   _next: NextFunction,
 ): void => {
   if (isAppError(err)) {
-    logger.warn(
-      {
-        error: err.name,
-        message: err.message,
-        context: err.context,
-        isOperational: err.isOperational,
-      },
-      'Operational error',
-    );
+    if (err.context?.unmatchedRoute === true) {
+      // Expected traffic (Render port-scan HEAD /, uptime checks, scanner
+      // noise against the obfuscated mount) — kept out of WARN-level logs so
+      // error-rate alerting tracks real failures.
+      logger.debug({ error: err.name, message: err.message }, 'Unmatched route');
+    } else {
+      logger.warn(
+        {
+          error: err.name,
+          message: err.message,
+          context: err.context,
+          isOperational: err.isOperational,
+        },
+        'Operational error',
+      );
+    }
     res.status(err.statusCode).json({
       success: false,
       data: null,

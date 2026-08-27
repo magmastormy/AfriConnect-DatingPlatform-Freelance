@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { DiscoverCard, ProfileRedNoteView } from '@/lib/types';
 import { Badge, Button } from '@/components/ui';
+import { labelCity } from '@/lib/labels';
 import type { ActAction } from './ActionColumn';
 
 /**
@@ -25,6 +26,11 @@ export function DetailSheet({
 }) {
   const [view, setView] = useState<ProfileRedNoteView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [photoIdx, setPhotoIdx] = useState(0);
+
+  useEffect(() => {
+    setPhotoIdx(0);
+  }, [card.userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,25 +51,57 @@ export function DetailSheet({
     };
   }, [card.userId]);
 
-  const photo = card.photos[0];
+  const photos = card.photos.length ? card.photos : [];
+
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    const target = e.currentTarget;
+    const idx = Math.round(target.scrollLeft / target.clientWidth);
+    setPhotoIdx(idx);
+  }
 
   return (
     <div className="fs-sheet-shell" onClick={onClose} role="dialog" aria-modal="true">
       <div className="fs-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="fs-sheet-handle" />
-        <div
-          className="fs-sheet-photo"
-          style={photo ? { backgroundImage: `url(${photo})` } : undefined}
-        >
-          {!photo && <span className="photo-fallback">No photo</span>}
-        </div>
+
+        {photos.length > 0 ? (
+          <>
+            <div className="fs-sheet-gallery" onScroll={handleScroll}>
+              {photos.map((url, i) => (
+                <div
+                  key={`${url}-${i}`}
+                  className="fs-sheet-slide"
+                  style={{ backgroundImage: `url(${url})` }}
+                  aria-label={`Photo ${i + 1} of ${photos.length}`}
+                />
+              ))}
+            </div>
+            {photos.length > 1 && (
+              <div className="fs-sheet-dots">
+                {photos.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`fs-sheet-dot ${i === photoIdx ? 'is-on' : ''}`}
+                    aria-label={`Photo ${i + 1}`}
+                    onClick={() => setPhotoIdx(i)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="fs-sheet-photo fs-sheet-photo--empty">
+            <span className="photo-fallback">No photo</span>
+          </div>
+        )}
 
         <div className="fs-sheet-head">
           <div className="fs-sheet-name">
             {card.displayName ?? 'Member'} · {card.age}
           </div>
           <div className="fs-sheet-sub">
-            {card.city}
+            {labelCity(card.city)}
             {card.profession ? ` · ${card.profession}` : ''}
           </div>
           <div className="fs-sheet-badges">

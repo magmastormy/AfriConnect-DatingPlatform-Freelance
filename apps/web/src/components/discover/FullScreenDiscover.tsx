@@ -43,7 +43,7 @@ export function FullScreenDiscover() {
     setError(null);
     setNeedsVetting(false);
     try {
-      const cards = await api.get<DiscoverCard[]>('/matches/discover?limit=20');
+      const cards = await api.get<DiscoverCard[]>('/matches/discover?limit=50');
       setDeck(cards);
     } catch (e) {
       const ae = e instanceof ApiError ? e : null;
@@ -68,16 +68,20 @@ export function FullScreenDiscover() {
     async (card: DiscoverCard, action: DeckAction) => {
       if (busy) return;
       setBusy(true);
+      // Remove the card immediately so the next profile appears right away;
+      // restore it if the API call fails.
+      setDeck((d) => d.filter((c) => c.userId !== card.userId));
+      setUndo({ card, action });
       try {
         const res = await api.post<{ mutual: boolean }>(`/matches/${card.userId}/${action}`, {});
-        setDeck((d) => d.filter((c) => c.userId !== card.userId));
-        setUndo({ card, action });
         if (res.mutual) {
           setCelebrate({ userId: card.userId });
         } else if (action === 'superlike') {
           toast('Superlike sent — they’ll see it when they discover you', 'success');
         }
       } catch (e) {
+        setDeck((d) => [card, ...d]);
+        setUndo(null);
         toast(e instanceof ApiError ? e.message : 'Action failed', 'error');
       } finally {
         setBusy(false);
@@ -111,7 +115,7 @@ export function FullScreenDiscover() {
 
   const swipe = useSwipeGesture({
     disabled: busy || !top,
-    threshold: 90,
+    threshold: 50,
     onSwipeLeft: () => top && void act(top, 'pass'),
     onSwipeRight: () => top && void act(top, 'like'),
     onTap: () => top && setSheetCard(top),

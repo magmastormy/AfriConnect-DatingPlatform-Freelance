@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { Badge } from '@/components/ui';
+import { labelCity } from '@/lib/labels';
 import type { DiscoverCard } from '@/lib/types';
 import type { SwipeHandlers } from '@/lib/use-swipe-gesture';
 
@@ -35,7 +36,7 @@ export function ProfileCardFull({
           ? undefined
           : {
               transform: `translate(${swipe.dx}px, ${swipe.dy}px) rotate(${rotate}deg)`,
-              transition: swipe.dragging ? 'none' : 'transform 0.25s ease',
+              transition: swipe.dragging ? 'none' : 'transform 0.18s ease',
             }
       }
       {...(behind ? {} : swipe.handlers)}
@@ -62,7 +63,7 @@ export function ProfileCardFull({
           {card.displayName ?? 'Member'} · {card.age}
         </div>
         <div className="fs-card-sub">
-          {card.city}
+          {labelCity(card.city)}
           {card.profession ? ` · ${card.profession}` : ''}
         </div>
         <div className="fs-card-badges">

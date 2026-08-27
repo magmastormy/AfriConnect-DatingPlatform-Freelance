@@ -8,6 +8,8 @@ import { AwarenessBanner } from '@/components/AwarenessBanner';
 import { DailyMatch, MutualMatch } from '@/lib/types';
 import { useAuth } from '@/lib/auth';
 import { can, Capability } from '@/lib/membership';
+import { labelCity, labelEducation } from '@/lib/labels';
+import { ProfileRedNoteView } from '@/lib/types';
 
 type Tab = 'daily' | 'mutual';
 
@@ -29,6 +31,9 @@ export default function MatchesPage() {
   const [blocked, setBlocked] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [superCount, setSuperCount] = useState(0);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileView, setProfileView] = useState<ProfileRedNoteView | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -65,12 +70,40 @@ export default function MatchesPage() {
     }
   }
 
+  async function openProfile(userId: string) {
+    setProfileId(userId);
+    setProfileLoading(true);
+    try {
+      const view = await api.getProfile(userId);
+      setProfileView(view);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to load profile');
+      setProfileId(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  function closeProfile() {
+    setProfileId(null);
+    setProfileView(null);
+  }
+
   // ── Daily match row — polished card (photo + meta + pill actions) ──────
   function DailyRow({ m }: { m: DailyMatch }) {
     const initial = (m.displayName ?? m.profession ?? '?').slice(0, 1).toUpperCase();
     const distance = formatDistance(m.distanceKm);
     return (
-      <div className="match" key={m.userId} style={{ alignItems: 'center', padding: '12px 12px', borderRadius: 14 }}>
+      <div
+        className="match"
+        key={m.userId}
+        style={{ alignItems: 'center', padding: '12px 12px', borderRadius: 14 }}
+        onClick={() => openProfile(m.userId)}
+        role="button"
+        tabIndex={0}
+        aria-label={`View profile of ${m.displayName ?? 'member'}`}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(m.userId); } }}
+      >
         <div className="avatar" style={{ width: 56, height: 56, fontSize: '1.1rem', flex: 'none' }}>
           {m.photo ? (
             <img className="avatar-img" src={m.photo} alt={m.displayName ?? 'Member'} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
@@ -81,14 +114,14 @@ export default function MatchesPage() {
         <div className="meta" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <strong style={{ fontSize: '1rem' }}>{m.displayName ?? 'Anonymous'}</strong>
-            <Badge tone="good">Match {m.score}%</Badge>
+            <span className="match-score">{m.score}%</span>
             {distance && <span style={{ fontSize: '.74rem', color: 'var(--muted)', background: 'var(--surface-2)', border: '1px solid var(--line)', padding: '2px 7px', borderRadius: 999 }}>{distance}</span>}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: '0.86rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {m.profession ?? 'Professional'}{m.city ? ` · ${m.city}` : ''}
+            {m.profession ?? 'Professional'}{m.city ? ` · ${labelCity(m.city)}` : ''}
           </div>
         </div>
-        <div className="row-actions" style={{ gap: 6, flexWrap: 'nowrap' }}>
+        <div className="row-actions" style={{ gap: 6, flexWrap: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
           <button className="btn btn-ghost" disabled={busyId === m.userId} onClick={() => act(m.userId, 'pass')} style={{ borderRadius: 999, minHeight: 38, padding: '0 14px' }}>Pass</button>
           <button className="btn btn-primary" disabled={busyId === m.userId} onClick={() => act(m.userId, 'like')} style={{ borderRadius: 999, minHeight: 38, padding: '0 16px', fontWeight: 800 }}>♡ Like</button>
           <button className="btn btn-danger" disabled={busyId === m.userId} onClick={() => act(m.userId, 'superlike')} title="Superlike" style={{ borderRadius: 999, minWidth: 42, minHeight: 38 }}>★</button>
@@ -173,23 +206,42 @@ export default function MatchesPage() {
               </div>
             ) : (
               mutual.map((m) => (
-                <div className="match" key={m.id} style={{ alignItems: 'center', padding: '12px 14px', borderRadius: 14 }}>
+                <div
+                  className="match"
+                  key={m.id}
+                  style={{ alignItems: 'center', padding: '12px 14px', borderRadius: 14 }}
+                  onClick={() => openProfile(m.userId)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View profile of ${m.name}`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(m.userId); } }}
+                >
                   {m.photo ? (
                     <img src={m.photo} alt={m.name} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flex: 'none' }} />
                   ) : (
                     <div className="avatar" style={{ width: 56, height: 56 }}>★</div>
                   )}
                   <div className="meta" style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       <strong>{m.name}</strong>
-                      {m.city && <span style={{ fontSize: '.78rem', color: 'var(--muted)' }}>· {m.city}</span>}
+                      {m.city && <span style={{ fontSize: '.78rem', color: 'var(--muted)' }}>· {labelCity(m.city)}</span>}
                       <span className="badge badge-good" style={{ marginLeft: 4 }}>Mutual</span>
                     </div>
                     <div style={{ color: 'var(--muted)', fontSize: '0.86rem' }}>
                       {m.profession ?? 'You matched — start the conversation.'}
+                      {m.createdAt && (
+                        <span style={{ fontSize: '.76rem', marginLeft: 6 }}>
+                          · matched {new Date(m.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <Link href="/portal/messages" className="btn btn-primary" style={{ borderRadius: 999, padding: '0 16px', minHeight: 38 }}>
+                  <Link
+                    href={`/portal/messages?with=${encodeURIComponent(m.userId)}`}
+                    className="btn btn-primary"
+                    style={{ borderRadius: 999, padding: '0 16px', minHeight: 38 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     Message
                   </Link>
                 </div>
@@ -197,6 +249,130 @@ export default function MatchesPage() {
             ))}
         </ApiState>
       )}
+
+      {profileId && (
+        <ProfileModal
+          userId={profileId}
+          view={profileView}
+          loading={profileLoading}
+          onClose={closeProfile}
+        />
+      )}
+    </div>
+  );
+}
+
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
+  return age > 0 ? age : null;
+}
+
+function ProfileModal({
+  view,
+  loading,
+  onClose,
+}: {
+  userId: string;
+  view: ProfileRedNoteView | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const age = ageFromDob(view?.dateOfBirth);
+  const photos = view?.photos?.length ? view.photos : [];
+
+  useEffect(() => {
+    setPhotoIdx(0);
+  }, [view?.userId]);
+
+  return (
+    <div className="modal-shell" onClick={onClose}>
+      <div className="modal-card match-profile-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-title-row">
+          <div className="modal-name">Profile</div>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </div>
+
+        {loading && (
+          <div className="match-profile-empty">
+            <span className="spinner" aria-label="Loading" />
+            <p>Loading profile…</p>
+          </div>
+        )}
+
+        {!loading && !view && (
+          <div className="match-profile-empty">
+            <p>Could not load profile.</p>
+          </div>
+        )}
+
+        {view && (
+          <>
+            {photos.length > 0 ? (
+              <>
+                <div className="match-profile-photos" onScroll={(e) => {
+                  const target = e.currentTarget;
+                  const idx = Math.round(target.scrollLeft / target.clientWidth);
+                  setPhotoIdx(idx);
+                }}>
+                  {photos.map((url, i) => (
+                    <div
+                      key={`${url}-${i}`}
+                      className="match-profile-photo"
+                      style={{ backgroundImage: `url(${url})` }}
+                      aria-label={`Photo ${i + 1} of ${photos.length}`}
+                    />
+                  ))}
+                </div>
+                {photos.length > 1 && (
+                  <div className="match-profile-dots">
+                    {photos.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`match-profile-dot ${i === photoIdx ? 'is-on' : ''}`}
+                        aria-label={`Photo ${i + 1}`}
+                        onClick={() => setPhotoIdx(i)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="match-profile-empty">No photos</div>
+            )}
+
+            <div className="match-profile-meta">
+              <h2 className="match-profile-name">
+                {view.displayName ?? view.fullName ?? 'Member'}
+                {age ? ` · ${age}` : null}
+              </h2>
+              <p className="match-profile-sub">
+                {labelCity(view.location?.city)}
+                {view.profession ? ` · ${view.profession}` : ''}
+                {view.educationLevel ? ` · ${labelEducation(view.educationLevel)}` : ''}
+              </p>
+              <div className="match-profile-badges">
+                {view.verified && <Badge tone="good">Verified</Badge>}
+                {view.isPremium && <Badge tone="warn">Premium</Badge>}
+              </div>
+              {view.headline && <p className="match-profile-bio"><strong>{view.headline}</strong></p>}
+              {view.bio && <p className="match-profile-bio">{view.bio}</p>}
+              {view.industry?.length > 0 && (
+                <p className="match-profile-bio" style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                  {view.industry.join(' · ')}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

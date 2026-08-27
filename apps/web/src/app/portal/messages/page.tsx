@@ -73,8 +73,26 @@ export default function MessagesPage() {
       try {
         const list = await api.get<ConversationThread[]>('/chat/conversations');
         setConversations(list);
-        const target = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('c');
-        const found = list.find((c) => c.id === target);
+        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+        // Deep links: ?c=<conversationId> or ?with=<other member's userId>
+        // (the Matches page links straight into a member's thread).
+        const byId = params.get('c');
+        const withUser = params.get('with');
+        let found =
+          list.find((c) => c.id === byId) ??
+          (withUser ? list.find((c) => c.other?.userId === withUser) : undefined);
+        // A fresh mutual match may not have a thread yet — create it on the
+        // spot so "Message" never silently lands on someone else's chat.
+        if (!found && withUser) {
+          try {
+            const init = await api.createConversation(withUser);
+            const refreshed = await api.get<ConversationThread[]>('/chat/conversations');
+            setConversations(refreshed);
+            found = refreshed.find((c) => c.id === init.id);
+          } catch {
+            // Not mutual (any more) — fall through to the default selection.
+          }
+        }
         setActive(found ? found.id : (list[0]?.id ?? null));
       } catch (e) {
         setError(e instanceof ApiError ? e.message : 'Failed to load messages');
@@ -250,17 +268,6 @@ export default function MessagesPage() {
                   <span className="wa-pane-meta">
                     <b>{activeName}</b>
                     <span className="wa-pane-status">{connected ? 'online · encrypted' : 'reconnecting…'}</span>
-                  </span>
-                  <span className="wa-pane-actions">
-                    <button className="wa-icon-btn" aria-label="Voice call" title="Voice call (coming soon)" onClick={() => toast('Voice calls coming soon', 'info')}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M22 16.9v3a2 2 0 0 1-2.2 2A19.7 19.7 0 0 1 3.1 5.2 2 2 0 0 1 5 3h3a2 2 0 0 1 2 1.7l.4 3a2 2 0 0 1-.6 1.7l-1.4 1.4a16 16 0 0 0 6 6l1.4-1.4a2 2 0 0 1 1.7-.6l3 .4A2 2 0 0 1 22 16.9z"/></svg>
-                    </button>
-                    <button className="wa-icon-btn" aria-label="Video call" title="Video call (coming soon)" onClick={() => toast('Video calls coming soon', 'info')}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><polygon points="23 7 13 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-                    </button>
-                    <button className="wa-icon-btn" aria-label="More" onClick={() => setShowActions((v) => v ? null : 'pane')}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="12" cy="5" r="1.5"/></svg>
-                    </button>
                   </span>
                 </header>
 

@@ -341,10 +341,65 @@ a:hover { color: var(--brand-ink); }
 .stack { display: flex; flex-direction: column; gap: 1rem; }
 .split { display: grid; grid-template-columns: 360px 1fr; gap: 1.25rem; align-items: start; }
 
-.match { display: flex; gap: 1rem; align-items: center; padding: 0.9rem; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 0.75rem; background: var(--surface-2); }
+.match { display: flex; gap: 1rem; align-items: center; padding: 0.9rem; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 0.75rem; background: var(--surface-2); cursor: pointer; transition: border-color 0.12s ease, background 0.12s ease; }
+.match:hover { border-color: var(--brand); background: var(--surface); }
 .match .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--brand); color: var(--on-brand); display: grid; place-items: center; font-weight: 800; }
 .match .meta { flex: 1; }
 .match .score { font-weight: 800; color: var(--brand); }
+.match-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--good-bg);
+  color: var(--good-fg);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+/* Profile modal opened from a match row */
+.match-profile-modal { max-width: 420px; padding: 0; overflow: hidden; }
+.match-profile-modal .modal-title-row { padding: 1rem 1rem 0; }
+.match-profile-photos {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.match-profile-photos::-webkit-scrollbar { display: none; }
+.match-profile-photo {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-3);
+  background-size: cover;
+  background-position: center;
+}
+.match-profile-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+}
+.match-profile-dot {
+  width: 7px; height: 7px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: var(--line-strong);
+}
+.match-profile-dot.is-on { background: var(--brand); width: 18px; }
+.match-profile-meta { padding: 0 1rem 1rem; }
+.match-profile-name { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; margin: 0; }
+.match-profile-sub { color: var(--muted); font-size: 0.9rem; margin: 2px 0 8px; }
+.match-profile-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.match-profile-bio { color: var(--ink-soft); font-size: 0.94rem; line-height: 1.55; margin: 0 0 10px; }
+.match-profile-empty { padding: 1.5rem; text-align: center; color: var(--muted); }
 
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--spinner-track); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -1880,8 +1935,10 @@ a:hover { color: var(--brand-ink); }
   height: min(76vh, 720px); min-height: 520px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
   overflow: hidden; box-shadow: 0 12px 40px rgba(22,19,15,0.08);
+  overscroll-behavior: none;
+  touch-action: pan-y;
 }
-.wa-list { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); min-width: 0; }
+.wa-list { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); min-width: 0; overscroll-behavior: none; touch-action: pan-y; }
 .wa-list-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
 .wa-list-title { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
 .wa-conn { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -1913,7 +1970,7 @@ a:hover { color: var(--brand-ink); }
 .wa-unread-badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 0.70rem; font-weight: 800; display: grid; place-items: center; }
 .wa-empty-hint { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 16px; }
 
-.wa-pane { display: flex; flex-direction: column; min-width: 0; background: #efeae2; position: relative; }
+.wa-pane { display: flex; flex-direction: column; min-width: 0; background: #efeae2; position: relative; overscroll-behavior: none; touch-action: pan-y; }
 html[data-theme='dark'] .wa-pane { background: #0b141a; }
 .wa-welcome { flex: 1; display: grid; place-items: center; padding: 24px; background: var(--surface-2); }
 .wa-welcome-card { max-width: 420px; text-align: center; display: grid; gap: 8px; place-items: center; }
@@ -1929,7 +1986,7 @@ html[data-theme='dark'] .wa-pane { background: #0b141a; }
 .wa-pane-actions { display: flex; gap: 6px; }
 .wa-icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .wa-icon-btn:hover { background: var(--surface-3); color: var(--ink); }
-.wa-scroll { flex: 1; overflow-y: auto; padding: 16px 12px 18px; display: flex; flex-direction: column; gap: 4px; position: relative; background: transparent; }
+.wa-scroll { flex: 1; overflow-y: auto; padding: 16px 12px 18px; display: flex; flex-direction: column; gap: 4px; position: relative; background: transparent; overscroll-behavior: none; touch-action: pan-y; }
 .wa-wallpaper { position: absolute; inset: 0; opacity: 0.06; pointer-events: none; background-image: radial-gradient(circle at 1px 1px, var(--ink) 1px, transparent 0); background-size: 24px 24px; }
 html[data-theme='dark'] .wa-wallpaper { opacity: 0.08; }
 .wa-date-sep { display: flex; justify-content: center; margin: 10px 0; position: relative; z-index: 1; }
@@ -1938,9 +1995,9 @@ html[data-theme='dark'] .wa-wallpaper { opacity: 0.08; }
 .wa-row.mine { justify-content: flex-end; }
 .wa-row.theirs { justify-content: flex-start; }
 .wa-bubble { max-width: 68%; padding: 8px 10px 6px; border-radius: 12px; position: relative; display: grid; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-.wa-bubble.mine { background: #dcf8c6; color: #111; border-top-right-radius: 4px; }
+.wa-bubble.mine { background: #dcf8c6; color: #111; border-top-right-radius: 4px; margin-left: auto; align-self: flex-end; }
 html[data-theme='dark'] .wa-bubble.mine { background: #005c4b; color: #e9edef; }
-.wa-bubble.theirs { background: var(--surface); color: var(--ink); border-top-left-radius: 4px; }
+.wa-bubble.theirs { background: var(--surface); color: var(--ink); border-top-left-radius: 4px; margin-right: auto; align-self: flex-start; }
 .wa-bubble-img { max-width: 240px; border-radius: 8px; display: block; }
 .wa-text { white-space: pre-wrap; word-break: break-word; font-size: 0.92rem; line-height: 1.35; }
 .wa-deleted { font-style: italic; opacity: 0.7; font-size: 0.85rem; }
@@ -2447,7 +2504,9 @@ body:has(.modal-shell) { overflow: hidden; }
 .event-card:hover .event-card-cta { text-decoration: underline; }
 
 /* Attendee roster modal — scrollable so long lists never break the layout. */
-.attendee-modal { max-width: 480px; }
+.attendee-modal { max-width: 480px; padding: 1.25rem; }
+.attendee-modal .modal-title-row { margin-bottom: 0.35rem; }
+.attendee-modal .modal-sub { margin: 0 0 0.75rem; }
 .attendee-list {
   display: flex;
   flex-direction: column;
@@ -2455,7 +2514,7 @@ body:has(.modal-shell) { overflow: hidden; }
   max-height: 60vh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 4px;
+  padding: 0.5rem 0;
   margin-top: 0.25rem;
 }
 .attendee-list .match { margin-bottom: 0; }
@@ -2736,6 +2795,20 @@ body:has(.modal-shell) { overflow: hidden; }
 .ev-going { font-size: .78rem; color: var(--muted); font-weight: 600; }
 .ev-cta { color: var(--brand); font-weight: 700; font-size: .82rem; text-decoration: none; }
 .ev-card:hover .ev-cta { text-decoration: underline; }
+/* Align the Confirmed / Waitlisted pill with the RSVP / Attendees buttons. */
+.ev-foot .badge,
+.ev-featured-actions .badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 0.85rem;
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+@media (max-width: 480px) {
+  .ev-foot { flex-wrap: wrap; }
+  .ev-foot .row-actions { margin-left: auto; }
+}
 .ev-skeleton { opacity: .7; }
 .ev-skeleton .ev-date-skel { background: var(--surface-3); }
 

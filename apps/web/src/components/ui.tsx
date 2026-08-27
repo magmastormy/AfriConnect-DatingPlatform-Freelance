@@ -112,7 +112,7 @@ export function ApiState({
   );
   if (error) return (
     <div className="state state-error" style={{ display: 'grid', gap: 8, placeItems: 'center', padding: '1.6rem 1rem' }}>
-      <span style={{ fontSize: '1.3rem' }} aria-hidden>⚠</span>
+      <span style={{ width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--bad-bg)', color: 'var(--bad-fg)', fontWeight: 800 }} aria-hidden>!</span>
       <span>{error}</span>
     </div>
   );

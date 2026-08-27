@@ -12,6 +12,7 @@ import { AwarenessBanner } from '@/components/AwarenessBanner';
 import { useTrackProfileView } from '@/lib/useProfileView';
 import { useAuth } from '@/lib/auth';
 import { useViewport } from '@/lib/use-viewport';
+import { labelCity, labelEducation } from '@/lib/labels';
 import { FullScreenDiscover } from '@/components/discover/FullScreenDiscover';
 import { MatchCelebration } from '@/components/discover/MatchCelebration';
 
@@ -226,7 +227,7 @@ const DiscoverGridCard = memo(function DiscoverGridCard({
             {member.displayName} · {member.age}
           </div>
           <div className="discover-card-sub">
-            {member.city}
+            {labelCity(member.city)}
             {member.score != null && ` · Match ${member.score}%`}
           </div>
           {distance && <div className="discover-card-distance">{distance}</div>}
@@ -358,9 +359,9 @@ function RedNoteModal({
             </button>
           </div>
           <div className="modal-sub">
-            {view.location.city}
+            {labelCity(view.location.city)}
             {view.location.district ? ` · ${view.location.district}` : ''}
-            {view.gender ? ` · ${view.gender}` : ''}
+            {view.gender ? ` · ${view.gender.charAt(0).toUpperCase()}${view.gender.slice(1)}` : ''}
           </div>
 
           {view.restricted && (
@@ -388,7 +389,7 @@ function RedNoteModal({
             )}
             {view.educationLevel && (
               <div>
-                <strong>Education:</strong> {view.educationLevel}
+                <strong>Education:</strong> {labelEducation(view.educationLevel)}
               </div>
             )}
             {view.dateOfBirth && (

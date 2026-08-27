@@ -129,6 +129,7 @@ export class ApplicationService implements IApplicationService {
           title: 'New vetting application',
           body: `${input.firstName} ${input.lastName} submitted an application for review`,
           channel: NotificationChannel.InApp,
+          link: '/admin/applications',
           data: { applicationId, userId: user.userId },
         },
         [AdminScope.Vetting],
@@ -172,7 +173,8 @@ export class ApplicationService implements IApplicationService {
           type: 'vetting.approved',
           title: 'You’re verified',
           body: 'Your application was approved — welcome to AfriConnect. You can now connect with members and join events.',
-          link: '/portal',
+          // Land members somewhere actionable, not on the dashboard.
+          link: '/portal/discover',
         });
       } else if (status === ApplicationStatus.Rejected || status === ApplicationStatus.OnHold) {
         await this.notifyMember(updated.userId, {

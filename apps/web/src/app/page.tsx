@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HomeEventsPreview } from './HomeEventsPreview';
+import { LandingRedirect } from './LandingRedirect';
 
 export const metadata = {
   title: 'A vetted community for African professionals',
@@ -11,6 +12,7 @@ export const metadata = {
 export default function LandingPage() {
   return (
     <main className="landing-v2">
+      <LandingRedirect />
       {/* ============================================================
           01 — HERO  [Brevo scale + Revolut ink-confidence]
           Left: oversized kinetic type + proof row

@@ -61,6 +61,7 @@ export default function EventsPage() {
   const [attendees, setAttendees] = useState<Record<string, Attendee[]>>({});
   const [starred, setStarred] = useState<Record<string, boolean>>({});
   const [attendeeEvent, setAttendeeEvent] = useState<EventView | null>(null);
+  const [detailEvent, setDetailEvent] = useState<EventView | null>(null);
   const [attendeesLoading, setAttendeesLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<EventForm>(EMPTY_FORM);
@@ -263,7 +264,16 @@ export default function EventsPage() {
             const d = formatDate(ev.startTime);
             const isRsvpd = !!rsvpd[ev.id];
             return (
-              <div key={ev.id} className={`ev-card ${ev.featured ? 'is-featured' : ''}`}>
+              <div
+                key={ev.id}
+                className={`ev-card ${ev.featured ? 'is-featured' : ''}`}
+                style={{ cursor: 'pointer' }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open details for ${ev.title}`}
+                onClick={() => setDetailEvent(ev)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailEvent(ev); } }}
+              >
                 <div className="ev-date">
                   <span className="ev-date-month">{d.month.toUpperCase()}</span>
                   <span className="ev-date-day">{d.day}</span>
@@ -282,7 +292,7 @@ export default function EventsPage() {
                   <p className="ev-meta"><strong>{ev.venueName}</strong> · R{Number(ev.ticketPrice).toFixed(0)} · {ev.capacity} seats</p>
                   <div className="ev-foot">
                     <span className="ev-going">{ev.attendeeCount} going</span>
-                    <div className="row-actions" style={{ gap: 6 }}>
+                    <div className="row-actions" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
                       {isRsvpd ? <Badge tone="good">{rsvpd[ev.id] === 'waitlist' ? 'Waitlisted' : 'Confirmed'}</Badge> : <Button disabled={busyId === ev.id} onClick={() => rsvp(ev.id)}>RSVP</Button>}
                       <Button variant="ghost" onClick={() => openAttendees(ev)}>Attendees</Button>
                     </div>
@@ -315,6 +325,40 @@ export default function EventsPage() {
                     ))}
                   </div>
                 )}
+          </div>
+        </div>
+      )}
+      {detailEvent && (
+        <div className="modal-shell" onClick={() => setDetailEvent(null)}>
+          <div className="modal-card" style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={detailEvent.title}>
+            <div className="modal-title-row">
+              <div className="modal-name">{detailEvent.title}</div>
+              <button className="btn btn-ghost" onClick={() => setDetailEvent(null)}>Close</button>
+            </div>
+            <div className="ev-top" style={{ margin: '6px 0 10px' }}>
+              <span className="badge badge-neutral">{typeLabel(detailEvent.eventType)}</span>
+              {detailEvent.featured && <span className="badge badge-good">Featured</span>}
+              <span className="badge badge-neutral" style={{ background: 'var(--surface-3)' }}>{cityLabel(detailEvent.city)}</span>
+              <span className={`badge badge-${statusTone(detailEvent.status)}`}>{detailEvent.status}</span>
+            </div>
+            <p style={{ margin: '0 0 8px', color: 'var(--muted)', fontSize: '.92rem' }}>
+              {new Date(detailEvent.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              {' · '}
+              {formatDate(detailEvent.startTime).time} – {formatDate(detailEvent.endTime).time}
+            </p>
+            <p style={{ margin: '0 0 12px' }}>📍 <strong>{detailEvent.venueName}</strong></p>
+            <p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{detailEvent.description}</p>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '.9rem' }}>
+              R{Number(detailEvent.ticketPrice).toFixed(0)} · {detailEvent.capacity} seats · {detailEvent.attendeeCount} going
+            </p>
+            <div className="row-actions" style={{ marginTop: 14 }}>
+              {rsvpd[detailEvent.id]
+                ? <Badge tone="good">{rsvpd[detailEvent.id] === 'waitlist' ? 'Waitlisted' : 'Confirmed'}</Badge>
+                : <Button disabled={busyId === detailEvent.id} onClick={() => rsvp(detailEvent.id)}>RSVP</Button>}
+              <Button variant="ghost" onClick={() => { const ev = detailEvent; setDetailEvent(null); openAttendees(ev); }}>
+                View attendees ({detailEvent.attendeeCount})
+              </Button>
+            </div>
           </div>
         </div>
       )}

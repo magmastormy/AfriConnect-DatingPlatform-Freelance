@@ -7,6 +7,7 @@ import { SubscriptionStatus } from '@/lib/shared';
 import { useAuth } from '@/lib/auth';
 import { can, Capability, MembershipStage } from '@/lib/membership';
 import { DiscoverCard } from '@/lib/types';
+import { labelCity } from '@/lib/labels';
 
 interface Profile {
   firstName?: string;
@@ -201,7 +202,7 @@ export default function PortalDashboard() {
                       {m.displayName ?? 'Member'} · {m.age}
                     </strong>
                     <span className="muted">
-                      {m.city}
+                      {labelCity(m.city)}
                       {m.profession ? ` · ${m.profession}` : ''}
                     </span>
                     {canConnect ? (

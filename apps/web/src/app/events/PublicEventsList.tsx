@@ -55,6 +55,7 @@ export function PublicEventsList() {
   const [city, setCity] = useState<string>('all');
   const [type, setType] = useState<string>('all');
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [detail, setDetail] = useState<EventView | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -211,7 +212,16 @@ export function PublicEventsList() {
           {filtered.map((ev) => {
             const d = formatDate(ev.startTime);
             return (
-              <div key={ev.id} className={`ev-card ${ev.featured ? 'is-featured' : ''}`}>
+              <div
+                key={ev.id}
+                className={`ev-card ${ev.featured ? 'is-featured' : ''}`}
+                style={{ cursor: 'pointer' }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open details for ${ev.title}`}
+                onClick={() => setDetail(ev)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetail(ev); } }}
+              >
                 <div className="ev-date">
                   <span className="ev-date-month">{d.month.toUpperCase()}</span>
                   <span className="ev-date-day">{d.day}</span>
@@ -232,12 +242,48 @@ export function PublicEventsList() {
                   </p>
                   <div className="ev-foot">
                     <span className="ev-going">{ev.attendeeCount} going</span>
-                    <Link href="/sign-up" className="ev-cta">View →</Link>
+                    <button
+                      className="ev-cta"
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                      onClick={(e) => { e.stopPropagation(); setDetail(ev); }}
+                    >
+                      View →
+                    </button>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {detail && (
+        <div className="modal-shell" onClick={() => setDetail(null)}>
+          <div className="modal-card" style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={detail.title}>
+            <div className="modal-title-row">
+              <div className="modal-name">{detail.title}</div>
+              <button className="btn btn-ghost" onClick={() => setDetail(null)}>Close</button>
+            </div>
+            <div className="ev-top" style={{ margin: '6px 0 10px' }}>
+              <span className="badge badge-neutral">{typeLabel(detail.eventType)}</span>
+              {detail.featured && <span className="badge badge-good">Featured</span>}
+              <span className="badge badge-neutral" style={{ background: 'var(--surface-3)' }}>{cityLabel(detail.city)}</span>
+            </div>
+            <p style={{ margin: '0 0 8px', color: 'var(--muted)', fontSize: '.92rem' }}>
+              {new Date(detail.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              {' · '}
+              {formatDate(detail.startTime).time} – {formatDate(detail.endTime).time}
+            </p>
+            <p style={{ margin: '0 0 12px' }}>📍 <strong>{detail.venueName}</strong></p>
+            <p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{detail.description}</p>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '.9rem' }}>
+              R{Number(detail.ticketPrice).toFixed(0)} · {detail.capacity} seats · {detail.attendeeCount} going
+            </p>
+            <div className="row-actions" style={{ marginTop: 14 }}>
+              <Link href="/sign-up" className="btn btn-primary">Create account to RSVP</Link>
+              <Link href="/portal/events" className="btn btn-ghost">Member view →</Link>
+            </div>
+          </div>
         </div>
       )}
 

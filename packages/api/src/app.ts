@@ -147,7 +147,10 @@ export function createApp(): Express {
   // misleading 400 Bad Request for every unknown route, which broke client-side
   // `status === 404` branches and contradicted the contract above.
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    next(new NotFoundError(`No route for ${req.method} ${req.path}`));
+    // unmatchedRoute marker → errorHandler logs these at debug level: platform
+    // probes and scanner hits on the dark root are expected traffic, not
+    // operational signal worth WARN.
+    next(new NotFoundError(`No route for ${req.method} ${req.path}`, { unmatchedRoute: true }));
   });
 
   // Centralized error handler (Clause 2.6) — must be last

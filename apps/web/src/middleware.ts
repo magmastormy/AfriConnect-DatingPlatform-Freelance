@@ -44,6 +44,13 @@ export default clerkMiddleware(async (auth, req: NextRequest, _event: NextFetchE
     return NextResponse.redirect(new URL('/portal/discover', req.url));
   }
 
+  // Signed-in visitors load straight into the app — "/" previously rendered
+  // the marketing landing under a logged-in navbar (reported UX bug). The
+  // same target as the post-sign-in redirect keeps one canonical entry.
+  if (userId && req.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/portal/discover', req.url));
+  }
+
   return NextResponse.next();
 });
 
