@@ -177,11 +177,11 @@ export function FullScreenDiscover() {
         <div className="fs-header-right">
           {undo && (
             <button className="fs-undo" type="button" onClick={restoreUndo}>
-              ↩ Undo
+              Undo
             </button>
           )}
           <Link href="/portal/matches" className="fs-likes" aria-label="Who liked you">
-            ♥ Liked you
+            Liked you
           </Link>
           <span className="fs-count">{deck.length} left</span>
         </div>

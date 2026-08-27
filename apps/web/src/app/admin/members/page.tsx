@@ -131,7 +131,7 @@ export default function MembersPage() {
                       {m.status}
                     </Badge>
                   </td>
-                  <td>{m.emailVerified ? '✓' : '—'}</td>
+                  <td>{m.emailVerified ? 'Yes' : '—'}</td>
                   <td>
                     <div className="row-actions">
                       {m.status === UserStatus.Active ? (

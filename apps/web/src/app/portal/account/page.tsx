@@ -187,7 +187,7 @@ export default function AccountPage() {
                   {photos[0] ? <img src={photos[0]} alt="" className="acct-avatar" /> : clerkUser?.imageUrl ? <img src={clerkUser.imageUrl} alt="" className="acct-avatar" /> : <div className="acct-avatar fallback">{displayName.charAt(0).toUpperCase()}</div>}
                   <label className="acct-avatar-edit">
                     <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleAvatarUpload(f); e.target.value=''; }} />
-                    <span>{photoBusy ? '…' : '✎'}</span>
+                    <span>{photoBusy ? '…' : 'Edit'}</span>
                   </label>
                   {photos[0] && <span className="acct-primary-badge">Profile image</span>}
                 </div>

@@ -16,6 +16,7 @@ import { errorHandler, success, NotFoundError } from '@africonnect/shared';
 import { config } from './config';
 import { rateLimitMiddleware } from './config/middleware';
 import { honeypotMiddleware } from './config/middleware/honeypot';
+import { compressResponses } from './config/compression';
 import { buildAuthModule } from './modules/auth';
 import { buildApplicationModule } from './modules/application';
 import { buildProfileModule } from './modules/profile';
@@ -75,6 +76,15 @@ export function createApp(): Express {
       maxAge: 600,
     }),
   );
+
+  // Response compression. The API is JSON-heavy and serves mobile clients on
+  // variable/sub-Saharan networks where every byte of latency matters. brotli/
+  // gzip typically cut JSON payloads by 70-90%. Implemented with Node's built-in
+  // zlib (no external dep) — see config/compression.ts. Skips already-encoded,
+  // 204/304, no-transform, incompressible (image/media) and sub-threshold bodies;
+  // honours Accept-Encoding so non-compressing clients are unaffected.
+  app.use(compressResponses({ threshold: 1024 }));
+
   app.use(
     express.json({
       limit: '12mb',

@@ -123,8 +123,8 @@ export default function MatchesPage() {
         </div>
         <div className="row-actions" style={{ gap: 6, flexWrap: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
           <button className="btn btn-ghost" disabled={busyId === m.userId} onClick={() => act(m.userId, 'pass')} style={{ borderRadius: 999, minHeight: 38, padding: '0 14px' }}>Pass</button>
-          <button className="btn btn-primary" disabled={busyId === m.userId} onClick={() => act(m.userId, 'like')} style={{ borderRadius: 999, minHeight: 38, padding: '0 16px', fontWeight: 800 }}>♡ Like</button>
-          <button className="btn btn-danger" disabled={busyId === m.userId} onClick={() => act(m.userId, 'superlike')} title="Superlike" style={{ borderRadius: 999, minWidth: 42, minHeight: 38 }}>★</button>
+          <button className="btn btn-primary" disabled={busyId === m.userId} onClick={() => act(m.userId, 'like')} style={{ borderRadius: 999, minHeight: 38, padding: '0 16px', fontWeight: 800 }}>Like</button>
+          <button className="btn btn-danger" disabled={busyId === m.userId} onClick={() => act(m.userId, 'superlike')} title="Superlike" style={{ borderRadius: 999, minWidth: 42, minHeight: 38 }}>Super</button>
         </div>
       </div>
     );
@@ -135,7 +135,6 @@ export default function MatchesPage() {
       {superCount > 0 && (
         <AwarenessBanner
           tone="superlike"
-          icon="★"
           title={`${superCount} new ${superCount === 1 ? 'superlike' : 'superlikes'}`}
           cta={{ label: 'Like them back', href: '/portal/discover' }}
         >
@@ -145,7 +144,6 @@ export default function MatchesPage() {
       {mutual.length > 0 && (
         <AwarenessBanner
           tone="match"
-          icon="✓"
           title={`${mutual.length} mutual ${mutual.length === 1 ? 'match' : 'matches'}`}
           cta={{ label: 'Say hello', href: '/portal/messages' }}
         >
@@ -219,7 +217,7 @@ export default function MatchesPage() {
                   {m.photo ? (
                     <img src={m.photo} alt={m.name} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flex: 'none' }} />
                   ) : (
-                    <div className="avatar" style={{ width: 56, height: 56 }}>★</div>
+                    <div className="avatar" style={{ width: 56, height: 56 }}>{m.name.charAt(0).toUpperCase()}</div>
                   )}
                   <div className="meta" style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>

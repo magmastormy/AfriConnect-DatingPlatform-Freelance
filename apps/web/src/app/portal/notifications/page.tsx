@@ -23,13 +23,13 @@ function timeAgo(iso: string): string {
 
 function typeIcon(type: string) {
   const t = type.toLowerCase();
-  if (t.includes('match')) return '♡';
-  if (t.includes('message') || t.includes('chat')) return '✉';
-  if (t.includes('event')) return '◷';
-  if (t.includes('like') || t.includes('super')) return '★';
-  if (t.includes('vet') || t.includes('verif')) return '✓';
-  if (t.includes('system')) return '⚙';
-  return '◐';
+  if (t.includes('match')) return 'M';
+  if (t.includes('message') || t.includes('chat')) return 'C';
+  if (t.includes('event')) return 'E';
+  if (t.includes('like') || t.includes('super')) return 'L';
+  if (t.includes('vet') || t.includes('verif')) return 'V';
+  if (t.includes('system')) return 'S';
+  return '·';
 }
 
 export default function NotificationsPage() {

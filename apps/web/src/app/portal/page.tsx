@@ -234,7 +234,7 @@ export default function PortalDashboard() {
         <ul className="ledger">
           {steps.map((s) => (
             <li key={s.label} className={`ledger-row ${s.done ? 'is-done' : ''}`}>
-              <span className="ledger-mark">{s.done ? '✓' : '·'}</span>
+              <span className="ledger-mark">{s.done ? 'Done' : '·'}</span>
               <Link href={s.href} className="ledger-label">
                 {s.label}
               </Link>

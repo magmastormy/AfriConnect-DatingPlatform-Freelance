@@ -133,7 +133,7 @@ export function DetailSheet({
             Pass
           </Button>
           <Button variant="danger" disabled={loading} onClick={() => onAct('superlike')}>
-            ★ Superlike
+            Superlike
           </Button>
           <Button variant="primary" disabled={loading} onClick={() => onAct('like')}>
             Like

@@ -160,7 +160,7 @@ export function PublicEventsList() {
             <option value="all">All types</option>
             {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
           </select>
-          <button className={`events-pill ${featuredOnly ? 'is-on' : ''}`} onClick={() => setFeaturedOnly((v) => !v)} aria-pressed={featuredOnly}>★ Featured</button>
+          <button className={`events-pill ${featuredOnly ? 'is-on' : ''}`} onClick={() => setFeaturedOnly((v) => !v)} aria-pressed={featuredOnly}>Featured</button>
           {(q || city !== 'all' || type !== 'all' || featuredOnly) && (
             <button className="events-pill ghost" onClick={() => { setQ(''); setCity('all'); setType('all'); setFeaturedOnly(false); }}>Clear</button>
           )}
@@ -183,7 +183,7 @@ export function PublicEventsList() {
             <h2>{featured.title}</h2>
             <p>{featured.description.slice(0, 160)}…</p>
             <div className="ev-featured-meta">
-              <span>📍 {featured.venueName}</span>
+              <span>Location: {featured.venueName}</span>
               <span>R{Number(featured.ticketPrice).toFixed(0)} · {featured.capacity} seats · {featured.attendeeCount} going</span>
             </div>
             <div className="ev-featured-actions">
@@ -274,7 +274,7 @@ export function PublicEventsList() {
               {' · '}
               {formatDate(detail.startTime).time} – {formatDate(detail.endTime).time}
             </p>
-            <p style={{ margin: '0 0 12px' }}>📍 <strong>{detail.venueName}</strong></p>
+            <p style={{ margin: '0 0 12px' }}>Location: <strong>{detail.venueName}</strong></p>
             <p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{detail.description}</p>
             <p style={{ margin: 0, color: 'var(--muted)', fontSize: '.9rem' }}>
               R{Number(detail.ticketPrice).toFixed(0)} · {detail.capacity} seats · {detail.attendeeCount} going

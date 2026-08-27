@@ -252,7 +252,7 @@ export function OnboardingForm() {
       <div className="vet">
         <div className="vet-card vet-status">
           <div className="vet-status-mark good" aria-hidden>
-            ✓
+            Verified
           </div>
           <h1>You’re verified</h1>
           <p>

@@ -29,7 +29,7 @@ export function ActionColumn({
         disabled={disabled}
         onClick={onPass}
       >
-        ✕
+        Pass
       </button>
       <button
         type="button"
@@ -38,7 +38,7 @@ export function ActionColumn({
         disabled={disabled}
         onClick={onSuper}
       >
-        ★
+        Super
       </button>
       <button
         type="button"
@@ -47,7 +47,7 @@ export function ActionColumn({
         disabled={disabled}
         onClick={onLike}
       >
-        ♥
+        Like
       </button>
     </div>
   );

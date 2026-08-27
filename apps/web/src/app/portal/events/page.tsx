@@ -197,7 +197,7 @@ export default function EventsPage() {
             <option value="all">All types</option>
             {EVENT_TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
           </select>
-          <button className={`events-pill ${featuredOnly ? 'is-on' : ''}`} onClick={() => setFeaturedOnly((v) => !v)}>★ Featured</button>
+          <button className={`events-pill ${featuredOnly ? 'is-on' : ''}`} onClick={() => setFeaturedOnly((v) => !v)}>Featured</button>
           {(q || city !== 'all' || type !== 'all' || featuredOnly) && <button className="events-pill ghost" onClick={() => { setQ(''); setCity('all'); setType('all'); setFeaturedOnly(false); }}>Clear</button>}
           <span className="events-count">{filtered.length} events</span>
         </div>
@@ -250,7 +250,7 @@ export default function EventsPage() {
               </div>
               <h2>{featured.title}</h2>
               <p>{featured.description.slice(0, 160)}…</p>
-              <div className="ev-featured-meta"><span>📍 {featured.venueName}</span><span>R{Number(featured.ticketPrice).toFixed(0)} · {featured.attendeeCount} going</span></div>
+              <div className="ev-featured-meta"><span>Location: {featured.venueName}</span><span>R{Number(featured.ticketPrice).toFixed(0)} · {featured.attendeeCount} going</span></div>
               <div className="ev-featured-actions">
                 {rsvpd[featured.id] ? <Badge tone="good">{rsvpd[featured.id] === 'waitlist' ? 'Waitlisted' : 'Confirmed'}</Badge> : <Button disabled={busyId === featured.id} onClick={() => rsvp(featured.id)}>RSVP</Button>}
                 <Button variant="ghost" onClick={() => openAttendees(featured)}>View attendees ({featured.attendeeCount})</Button>
@@ -320,7 +320,7 @@ export default function EventsPage() {
                       <div className="match" key={a.userId}>
                         <div className="meta"><div><strong>{a.firstName}</strong>{a.profession ? <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}> · {a.profession}</span> : null}</div></div>
                         {starred[`${attendeeEvent.id}:${a.userId}`] ? <Badge tone="good">Starred</Badge>
-                          : <Button variant="danger" disabled={busyId === `${attendeeEvent.id}:${a.userId}` || a.userId === user?.userId} onClick={() => star(attendeeEvent.id, a.userId)}>★ Star</Button>}
+                          : <Button variant="danger" disabled={busyId === `${attendeeEvent.id}:${a.userId}` || a.userId === user?.userId} onClick={() => star(attendeeEvent.id, a.userId)}>Star</Button>}
                       </div>
                     ))}
                   </div>
@@ -346,7 +346,7 @@ export default function EventsPage() {
               {' · '}
               {formatDate(detailEvent.startTime).time} – {formatDate(detailEvent.endTime).time}
             </p>
-            <p style={{ margin: '0 0 12px' }}>📍 <strong>{detailEvent.venueName}</strong></p>
+            <p style={{ margin: '0 0 12px' }}>Location: <strong>{detailEvent.venueName}</strong></p>
             <p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{detailEvent.description}</p>
             <p style={{ margin: 0, color: 'var(--muted)', fontSize: '.9rem' }}>
               R{Number(detailEvent.ticketPrice).toFixed(0)} · {detailEvent.capacity} seats · {detailEvent.attendeeCount} going

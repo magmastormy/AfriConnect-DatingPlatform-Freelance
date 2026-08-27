@@ -55,7 +55,7 @@ function VettingSandboxInner() {
       <div className="vet">
         <div className="vet-card vet-status">
           <div className="vet-status-mark good" aria-hidden>
-            ✓
+            Verified
           </div>
           <h1>Verified</h1>
           <p>Your ID check passed. Return to your laptop to continue — it updates automatically.</p>

@@ -12,9 +12,9 @@ const RECALL_MS = 30 * 60 * 1000;
 
 function previewOf(m: ConversationThread['lastMessage'], youId: string | undefined): string {
   if (!m) return 'No messages yet';
-  if (m.isDeleted) return m.recalledAt ? '↩ Message recalled' : 'This message was deleted';
+  if (m.isDeleted) return m.recalledAt ? 'Message recalled' : 'This message was deleted';
   const prefix = m.senderId === youId ? 'You: ' : '';
-  if (m.imageUrl) return `${prefix}📷 Photo`;
+  if (m.imageUrl) return `${prefix}Photo`;
   return `${prefix}${m.content}`;
 }
 
@@ -232,7 +232,7 @@ export default function MessagesPage() {
                     </span>
                     <span className="wa-thread-main">
                       <span className="wa-thread-top">
-                        <span className="wa-thread-name">{c.other?.displayName ?? 'Member'} {c.other?.verified && <span className="wa-verified" title="Verified">✓</span>}</span>
+                        <span className="wa-thread-name">{c.other?.displayName ?? 'Member'} {c.other?.verified && <span className="wa-verified" title="Verified">Verified</span>}</span>
                         <span className="wa-thread-time">{timeLabel(c.lastMessageAt)}</span>
                       </span>
                       <span className="wa-thread-preview">
@@ -279,7 +279,7 @@ export default function MessagesPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="wa-date-sep"><span>🔒 Messages are end-to-end encrypted</span></div>
+                      <div className="wa-date-sep"><span>Messages are end-to-end encrypted</span></div>
                       {(() => {
                         let lastDay = '';
                         return messages.map((m) => {
@@ -294,7 +294,7 @@ export default function MessagesPage() {
                               <div className={`wa-row ${mine ? 'mine' : 'theirs'}`}>
                                 <div className={`wa-bubble ${mine ? 'mine' : 'theirs'} ${m.isDeleted ? 'deleted' : ''}`}>
                                   {m.isDeleted ? (
-                                    <span className="wa-deleted">{m.recalledAt ? '↩ You deleted this message' : 'This message was deleted'}</span>
+                                    <span className="wa-deleted">{m.recalledAt ? 'You deleted this message' : 'This message was deleted'}</span>
                                   ) : (
                                     <>
                                       {m.imageUrl && <img className="wa-bubble-img" src={m.imageUrl} alt="shared" />}
@@ -350,7 +350,7 @@ export default function MessagesPage() {
                       aria-label="Message"
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); }}}
                     />
-                    <button className="wa-emoji" aria-label="Emoji" type="button" onClick={() => { setDraft((d) => d + '😊'); inputRef.current?.focus(); }}>☺</button>
+                    <button className="wa-emoji" aria-label="Attach emoji" type="button" onClick={() => toast('Emoji picker coming soon', 'info')}>Emoji</button>
                   </div>
                   {draft.trim() ? (
                     <button className="wa-send" onClick={send} disabled={busy} aria-label="Send">

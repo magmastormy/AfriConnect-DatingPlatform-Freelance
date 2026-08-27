@@ -10,6 +10,17 @@ const server = app.listen(config.port, () => {
   logger.info({ port: config.port, env: config.env }, 'AfriConnect API listening');
 });
 
+// ─── Load-balancer-friendly socket timeouts ────────────────────────────────
+// Render/Fly's edge LB closes idle keep-alive sockets at ~60s. If Node's
+// keepAliveTimeout is SHORTER than that, the server tears down a socket the LB
+// still considers open, and the next request on it arrives to a half-closed
+// connection → intermittent 502/ECONNRESET under load. Keep Node's idle
+// timeout a touch ABOVE the LB's so the LB always wins the race and closes
+// cleanly. headersTimeout must exceed keepAliveTimeout so a slow headers-only
+// request can't be killed mid-flight.
+server.keepAliveTimeout = 65000; // 5s above a typical 60s LB idle timeout
+server.headersTimeout = 66000; // 1s above keepAliveTimeout
+
 // Realtime chat hub shares the HTTP server via the upgrade handshake.
 setRealtimeHub(new RealtimeHub(server));
 

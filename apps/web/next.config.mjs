@@ -41,6 +41,13 @@ const nextConfig = {
   swcMinify: true,
   compress: true,
   poweredByHeader: false,
+  // Production hardening: drop debug console.* calls from the client bundle
+  // (they survive minification otherwise) to shrink First Load JS, and skip
+  // shipping source maps to end users (smaller download, less info leakage).
+  productionBrowserSourceMaps: false,
+  compiler: {
+    removeConsole: { exclude: ['error', 'warn'] },
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos' },

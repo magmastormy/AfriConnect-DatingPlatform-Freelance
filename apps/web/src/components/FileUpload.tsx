@@ -77,11 +77,11 @@ export function FileUpload({ label, accept, folder, value, onChange, disabled }:
         {isImage && value ? (
           <div className="fu-preview">
             <img src={value} alt="" />
-            <span className="fu-preview-badge">✓ Uploaded — tap to replace</span>
+            <span className="fu-preview-badge">Uploaded — tap to replace</span>
           </div>
         ) : value ? (
           <div className="fu-file">
-            <span className="fu-file-icon" aria-hidden>📄</span>
+            <span className="fu-file-icon" aria-hidden>File</span>
             <span className="fu-file-name">File attached</span>
             <a href={value} target="_blank" rel="noreferrer" className="fu-file-link" onClick={(e) => e.stopPropagation()}>View</a>
           </div>

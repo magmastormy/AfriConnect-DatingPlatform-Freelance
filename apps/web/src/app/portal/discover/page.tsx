@@ -418,7 +418,7 @@ function RedNoteModal({
               disabled={busy}
               onClick={() => handleAct('superlike')}
             >
-              ★ Superlike
+              Superlike
             </button>
             <button className="btn btn-primary" disabled={busy} onClick={() => handleAct('like')}>
               Like
@@ -697,7 +697,6 @@ export default function DiscoverPage() {
       {superCount > 0 && (
         <AwarenessBanner
           tone="superlike"
-          icon="★"
           title={`${superCount} new ${superCount === 1 ? 'superlike' : 'superlikes'}`}
           cta={{ label: 'Like them back', href: '/portal/matches?tab=daily' }}
         >

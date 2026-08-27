@@ -227,11 +227,11 @@ export default function SettingsPage() {
   }
 
   const tabs: { id: Tab; label: string; icon: string; desc: string }[] = [
-    { id: 'preferences', label: 'Matching', icon: '◐', desc: 'Age, distance, education' },
-    { id: 'privacy', label: 'Privacy', icon: '◑', desc: 'What others see' },
-    { id: 'photos', label: 'Photos', icon: '▣', desc: `${photos.length}/3 uploaded` },
-    { id: 'nearby', label: 'Nearby', icon: '◎', desc: nearbyEnabled ? 'Visible in Nearby' : 'Hidden' },
-    { id: 'security', label: 'Security', icon: '⬢', desc: 'Session & data' },
+    { id: 'preferences', label: 'Matching', icon: '', desc: 'Age, distance, education' },
+    { id: 'privacy', label: 'Privacy', icon: '', desc: 'What others see' },
+    { id: 'photos', label: 'Photos', icon: '', desc: `${photos.length}/3 uploaded` },
+    { id: 'nearby', label: 'Nearby', icon: '', desc: nearbyEnabled ? 'Visible in Nearby' : 'Hidden' },
+    { id: 'security', label: 'Security', icon: '', desc: 'Session & data' },
   ];
 
   if (loading) return <div className="state"><span className="spinner" /></div>;
