@@ -24,6 +24,42 @@ import { AuthenticationError, InternalError, logger } from '@africonnect/shared'
  * Raw tokens are never logged.
  */
 
+/**
+ * Resolve a user's primary email from the Clerk Backend API.
+ *
+ * Session JWTs only include the email claim when the active token template
+ * exposes it — Google-OAuth logins in this deployment do not, so `verifyClerkToken`
+ * returns an empty email and the auth row falls back to a `${clerkId}@clerk.local`
+ * placeholder. This lookup recovers the real email so the persisted `auth_users.email`
+ * stays correct and admin/user lookups by email work. Returns null when the secret
+ * key is absent or the fetch fails — the caller keeps its existing fallback then.
+ */
+export async function getClerkPrimaryEmail(clerkId: string): Promise<string | null> {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey || !clerkId) return null;
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(clerkId)}`, {
+      headers: { Authorization: `Bearer ${secretKey}` },
+    });
+    if (!res.ok) {
+      logger.warn({ clerkId, status: res.status }, 'Clerk user lookup returned non-OK status');
+      return null;
+    }
+    const u = (await res.json()) as {
+      email_addresses?: { id: string; email_address?: string }[];
+      primary_email_address_id?: string | null;
+    };
+    const primary =
+      (u.email_addresses || []).find((e: { id: string }) => e.id === u.primary_email_address_id) ||
+      (u.email_addresses || [])[0];
+    const email = primary?.email_address;
+    return typeof email === 'string' && email.length > 0 ? email.toLowerCase() : null;
+  } catch (err) {
+    logger.warn({ err, clerkId }, 'Clerk primary email lookup failed');
+    return null;
+  }
+}
+
 /** Clock skew tolerated on exp/nbf comparisons. */
 const CLOCK_SKEW_SECONDS = 60;
 /** How long a successful JWKS fetch is reused. */

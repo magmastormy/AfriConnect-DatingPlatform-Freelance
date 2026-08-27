@@ -19,7 +19,7 @@ import { assertWithinLimit } from '@config/rateLimiter';
 import { config } from '@config/index';
 import { logger } from '@africonnect/shared';
 import { UserRole, UserStatus, asEnum } from '@africonnect/shared';
-import { verifyClerkToken } from './clerkVerify';
+import { verifyClerkToken, getClerkPrimaryEmail } from './clerkVerify';
 
 /** OTP store for verification challenges. Injected so it can be swapped for
  *  a distributed (Redis) implementation in production without touching logic. */
@@ -151,23 +151,40 @@ export class AuthService implements IAuthService {
   async verifyClerk(clerkToken: string, ctx: SessionContext): Promise<AuthResult> {
     // Hardened JWKS + issuer verification lives in ./clerkVerify. It throws
     // AuthenticationError on any failure and never logs the raw token.
-    const { sub, email, firstName, lastName, fullName, imageUrl } =
+    const { sub, firstName, lastName, fullName, imageUrl } =
       await verifyClerkToken(clerkToken);
     logger.debug(
       { subject: sub, hasProfileData: !!(firstName || lastName || fullName) },
       'Clerk token verified',
     );
+    // Session tokens often omit the email claim (Google-OAuth template here).
+    // Recover the real primary email from the Clerk Backend API so we never
+    // fall back to a `${clerkId}@clerk.local` placeholder.
+    let resolvedEmail = '';
+    if (!resolvedEmail) {
+      const fromClerk = await getClerkPrimaryEmail(sub);
+      if (fromClerk) resolvedEmail = fromClerk;
+    }
     let user = await this.repo.findUserByClerkId(sub);
-    if (!user && email) {
-      user = await this.repo.findUserByEmail(email);
+    if (!user && resolvedEmail) {
+      user = await this.repo.findUserByEmail(resolvedEmail);
       if (user) await this.repo.attachClerkId(user.id, sub);
+    }
+    // The account may already exist with a placeholder email from a prior
+    // session-token login; backfill the now-known real email.
+    if (user && resolvedEmail && user.email.endsWith('@clerk.local')) {
+      try {
+        user = await this.repo.updateEmail(user.id, resolvedEmail);
+      } catch (err) {
+        logger.warn({ err, userId: user.id }, 'Failed to backfill Clerk email');
+      }
     }
     if (!user) {
       logger.info(
-        { sub, email, firstName, lastName, fullName, hasImage: !!imageUrl },
+        { sub, email: resolvedEmail, firstName, lastName, fullName, hasImage: !!imageUrl },
         'Creating new user from Clerk with profile data',
       );
-      user = await this.repo.createUserFromClerk(sub, email, {
+      user = await this.repo.createUserFromClerk(sub, resolvedEmail, {
         firstName,
         lastName,
         fullName,

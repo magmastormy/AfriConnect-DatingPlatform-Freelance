@@ -9,6 +9,7 @@ export interface IAuthRepository {
   findUserByPhone(phone: string): Promise<User | null>;
   findUserByClerkId(clerkId: string): Promise<User | null>;
   attachClerkId(userId: string, clerkId: string): Promise<void>;
+  updateEmail(userId: string, email: string): Promise<User>;
   createUserFromClerk(
     clerkId: string,
     email: string,
@@ -75,6 +76,10 @@ export class AuthRepository implements IAuthRepository {
 
   async attachClerkId(userId: string, clerkId: string): Promise<void> {
     await this.prisma.user.update({ where: { id: userId }, data: { clerkId } });
+  }
+
+  async updateEmail(userId: string, email: string): Promise<User> {
+    return this.prisma.user.update({ where: { id: userId }, data: { email } });
   }
 
   async createUserFromClerk(
