@@ -200,3 +200,58 @@ hermes verify        # build + typecheck + test + lint across all packages
 ```
 
 CI (`.github/workflows/ci.yml`) runs this on every push/PR.
+
+## 8. Scaling & performance (high concurrency)
+
+The service is a **modular monolith** designed to scale horizontally with zero code
+changes — every instance is stateless and shares state only through Postgres + Redis.
+
+### Horizontal scaling (load balancing)
+- **Web (Vercel):** auto-scales at the edge; nothing to configure.
+- **API (Render):** in the dashboard, raise the instance count on the
+  `africonnect-api` service (the `starter` plan is single-instance; pick a plan that
+  allows scaling, e.g. `standard`). Render's load balancer distributes traffic across
+  all instances. No sticky sessions needed — auth is JWT, realtime is Redis-backed.
+- **Do NOT** add in-process Node `cluster` inside the container. Each worker opens its
+  own Prisma connection pool, which multiplies DB connections and blows past the Aiven
+  connection quota. Horizontal scale via instances instead.
+
+### Why it is already fleet-safe
+- **Rate limiting is global, not per-instance.** `config/rateLimiter.ts` uses a
+  Redis sliding-window (`redisSlidingWindow`), so the limit is enforced across the
+  whole fleet, not N× per instance. Set `RATE_LIMIT_DISABLED=true` only for load tests.
+- **Realtime chat is cross-instance.** `modules/chat/chat.ws.ts` publishes presence and
+  messages over a Redis channel; a message sent on instance A is delivered to a
+  subscriber connected to instance B. Works the moment you run >1 instance.
+- **Connection pool is capped per instance.** `config/prisma.ts` sets
+  `connection_limit` (default 5, override with `PRISMA_CONNECTION_LIMIT`) and
+  `pool_timeout=20s` on the connection URL. With N instances the fleet uses
+  roughly `N × connection_limit` connections — keep that under your Aiven quota
+  (or put PgBouncer / Prisma Accelerate in front for transaction pooling).
+- **Graceful shutdown** (`server.ts`) drains keep-alive sockets and disconnects Prisma
+  on `SIGTERM`/`SIGINT`, so scale-down and deploys drop no in-flight requests.
+
+### Load-balancer socket tuning
+`server.ts` sets `keepAliveTimeout=65s` and `headersTimeout=66s` — a few seconds above a
+typical 60s LB idle timeout. This prevents the classic "server closes a socket the LB
+still thinks is open → 502 / ECONNRESET under load" race.
+
+### Reducing payload size (mobile networks)
+- The API compresses all compressible JSON/text responses with brotli/gzip
+  (`config/compression.ts`, Node `zlib`, no extra dependency; 1 KB threshold so tiny
+  bodies are not wasted CPU). Honours `Accept-Encoding`; sets `Vary: Accept-Encoding`.
+- The web ships minified JS with `swcMinify` + `productionBrowserSourceMaps:false` +
+  `compiler.removeConsole`, and serves images as AVIF/WebP via `next/image`.
+- Hot read paths are Redis-cached (discover, matches, events, notifications, settings)
+  with short TTLs, so the DB is hit far less than request volume.
+
+### Connection pool quick reference
+| Instances | PRISMA_CONNECTION_LIMIT | Approx. Postgres conns |
+|-----------|------------------------|-----------------------|
+| 1         | 5 (default)            | ~5                    |
+| 3         | 5                      | ~15                   |
+| 3         | 3                      | ~9                    |
+| 5         | 3                      | ~15                   |
+
+Lower `PRISMA_CONNECTION_LIMIT` as you add instances to stay within Aiven's free-tier
+connection ceiling.

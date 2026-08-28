@@ -46,10 +46,13 @@ export function compressResponses(opts: CompressOptions = {}) {
 
     // Capture the real socket methods BEFORE we shadow res.end, so the
     // compressor can write straight to the wire without recursing into itself.
-    const origWrite = res.write.bind(res);
-    const origEnd = res.end.bind(res);
+    // We use a structurally-identical signature (chunk is `unknown` rather than
+    // Express's `any`) so there are no `any` casts in this hot path.
+    type EndFn = (chunk?: unknown, encoding?: BufferEncoding, cb?: () => void) => Response;
+    const origWrite = res.write.bind(res) as (chunk: Uint8Array | string) => boolean;
+    const origEnd = res.end.bind(res) as unknown as EndFn;
 
-    res.end = function (chunk?: any, ...rest: any[]) {
+    const newEnd: EndFn = function (chunk?: unknown, encoding?: BufferEncoding, cb?: () => void) {
       const status = res.statusCode;
       const ctype = String(res.getHeader('Content-Type') || '');
       const alreadyEncoded = !!res.getHeader('Content-Encoding');
@@ -63,16 +66,15 @@ export function compressResponses(opts: CompressOptions = {}) {
         noTransform ||
         !COMPRESSIBLE.test(ctype)
       ) {
-        return (origEnd as any)(chunk, ...rest);
+        return origEnd(chunk, encoding, cb);
       }
 
       const len = res.getHeader('Content-Length');
       if (typeof len === 'string' && Number(len) < threshold) {
-        return (origEnd as any)(chunk, ...rest);
+        return origEnd(chunk, encoding, cb);
       }
 
-      const userCb =
-        typeof rest[rest.length - 1] === 'function' ? (rest[rest.length - 1] as () => void) : undefined;
+      const userCb = typeof cb === 'function' ? cb : undefined;
 
       res.setHeader('Content-Encoding', enc);
       res.removeHeader('Content-Length');
