@@ -65,7 +65,7 @@ export interface IMatchService {
    * out" dead-end and to keep the pool broad for new members.
    */
   discover(userId: string, opts?: DiscoverQuery): Promise<RecommendCard[]>;
-  getPreview(limit?: number): Promise<DiscoverCard[]>;
+  getPreview(limit?: number, excludeUserId?: string): Promise<DiscoverCard[]>;
   /** Full hybrid recommender (content + CF + diversity + business rules). */
   recommend(userId: string, opts?: { limit?: number; radiusKm?: number }): Promise<RecommendCard[]>;
 }
@@ -561,11 +561,15 @@ export class MatchService implements IMatchService {
    * DISCOVER_PREVIEW_LIMIT so an unverified account can never browse the full
    * discovery pool. The act of connecting remains gated by vetting elsewhere.
    */
-  async getPreview(limit?: number): Promise<DiscoverCard[]> {
+  async getPreview(limit?: number, excludeUserId?: string): Promise<DiscoverCard[]> {
     const cap = Math.min(limit ?? DISCOVER_PREVIEW_LIMIT, DISCOVER_PREVIEW_LIMIT);
 
     const candidates = await this.repo.findMatchableCandidates(
-      { isPaused: false, isComplete: true },
+      {
+        isPaused: false,
+        isComplete: true,
+        ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
+      },
       { skip: 0, take: cap },
     );
 

@@ -102,7 +102,7 @@ export class MatchController {
 
   preview = asyncHandler(async (req: Request, res: Response) => {
     const limit = req.query.limit ? Math.min(50, Number(req.query.limit)) : undefined;
-    const cards = await this.service.getPreview(limit);
+    const cards = await this.service.getPreview(limit, req.user?.userId);
     res.status(200).json(success(cards));
   });
 }

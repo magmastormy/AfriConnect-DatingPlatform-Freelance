@@ -6,8 +6,9 @@ import { api, ApiError } from '@/lib/api';
 import { SubscriptionStatus } from '@/lib/shared';
 import { useAuth } from '@/lib/auth';
 import { can, Capability, MembershipStage } from '@/lib/membership';
-import { DiscoverCard } from '@/lib/types';
-import { labelCity } from '@/lib/labels';
+import { DiscoverCard, ProfileRedNoteView } from '@/lib/types';
+import { labelCity, labelEducation } from '@/lib/labels';
+import { Badge } from '@/components/ui';
 
 interface Profile {
   firstName?: string;
@@ -31,6 +32,17 @@ const CITIES: Record<string, string> = {
   pietermaritzburg: 'Pietermaritzburg',
 };
 
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
+  return age > 0 ? age : null;
+}
+
 export default function PortalDashboard() {
   const { stage } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -39,6 +51,9 @@ export default function PortalDashboard() {
   const [preview, setPreview] = useState<DiscoverCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileView, setProfileView] = useState<ProfileRedNoteView | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Even unvetted members can preview a few seeded members; only the act of
   // connecting (like / pass) is gated behind vetting.
@@ -67,6 +82,25 @@ export default function PortalDashboard() {
       }
     })();
   }, []);
+
+  async function openProfile(userId: string) {
+    setProfileId(userId);
+    setProfileLoading(true);
+    try {
+      const view = await api.getProfile(userId);
+      setProfileView(view);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to load profile');
+      setProfileId(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  function closeProfile() {
+    setProfileId(null);
+    setProfileView(null);
+  }
 
   const planLabel = sub ? sub.plan : 'Free';
   const active = sub?.status === SubscriptionStatus.Active;
@@ -190,7 +224,21 @@ export default function PortalDashboard() {
           <>
             <div className="member-grid">
               {preview.map((m) => (
-                <div className="member-card" key={m.userId}>
+                <div
+                  className="member-card"
+                  key={m.userId}
+                  style={{ cursor: 'pointer' }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openProfile(m.userId)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openProfile(m.userId);
+                    }
+                  }}
+                  aria-label={`View profile of ${m.displayName ?? 'Member'}`}
+                >
                   <div
                     className="member-photo"
                     style={m.photos.length ? { backgroundImage: `url(${m.photos[0]})` } : undefined}
@@ -205,22 +253,26 @@ export default function PortalDashboard() {
                       {labelCity(m.city)}
                       {m.profession ? ` · ${m.profession}` : ''}
                     </span>
-                    {canConnect ? (
-                      <Link href="/portal/discover" className="btn btn-subtle member-action">
-                        View &amp; connect
-                      </Link>
-                    ) : (
-                      <Link href="/get-vetted" className="btn btn-subtle member-action">
-                        Get vetted to connect
-                      </Link>
-                    )}
+                    <button
+                      type="button"
+                      className="btn btn-subtle member-action"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openProfile(m.userId);
+                      }}
+                    >
+                      View profile
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
             {!canConnect && (
               <p className="muted" style={{ marginTop: '0.75rem' }}>
-                You can see who’s here, but connecting opens once you’re vetted.
+                You can see who’s here, but connecting opens once you’re vetted.{' '}
+                <Link href="/get-vetted" style={{ textDecoration: 'underline' }}>
+                  Get vetted now
+                </Link>
               </p>
             )}
           </>
@@ -256,6 +308,137 @@ export default function PortalDashboard() {
           </Link>
         </section>
       )}
+
+      {profileId && (
+        <HomeProfileModal
+          userId={profileId}
+          view={profileView}
+          loading={profileLoading}
+          onClose={closeProfile}
+        />
+      )}
     </>
   );
 }
+
+function HomeProfileModal({
+  view,
+  loading,
+  onClose,
+}: {
+  userId: string;
+  view: ProfileRedNoteView | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const age = ageFromDob(view?.dateOfBirth);
+  const photos = view?.photos?.length ? view.photos : [];
+
+  useEffect(() => {
+    setPhotoIdx(0);
+  }, [view?.userId]);
+
+  return (
+    <div className="modal-shell" onClick={onClose}>
+      <div className="modal-card match-profile-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-title-row">
+          <div className="modal-name">Member Profile</div>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        {loading && (
+          <div className="match-profile-empty">
+            <span className="spinner" aria-label="Loading" />
+            <p>Loading profile…</p>
+          </div>
+        )}
+
+        {!loading && !view && (
+          <div className="match-profile-empty">
+            <p>Could not load profile.</p>
+          </div>
+        )}
+
+        {view && (
+          <>
+            {photos.length > 0 ? (
+              <>
+                <div
+                  className="match-profile-photos"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    const idx = Math.round(target.scrollLeft / target.clientWidth);
+                    setPhotoIdx(idx);
+                  }}
+                >
+                  {photos.map((url, i) => (
+                    <div
+                      key={`${url}-${i}`}
+                      className="match-profile-photo"
+                      style={{ backgroundImage: `url(${url})` }}
+                      aria-label={`Photo ${i + 1} of ${photos.length}`}
+                    />
+                  ))}
+                </div>
+                {photos.length > 1 && (
+                  <div className="match-profile-dots">
+                    {photos.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`match-profile-dot ${i === photoIdx ? 'is-on' : ''}`}
+                        aria-label={`Photo ${i + 1}`}
+                        onClick={() => setPhotoIdx(i)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="match-profile-empty">No photos</div>
+            )}
+
+            <div className="match-profile-meta">
+              <h2 className="match-profile-name">
+                {view.displayName ?? view.fullName ?? 'Member'}
+                {age ? ` · ${age}` : null}
+              </h2>
+              <p className="match-profile-sub">
+                {labelCity(view.location?.city)}
+                {view.profession ? ` · ${view.profession}` : ''}
+                {view.educationLevel ? ` · ${labelEducation(view.educationLevel)}` : ''}
+              </p>
+              <div className="match-profile-badges">
+                {view.verified && <Badge tone="good">Verified</Badge>}
+                {view.isPremium && <Badge tone="warn">Premium</Badge>}
+              </div>
+              {view.headline && (
+                <p className="match-profile-bio">
+                  <strong>{view.headline}</strong>
+                </p>
+              )}
+              {view.bio && <p className="match-profile-bio">{view.bio}</p>}
+              {view.industry && view.industry.length > 0 && (
+                <p className="match-profile-bio" style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                  {view.industry.join(' · ')}
+                </p>
+              )}
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                <Link href="/portal/discover" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                  Discover &amp; Connect
+                </Link>
+                <button type="button" className="btn btn-ghost" onClick={onClose}>
+                  Back
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+

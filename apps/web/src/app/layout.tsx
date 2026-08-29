@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/components/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SiteNav } from '@/components/SiteNav';
+import { SiteFooter } from '@/components/SiteFooter';
 import { JsonLd } from '@/components/JsonLd';
 import { ThemeProvider } from '@/lib/theme';
 import { THEME_COOKIE, isThemeSetting, type ThemeSetting } from '@/lib/theme.utils';
@@ -119,42 +120,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <ErrorBoundary>
                     <SiteNav />
                     <main className="app">{children}</main>
-                  <footer className="lp-footer">
-                    <div className="lp-footer-inner">
-                      <div>
-                        <span className="lp-wordmark">AfriConnect</span>
-                        <p className="lp-footer-tag">
-                          A vetted community for highly educated African professionals.
-                        </p>
-                      </div>
-                      <nav className="lp-footer-cols" aria-label="Footer">
-                        <div>
-                          <h4>Product</h4>
-                          <a href="/discover">Discover</a>
-                          <a href="/matches">Matches</a>
-                          <a href="/events">Events</a>
-                        </div>
-                        <div>
-                          <h4>Company</h4>
-                          <a href="/contact">Contact</a>
-                          <a href="/privacy">Privacy & POPIA</a>
-                          <a href="/terms">Terms</a>
-                        </div>
-                        <div>
-                          <h4>Membership</h4>
-                          <a href="/sign-up">Create account</a>
-                          <a href="/sign-in">Sign in</a>
-                        </div>
-                      </nav>
-                    </div>
-                    <div className="lp-footer-base">
-                      <span>
-                        © {new Date().getFullYear()} AfriConnect Professionals. All rights reserved.
-                      </span>
-                      <span>Johannesburg · Cape Town · Nairobi</span>
-                    </div>
-                  </footer>
-                </ErrorBoundary>
+                    <SiteFooter />
+                  </ErrorBoundary>
               </ToastProvider>
             </ClerkProvider>
             </NotificationProvider>
