@@ -3,6 +3,7 @@ import { config } from './config';
 import { prisma } from './config/prisma';
 import { logger } from '@africonnect/shared';
 import { RealtimeHub, setRealtimeHub } from './modules/chat';
+import { setMockChatRealtimeHub } from './modules/mockchat';
 
 const app = createApp();
 
@@ -22,7 +23,9 @@ server.keepAliveTimeout = 65000; // 5s above a typical 60s LB idle timeout
 server.headersTimeout = 66000; // 1s above keepAliveTimeout
 
 // Realtime chat hub shares the HTTP server via the upgrade handshake.
-setRealtimeHub(new RealtimeHub(server));
+const realtimeHub = new RealtimeHub(server);
+setRealtimeHub(realtimeHub);
+setMockChatRealtimeHub(realtimeHub);
 
 let shuttingDown = false;
 

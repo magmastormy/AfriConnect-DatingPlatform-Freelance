@@ -32,6 +32,7 @@ import { buildUploadModule } from './modules/upload';
 import { buildAnalyticsModule } from './modules/analytics';
 import { buildDiscoverModule } from './modules/discover';
 import { buildVettingModule } from './modules/vetting';
+import { buildMockChatModule } from './modules/mockchat';
 
 /** Compose the Express application from module routers. */
 export function createApp(): Express {
@@ -141,6 +142,10 @@ export function createApp(): Express {
   app.use(`${mount}/analytics`, buildAnalyticsModule());
   app.use(`${mount}/discover`, buildDiscoverModule());
   app.use(`${mount}/vetting`, buildVettingModule());
+  // Mock chat (LLM-powered personas) - only mounted when enabled
+  if (process.env.MOCK_CHAT_ENABLED === 'true') {
+    app.use(`${mount}/mockchat`, buildMockChatModule());
+  }
 
   // Served user uploads (chat images). Bounded by auth at the upload endpoint.
   app.use(

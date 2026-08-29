@@ -46,18 +46,54 @@ export function compressResponses(opts: CompressOptions = {}) {
 
     // Capture the real socket methods BEFORE we shadow res.end, so the
     // compressor can write straight to the wire without recursing into itself.
-    // We use a structurally-identical signature (chunk is `unknown` rather than
-    // Express's `any`) so there are no `any` casts in this hot path.
-    type EndFn = (chunk?: unknown, encoding?: BufferEncoding, cb?: () => void) => Response;
+    type ResEnd = typeof res.end;
     const origWrite = res.write.bind(res) as (chunk: Uint8Array | string) => boolean;
-    const origEnd = res.end.bind(res) as unknown as EndFn;
+    const origEnd = res.end.bind(res) as ResEnd;
 
-    const newEnd: EndFn = function (chunk?: unknown, encoding?: BufferEncoding, cb?: () => void) {
+    const newEnd: ResEnd = function (
+      this: Response, chunk?: unknown, encoding?: BufferEncoding | (() => void), cb?: () => void): Response {
+      // Normalize overloaded res.end() parameters (Express supports 4 signatures:
+      //   res.end()
+      //   res.end(callback)
+      //   res.end(chunk, callback?)
+      //   res.end(chunk, encoding, callback?)
+      let bodyChunk: unknown;
+      let bodyEncoding: BufferEncoding | undefined;
+      let bodyCb: (() => void) | undefined;
+      if (typeof chunk === 'function') {
+        bodyCb = chunk as () => void;
+      } else if (typeof encoding === 'function') {
+        bodyChunk = chunk;
+        bodyCb = encoding as () => void;
+      } else {
+        bodyChunk = chunk;
+        bodyEncoding = encoding as BufferEncoding | undefined;
+        bodyCb = cb;
+      }
+
       const status = res.statusCode;
       const ctype = String(res.getHeader('Content-Type') || '');
       const alreadyEncoded = !!res.getHeader('Content-Encoding');
       const cc = res.getHeader('Cache-Control');
       const noTransform = typeof cc === 'string' && /no-transform/i.test(cc);
+
+      const passThrough = (): Response => {
+        const self = this as Response;
+        const rawEnd = origEnd as unknown as (
+          this: Response,
+          chunk?: unknown,
+          encoding?: BufferEncoding | (() => void),
+          cb?: () => void,
+        ) => Response;
+        if (bodyCb !== undefined) {
+          if (bodyChunk == null) return rawEnd.call(self, undefined, undefined, bodyCb);
+          if (bodyEncoding !== undefined) return rawEnd.call(self, bodyChunk, bodyEncoding, bodyCb);
+          return rawEnd.call(self, bodyChunk, bodyCb);
+        }
+        if (bodyEncoding !== undefined) return rawEnd.call(self, bodyChunk, bodyEncoding);
+        if (bodyChunk == null) return rawEnd.call(self);
+        return rawEnd.call(self, bodyChunk);
+      };
 
       if (
         alreadyEncoded ||
@@ -66,15 +102,13 @@ export function compressResponses(opts: CompressOptions = {}) {
         noTransform ||
         !COMPRESSIBLE.test(ctype)
       ) {
-        return origEnd(chunk, encoding, cb);
+        return passThrough();
       }
 
       const len = res.getHeader('Content-Length');
       if (typeof len === 'string' && Number(len) < threshold) {
-        return origEnd(chunk, encoding, cb);
+        return passThrough();
       }
-
-      const userCb = typeof cb === 'function' ? cb : undefined;
 
       res.setHeader('Content-Encoding', enc);
       res.removeHeader('Content-Length');
@@ -98,9 +132,9 @@ export function compressResponses(opts: CompressOptions = {}) {
         },
         final(done) {
           try {
-            (origEnd as (cb?: () => void) => void)();
+            (origEnd as (cb?: () => void) => Response).call(res);
           } finally {
-            if (userCb) userCb();
+            if (bodyCb) bodyCb();
             done();
           }
         },
@@ -108,16 +142,13 @@ export function compressResponses(opts: CompressOptions = {}) {
 
       stream.pipe(sink);
 
-      if (chunk == null) stream.end();
-      else if (rest.length >= 2 || typeof rest[0] === 'string') {
-        // res.end(body, encoding[, cb]) — forward encoding to the compressor
-        stream.end(chunk, rest[0] as BufferEncoding);
-      } else {
-        stream.end(chunk);
-      }
+      if (bodyChunk == null) stream.end();
+      else if (typeof bodyEncoding === 'string') stream.end(bodyChunk as string | Uint8Array, bodyEncoding);
+      else stream.end(bodyChunk as string | Uint8Array);
       return res;
-    } as typeof res.end;
+    };
 
+    res.end = newEnd;
     next();
   };
 }
