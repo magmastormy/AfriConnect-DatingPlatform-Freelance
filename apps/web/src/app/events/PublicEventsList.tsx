@@ -51,6 +51,7 @@ export function PublicEventsList() {
   const [events, setEvents] = useState<EventView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [q, setQ] = useState('');
   const [city, setCity] = useState<string>('all');
   const [type, setType] = useState<string>('all');
@@ -60,6 +61,7 @@ export function PublicEventsList() {
   useEffect(() => {
     let alive = true;
     void (async () => {
+      setError(null);
       try {
         const list = await api.get<EventView[]>('/events');
         if (alive) setEvents(list);
@@ -70,7 +72,7 @@ export function PublicEventsList() {
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [reloadKey]);
 
   const filtered = useMemo(() => {
     let out = [...events];
@@ -142,8 +144,6 @@ export function PublicEventsList() {
         </div>
       </header>
 
-      {error && <div className="notice" style={{ marginTop: '1rem' }}>{error}</div>}
-
       {/* Filters — sticky on desktop */}
       <div className="events-filters">
         <div className="events-search">
@@ -200,10 +200,18 @@ export function PublicEventsList() {
           <div className="events-empty-ill" aria-hidden>
             <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><rect x="8" y="12" width="64" height="52" rx="12" fill="var(--surface-3)" stroke="var(--line)" /><path d="M24 36h32M24 44h20" stroke="var(--line-strong)" strokeWidth="1.6" strokeLinecap="round" /></svg>
           </div>
-          <h3>No events match your filters</h3>
-          <p>Try clearing filters or check back soon — new dates land every month.</p>
+          <h3>{error ? 'We couldn’t load the events' : 'No events match your filters'}</h3>
+          <p>{error ?? 'Try clearing filters or check back soon — new dates land every month.'}</p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-subtle" onClick={() => { setQ(''); setCity('all'); setType('all'); setFeaturedOnly(false); }}>Clear filters</button>
+            {error ? (
+              <button className="btn btn-subtle" type="button" onClick={() => setReloadKey((key) => key + 1)}>
+                Try again
+              </button>
+            ) : (
+              <button className="btn btn-subtle" type="button" onClick={() => { setQ(''); setCity('all'); setType('all'); setFeaturedOnly(false); }}>
+                Clear filters
+              </button>
+            )}
             <Link href="/sign-up" className="btn btn-primary">Create account</Link>
           </div>
         </div>

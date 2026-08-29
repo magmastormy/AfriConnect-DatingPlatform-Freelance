@@ -65,6 +65,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
 
   const isWide = WIDE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+  const isImmersiveDiscover = pathname === '/portal/discover';
 
   useEffect(() => {
     // Clerk can be authenticated a moment before its session bridge exchanges
@@ -130,7 +131,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     href === '/portal' ? pathname === '/portal' : pathname.startsWith(href);
 
   return (
-    <div className="portal-shell">
+    <div className={`portal-shell ${isImmersiveDiscover ? 'is-immersive-discover' : ''}`}>
       {/* ── Left rail — Facebook-web: sticky card, icon + label ── */}
       <aside className={`portal-nav ${navOpen ? 'is-open' : ''}`} aria-label="Portal navigation">
         <div className="portal-brand">
@@ -178,19 +179,20 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className={`portal-content ${isWide ? 'is-wide' : ''}`}>
-        {/* Mobile top bar — app-like: hamburger + wordmark + avatar + notifications */}
-        <div className="portal-mobilebar">
-          <button className="portal-menu-btn" onClick={() => setNavOpen(true)} aria-label="Open menu" type="button">
-            <span className="portal-hamburger" aria-hidden><i/><i/><i/></span>
-          </button>
-          <span className="portal-mobile-title">AfriConnect</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <NotificationBell />
-            <Link href="/portal/account" className="portal-mobile-avatar" aria-label="My profile">
-              {clerkUser?.imageUrl ? <img src={clerkUser.imageUrl} alt="" /> : <span>{displayName.charAt(0).toUpperCase()}</span>}
-            </Link>
-          </span>
-        </div>
+        {!isImmersiveDiscover && (
+          <div className="portal-mobilebar">
+            <button className="portal-menu-btn" onClick={() => setNavOpen(true)} aria-label="Open menu" type="button">
+              <span className="portal-hamburger" aria-hidden><i/><i/><i/></span>
+            </button>
+            <span className="portal-mobile-title">AfriConnect</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <NotificationBell />
+              <Link href="/portal/account" className="portal-mobile-avatar" aria-label="My profile">
+                {clerkUser?.imageUrl ? <img src={clerkUser.imageUrl} alt="" /> : <span>{displayName.charAt(0).toUpperCase()}</span>}
+              </Link>
+            </span>
+          </div>
+        )}
         {children}
       </main>
 
