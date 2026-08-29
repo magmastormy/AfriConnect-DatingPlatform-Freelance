@@ -177,7 +177,6 @@ export default function MatchesPage() {
         <ApiState
           loading={loading}
           error={error}
-          empty={tab === 'daily' ? daily.length === 0 : mutual.length === 0}
         >
           {tab === 'daily' &&
             (daily.length === 0 ? (
