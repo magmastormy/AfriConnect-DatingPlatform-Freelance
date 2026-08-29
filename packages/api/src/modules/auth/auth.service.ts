@@ -205,7 +205,7 @@ export class AuthService implements IAuthService {
       accessToken: issued.accessToken,
       refreshToken: issued.refreshToken,
       user: {
-        id: user.id,
+        userId: user.id,
         email: user.email,
         role: asEnum<UserRole>(user.role),
         status: asEnum<UserStatus>(user.status),

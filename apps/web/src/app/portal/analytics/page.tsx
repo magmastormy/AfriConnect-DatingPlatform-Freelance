@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
   }, [win]);
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto' }}>
+    <div style={{ width: '100%' }}>
       <div className="page-head">
         <h1>Your analytics</h1>
         <p>How your profile is performing — views, likes, matches, RSVPs. Like IG Insights, but for dating.</p>

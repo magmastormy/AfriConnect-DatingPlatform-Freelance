@@ -23,7 +23,7 @@ export const JWT_REFRESH_TTL_DAYS = 7;
 
 // ── Matching (Technical Stack §3 Module 4) ─────────────────────────────────
 export const DAILY_MATCH_LIMIT = 5;
-export const MIN_COMPATIBILITY_THRESHOLD = 60;
+export const MIN_COMPATIBILITY_THRESHOLD = 20;
 export const MATCH_SCORE_EDUCATION = 30;
 export const MATCH_SCORE_PROFESSION = 25;
 export const MATCH_SCORE_AGE = 20;

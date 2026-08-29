@@ -127,7 +127,50 @@ interface ApiResponse<T> {
   error: { code: string; message: string; field?: string; details?: unknown } | null;
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) return false;
+
+      const deviceId = getDeviceId();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (deviceId) headers['X-Device-Id'] = deviceId;
+
+      const res = await fetch(apiPath('/auth/refresh'), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ refreshToken }),
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        clearTokens();
+        return false;
+      }
+
+      const json = (await res.json()) as ApiResponse<{ accessToken: string; refreshToken: string }>;
+      if (json.success && json.data?.accessToken) {
+        setTokens(json.data.accessToken, json.data.refreshToken || refreshToken);
+        return true;
+      }
+      clearTokens();
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+async function request<T>(method: string, path: string, body?: unknown, allowRetry = true): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -154,6 +197,20 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError('Network error', 'NETWORK', 0);
   } finally {
     clearTimeout(timeout);
+  }
+
+  // If token expired, attempt automatic silent refresh and retry request
+  if (
+    res.status === 401 &&
+    allowRetry &&
+    !path.startsWith('/auth/refresh') &&
+    !path.startsWith('/auth/logout') &&
+    !path.startsWith('/auth/clerk/exchange')
+  ) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      return request<T>(method, path, body, false);
+    }
   }
 
   let json: ApiResponse<T>;

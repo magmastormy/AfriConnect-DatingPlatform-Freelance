@@ -146,7 +146,7 @@ export class MatchService implements IMatchService {
 
     const candidates = await this.repo.findMatchableCandidates(where, {
       skip: 0,
-      take: DAILY_MATCH_LIMIT * 4, // over-fetch so scoring can rank down to the limit
+      take: DAILY_MATCH_LIMIT * 10, // over-fetch so scoring can rank down to the limit
     });
 
     // Enrich candidates with photo + distance so daily-match cards carry a face
@@ -158,7 +158,7 @@ export class MatchService implements IMatchService {
     const viewerLon = viewer.longitude ?? null;
 
     const viewerPrefs: MatchPreferences = { ...prefs, interests: prefs.interests ?? [] };
-    const scored = candidates
+    const allScored = candidates
       .map((c) => {
         const candidate = toCandidate(c);
         const base = scoreCompatibility({ preferences: viewerPrefs }, candidate);
@@ -167,9 +167,16 @@ export class MatchService implements IMatchService {
         const final = applyPenalties(base, {});
         return { candidate, score: final };
       })
-      .filter((s) => passesThreshold(s.score))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, DAILY_MATCH_LIMIT);
+      .sort((a, b) => b.score - a.score);
+
+    // Apply threshold — but fall back to top-N if every candidate scores below
+    // it (e.g. very sparse user prefs or a small member pool). This ensures the
+    // daily queue always has candidates rather than returning empty.
+    const aboveThreshold = allScored.filter((s) => passesThreshold(s.score));
+    const scored = (aboveThreshold.length > 0 ? aboveThreshold : allScored).slice(
+      0,
+      DAILY_MATCH_LIMIT,
+    );
 
     const entries: DailyMatchEntry[] = scored.map(({ candidate, score }) => {
       const profile = byUser.get(candidate.userId);

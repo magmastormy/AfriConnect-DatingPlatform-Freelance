@@ -86,6 +86,14 @@ export default function EventsPage() {
     })();
   }, []);
 
+  // Escape closes the host sheet
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowForm(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showForm]);
+
   const filtered = useMemo(() => {
     let out = [...events];
     if (q.trim()) {
@@ -206,28 +214,43 @@ export default function EventsPage() {
       {/* Host sheet */}
       {showForm && (
         <div className="modal-shell" onClick={() => setShowForm(false)}>
-          <div className="modal-card" style={{ maxWidth: 640, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title-row">
-              <div className="modal-name">Host a new event</div>
-              <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Close</button>
-            </div>
-            <p className="modal-sub">Submitted for admin review — appears publicly once approved.</p>
-            <form onSubmit={submitForm} className="stack" style={{ marginTop: 12 }}>
-              <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-              <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
-              <div className="grid2">
-                <Select label="Type" value={form.eventType} onChange={(e) => setForm({ ...form, eventType: e.target.value })}>{EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</Select>
-                <Select label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}>{CITIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select>
-                <Input label="Venue name" value={form.venueName} onChange={(e) => setForm({ ...form, venueName: e.target.value })} required />
-                <Input label="Venue address" value={form.venueAddress} onChange={(e) => setForm({ ...form, venueAddress: e.target.value })} required />
-                <Input label="Starts" type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} required />
-                <Input label="Ends" type="datetime-local" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} required />
-                <Input label="Capacity" type="number" min={1} max={1000} value={String(form.capacity)} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} required />
-                <Input label="Ticket price (ZAR)" type="number" min={0} value={String(form.ticketPrice)} onChange={(e) => setForm({ ...form, ticketPrice: Number(e.target.value) })} required />
-                <Input label="Dress code" value={form.dressCode} onChange={(e) => setForm({ ...form, dressCode: e.target.value })} />
+          <div className="modal-card ev-host-modal" role="dialog" aria-modal="true" aria-label="Host a new event" onClick={(e) => e.stopPropagation()}>
+            <div className="ev-host-head">
+              <div>
+                <div className="modal-name">Host a new event</div>
+                <p className="modal-sub">Submitted for admin review — appears publicly once approved.</p>
               </div>
-              {formError && <div className="notice">{formError}</div>}
-              <div className="row-actions">
+              <button className="ev-host-close" onClick={() => setShowForm(false)} aria-label="Close" type="button">×</button>
+            </div>
+            <form onSubmit={submitForm} className="ev-host-body">
+              <div className="ev-host-section">
+                <p className="ev-host-legend">The basics</p>
+                <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+                <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
+              </div>
+              <div className="ev-host-section">
+                <p className="ev-host-legend">Where &amp; when</p>
+                <div className="grid2">
+                  <Select label="Type" value={form.eventType} onChange={(e) => setForm({ ...form, eventType: e.target.value })}>{EVENT_TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}</Select>
+                  <Select label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}>{CITIES.map((c) => <option key={c} value={c}>{cityLabel(c)}</option>)}</Select>
+                  <Input label="Venue name" value={form.venueName} onChange={(e) => setForm({ ...form, venueName: e.target.value })} required />
+                  <Input label="Venue address" value={form.venueAddress} onChange={(e) => setForm({ ...form, venueAddress: e.target.value })} required />
+                  <Input label="Starts" type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} required />
+                  <Input label="Ends" type="datetime-local" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} required />
+                </div>
+              </div>
+              <div className="ev-host-section">
+                <p className="ev-host-legend">Capacity &amp; pricing</p>
+                <div className="grid2">
+                  <Input label="Capacity" type="number" min={1} max={1000} value={String(form.capacity)} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} required />
+                  <Input label="Ticket price (ZAR)" type="number" min={0} value={String(form.ticketPrice)} onChange={(e) => setForm({ ...form, ticketPrice: Number(e.target.value) })} required />
+                  <span style={{ gridColumn: '1 / -1' }}>
+                    <Input label="Dress code" value={form.dressCode} onChange={(e) => setForm({ ...form, dressCode: e.target.value })} />
+                  </span>
+                </div>
+              </div>
+              {formError && <div className="notice" style={{ margin: 0 }}>{formError}</div>}
+              <div className="ev-host-foot">
                 <Button type="submit" disabled={formBusy}>{formBusy ? 'Submitting…' : 'Submit for review'}</Button>
                 <Button variant="ghost" type="button" onClick={() => setShowForm(false)}>Cancel</Button>
               </div>

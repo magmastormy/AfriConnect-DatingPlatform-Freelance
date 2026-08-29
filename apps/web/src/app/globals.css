@@ -1211,7 +1211,7 @@ a:hover { color: var(--brand-ink); }
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 1.75rem;
-  align-items: start;
+  align-items: stretch;
   min-height: calc(100vh - 88px);
   padding: 1.75rem 0 3.5rem;
   width: 100%;
@@ -1220,6 +1220,7 @@ a:hover { color: var(--brand-ink); }
 .portal-nav {
   position: sticky;
   top: 88px;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1283,7 +1284,7 @@ a:hover { color: var(--brand-ink); }
 }
 .portal-signout:hover { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 30%, var(--line)); background: color-mix(in srgb, var(--bad) 6%, transparent); }
 
-.portal-content { min-width: 0; margin-right: auto; max-width: 100%; }
+.portal-content { min-width: 0; width: 100%; max-width: 100%; min-height: 100%; }
 .portal-content.is-wide { max-width: 100%; }
 
 /* Mobile app bar (inside portal-content) — like IG/TikTok header */
@@ -1382,7 +1383,7 @@ a:hover { color: var(--brand-ink); }
 }
 
 /* ── Settings — polished responsive (FB/IG style) ─────────────────────────── */
-.settings-page { max-width: 980px; margin: 0 auto; }
+.settings-page { width: 100%; max-width: 100%; }
 .settings-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 1.25rem; align-items: start; }
 .settings-nav {
   position: sticky; top: 88px;
@@ -1458,11 +1459,13 @@ a:hover { color: var(--brand-ink); }
 }
 
 /* Tablet (861–1024px): keep the desktop shell but tighten it so the sidebar
-   and content don't feel stretched on a 10" tablet in landscape. */
+   and content don't feel stretched on a 10" tablet in landscape.
+   WIDE_ROUTES (/portal/messages, /portal/settings, /portal/account) still
+   take full width because chat + settings need the space. */
 @media (min-width: 861px) and (max-width: 1024px) {
   .portal-shell { grid-template-columns: 232px minmax(0, 1fr); gap: 1rem; padding: 1.25rem 0 3rem; }
   .portal-nav { padding: 1rem; gap: 0.8rem; }
-  .portal-content { max-width: 760px; }
+  .portal-content:not(.is-wide) { max-width: 760px; }
 }
 
 /* ── Admin top bar: global search + notification bell ───────────────────── */
@@ -1929,13 +1932,19 @@ a:hover { color: var(--brand-ink); }
   50% { opacity: 0.9; }
 }
 /* ── WhatsApp Web / Mobile — polished ────────────────────────────────────── */
-.wa-page { max-width: 1100px; margin: 0 auto; }
+/* Desktop: messages page takes ALL available screen real estate (full viewport
+   height, full content column width) — no arbitrary max-width/height caps that
+   waste space on large monitors, since the chat is already constrained inside
+   the portal shell's left-rail + content grid. */
+.wa-page { width: 100%; max-width: none; margin: 0; height: calc(100dvh - 88px - 1.75rem * 2); min-height: 640px; display: flex; flex-direction: column; min-height: 0; }
 .wa-shell {
-  display: grid; grid-template-columns: 360px 1fr;
-  height: min(76vh, 720px); min-height: 520px;
+  display: grid; grid-template-columns: 380px 1fr;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
   overflow: hidden; box-shadow: 0 12px 40px rgba(22,19,15,0.08);
-  overscroll-behavior: none;
+  overscroll-behavior: contain;
   touch-action: pan-y;
 }
 .wa-list { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--surface); min-width: 0; overscroll-behavior: none; touch-action: pan-y; }
@@ -2021,24 +2030,152 @@ html[data-theme='dark'] .wa-bubble.mine .wa-bubble-meta { color: #8696a0; }
 .wa-skel { height: 42px; width: 56%; border-radius: 12px; background: var(--surface-3); animation: pulse 1.3s infinite; }
 .wa-skel.mine { margin-left: auto; background: #dcf8c6; }
 html[data-theme='dark'] .wa-skel.mine { background: #005c4b; }
-.wa-composer { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border-top: 1px solid var(--line); flex: none; }
+.wa-composer { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border-top: 1px solid var(--line); flex: none; position: relative; }
 .wa-composer-btn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); display: grid; place-items: center; cursor: pointer; flex: none; }
 .wa-composer-btn:hover { color: var(--ink); }
 .wa-input-wrap { flex: 1; display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 24px; padding: 6px 8px 6px 14px; }
 .wa-input-wrap input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: 0.93rem; color: var(--ink); min-width: 0; }
-.wa-emoji { border: 0; background: transparent; font-size: 1.15rem; color: var(--muted); cursor: pointer; }
+.wa-emoji { border: 0; background: transparent; width: 32px; height: 32px; border-radius: 50%; color: var(--muted); cursor: pointer; display: grid; place-items: center; flex: none; transition: background 0.12s ease, color 0.12s ease; }
+.wa-emoji:hover, .wa-emoji.is-open { background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); }
+.wa-emoji-picker {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(100% + 8px);
+  max-height: 280px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 3;
+  animation: emojiPop 0.16s ease-out;
+}
+@keyframes emojiPop { from { transform: translateY(6px) scale(0.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+.wa-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 2px;
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.wa-emoji-cell {
+  all: unset;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.08s ease, transform 0.06s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.wa-emoji-cell:hover { background: var(--surface-3); }
+.wa-emoji-cell:active { transform: scale(0.92); background: color-mix(in srgb, var(--brand) 15%, transparent); }
 .wa-send { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--brand); color: var(--on-brand); display: grid; place-items: center; cursor: pointer; flex: none; box-shadow: 0 6px 18px rgba(199,0,57,0.22); transition: transform 0.08s ease; }
 .wa-send:active { transform: scale(0.96); }
 .wa-send.muted { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
 .wa-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Mobile chat (full-screen app-style) ────────────────────────────────────
+   On phones the messages page takes the full viewport (no card chrome).
+   We use :has(.wa-page) so other portal pages keep their existing padding. */
 @media (max-width: 860px) {
-  .wa-shell { grid-template-columns: 1fr; height: calc(100dvh - 112px); min-height: 0; }
+  /* Lock page-level scroll & elastic drag on the messages route — only the
+     message list itself scrolls, matching WhatsApp / Instagram DM mobile. */
+  body:has(.wa-page) {
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: pan-y;
+    -webkit-user-drag: none;
+  }
+  body:has(.wa-page) .portal-content {
+    /* Turn portal-content into a flex column so wa-page fills the remaining
+       space below the mobile top bar exactly — no guessing, no calc drift. */
+    display: flex;
+    flex-direction: column;
+    /* BottomNav already reserves 88px safe-inset bottom, we cancel the extra
+       portal-content padding-bottom so the chat sits flush above the bar. */
+    padding-bottom: 0 !important;
+    min-height: 0;
+  }
+  body:has(.wa-page) .portal-mobilebar { flex: none; }
+
+  .wa-page {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(100dvh - 88px); /* never extend behind the bottom nav */
+    /* Cancel portal-shell horizontal + vertical padding for edge-to-edge app feel */
+    margin: 0 calc(-1 * clamp(0.75rem, 4vw, 1.5rem)) 0;
+  }
+  .wa-shell {
+    grid-template-columns: 1fr;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    border-radius: 0;      /* rounded corners clip the send button on narrow screens */
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+  }
   .wa-list { border-right: 0; }
   .wa-shell.has-active .wa-list { display: none; }
   .wa-shell:not(.has-active) .wa-pane { display: none; }
   .wa-back { display: grid; }
   .wa-bubble { max-width: 82%; }
+
+  /* Composer: protect from iPhone home indicator, prevent button touch zoom,
+     and grow touch targets slightly larger than the visual pill. */
+  .wa-composer {
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+    touch-action: manipulation;
+  }
+  .wa-composer-btn,
+  .wa-send {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+  .wa-input-wrap {
+    padding-inline: 10px 8px;
+  }
+  /* Mobile emoji picker: tighter, fits keyboard-adjacent area */
+  .wa-emoji-picker {
+    max-height: 42vh;
+    left: 6px;
+    right: 6px;
+    bottom: calc(100% + 6px);
+    border-radius: 12px;
+  }
+  .wa-emoji-grid {
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+    gap: 0;
+    padding: 6px;
+  }
+  .wa-emoji-cell { width: 34px; height: 34px; font-size: 1.15rem; }
+
+  /* Smaller touch targets on <360px devices so send button never clips */
+  @media (max-width: 360px) {
+    .wa-composer { padding-inline: 6px; gap: 4px; }
+    .wa-composer-btn { width: 36px; height: 36px; border-radius: 10px; }
+    .wa-send { width: 40px; height: 40px; }
+    .wa-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); }
+    .wa-emoji-cell { width: 32px; height: 32px; }
+  }
+
+  /* Scroll containers — allow internal pan-y, block page-level chain */
+  .wa-scroll, .wa-threads, .wa-list {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* keep legacy chat classes for backwards-compat on other pages */
@@ -2507,6 +2644,76 @@ body:has(.modal-shell) { overflow: hidden; }
 .attendee-modal { max-width: 480px; padding: 1.25rem; }
 .attendee-modal .modal-title-row { margin-bottom: 0.35rem; }
 .attendee-modal .modal-sub { margin: 0 0 0.75rem; }
+
+/* Host-an-event modal — sticky glass header/footer so Close + Submit are
+   always reachable; the long form scrolls between them. */
+.ev-host-modal { max-width: 640px; padding: 0; }
+.ev-host-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem 0.9rem;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.ev-host-head .modal-sub { margin: 0.2rem 0 0; }
+.ev-host-close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ev-host-close:hover {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
+  transform: scale(1.06);
+}
+.ev-host-body { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.25rem; }
+.ev-host-section { display: grid; gap: 0.9rem; }
+.ev-host-legend {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.ev-host-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.25rem -1.25rem -1.25rem;
+  padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+@media (max-width: 560px) {
+  .ev-host-head { padding: 1rem 1rem 0.8rem; }
+  .ev-host-body { padding: 1rem; gap: 1.1rem; }
+  .ev-host-foot { margin: 0.25rem -1rem -1rem; padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom, 0px)); }
+  .ev-host-foot .btn { flex: 1 1 auto; }
+}
 .attendee-list {
   display: flex;
   flex-direction: column;
@@ -2546,7 +2753,7 @@ body:has(.modal-shell) { overflow: hidden; }
 .portal-content-inner { max-width: none; }
 .portal-content-inner > .page,
 .portal-content-inner > .profile-page,
-.portal-content-inner > .account-page { width: 100%; max-width: 1180px; margin-inline: auto; }
+.portal-content-inner > .account-page { width: 100%; max-width: 100%; margin-inline: 0; }
 .portal-content-inner .page-head,
 .portal-content-inner .lede,
 .portal-content-inner .row-actions { min-width: 0; }
@@ -2566,17 +2773,20 @@ body:has(.modal-shell) { overflow: hidden; }
 
 /* Final portal composition: one aligned workspace, predictable card geometry. */
 .portal-shell {
-  width: min(100% - 3rem, 1480px);
+  width: 100%;
+  max-width: 100%;
   margin-inline: auto;
   grid-template-columns: 248px minmax(0, 1fr);
   gap: 2rem;
   padding: 1.5rem 0 4rem;
-  align-items: start;
+  align-items: stretch;
+  min-height: calc(100vh - 88px);
 }
 .portal-nav {
   top: 1.5rem;
   width: 248px;
   box-sizing: border-box;
+  align-self: start;
 }
 .portal-content-inner {
   width: 100%;
@@ -2610,7 +2820,7 @@ body:has(.modal-shell) { overflow: hidden; }
 .discover-card-footer { min-height: 60px; }
 
 @media (max-width: 1240px) {
-  .portal-shell { width: min(100% - 2rem, 1180px); gap: 1.5rem; }
+  .portal-shell { width: 100%; gap: 1.5rem; }
   .discover-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 980px) {
@@ -2860,7 +3070,7 @@ body:has(.modal-shell) { overflow: hidden; }
 @media (max-width: 520px) {
   .notif-popover { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; max-height: 68vh; }
 }
-.notif-page { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+.notif-page { width: 100%; display: grid; gap: 14px; }
 .notif-page-bar { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
 .notif-page-tabs { display: flex; gap: 6px; }
 .notif-tab { border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: .82rem; cursor: pointer; }

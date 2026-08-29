@@ -68,10 +68,10 @@ export function OtpSignIn() {
       const res = await api.post<{
         accessToken: string;
         refreshToken: string;
-        user: { id: string; email: string; role: string; status: string };
+        user: { userId: string; email: string; role: string; status: string };
       }>('/auth/verify-otp', { email, phone, code });
       login(res.accessToken, res.refreshToken, {
-        userId: res.user.id,
+        userId: res.user.userId,
         email: res.user.email,
         role: res.user.role as never,
         status: res.user.status as never,

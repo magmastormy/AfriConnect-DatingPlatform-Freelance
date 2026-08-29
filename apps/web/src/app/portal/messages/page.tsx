@@ -10,6 +10,22 @@ import { useChatSocket } from '@/lib/useChatSocket';
 
 const RECALL_MS = 30 * 60 * 1000;
 
+const EMOJIS: string[] = [
+  // Smileys
+  '😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰',
+  '😘','😗','😙','😚','😋','😛','😜','🤪','😝','🤗','🤩','🥳','😎','🤓','🧐',
+  '😏','🙄','🤔','🤫','😬','🤐','🥴','😵','🤯','😴','🤤','😪','😷','🤒',
+  // Hearts / romance
+  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','💕','💞','💓','💗','💖',
+  '💘','💝','💟','♥️','💋','🌹','🌷','🌸','🌺','🥀','💐','🎀','✨','💫',
+  // Gestures / reactions
+  '👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇',
+  '☝️','✋','🤚','🖐️','👋','🤝','🙏','💪','💯','🔥','⭐','🌟','💎','👀','🙈',
+  // Celebration / life
+  '🎉','🎊','🥂','🍾','🎁','🍕','🍔','🌮','🍣','🍜','🍰','🧁','☕','🍵',
+  '🍷','🍸','🧋','✈️','🏝️','🌅','🏃','🚗','🎵','🎬','📸',
+];
+
 function previewOf(m: ConversationThread['lastMessage'], youId: string | undefined): string {
   if (!m) return 'No messages yet';
   if (m.isDeleted) return m.recalledAt ? 'Message recalled' : 'This message was deleted';
@@ -64,6 +80,8 @@ export default function MessagesPage() {
   const [uploading, setUploading] = useState(false);
   const [loadingThread, setLoadingThread] = useState(false);
   const [showActions, setShowActions] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -130,6 +148,39 @@ export default function MessagesPage() {
       setMessages((prev) => prev.some((m) => m.id === raw.id) ? prev : [...prev, raw]);
     },
   });
+
+  // Dismiss emoji picker when tapping outside (mobile-friendly)
+  useEffect(() => {
+    if (!emojiOpen) return;
+    function onDocClick(e: MouseEvent | TouchEvent) {
+      const el = emojiPickerRef.current;
+      if (el && !el.contains(e.target as Node)) setEmojiOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('touchend', onDocClick as EventListener, { passive: true });
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setEmojiOpen(false); };
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('touchend', onDocClick as EventListener);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [emojiOpen]);
+
+  function insertEmoji(ch: string) {
+    const inp = inputRef.current;
+    if (!inp) { setDraft((d) => d + ch); return; }
+    const start = inp.selectionStart ?? draft.length;
+    const end = inp.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + ch + draft.slice(end);
+    setDraft(next);
+    // restore caret right after the inserted emoji
+    requestAnimationFrame(() => {
+      inp.focus();
+      const pos = start + ch.length;
+      try { inp.setSelectionRange(pos, pos); } catch { /* ignore */ }
+    });
+  }
 
   async function send() {
     if (!active || !draft.trim()) return;
@@ -350,8 +401,37 @@ export default function MessagesPage() {
                       aria-label="Message"
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); }}}
                     />
-                    <button className="wa-emoji" aria-label="Attach emoji" type="button" onClick={() => toast('Emoji picker coming soon', 'info')}>Emoji</button>
+                    <button
+                      className={`wa-emoji ${emojiOpen ? 'is-open' : ''}`}
+                      aria-label="Toggle emoji picker"
+                      aria-expanded={emojiOpen}
+                      type="button"
+                      onClick={() => setEmojiOpen((o) => !o)}
+                    >
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                        <line x1="9" y1="9" x2="9.01" y2="9" strokeLinecap="round" strokeWidth="2.4"/>
+                        <line x1="15" y1="9" x2="15.01" y2="9" strokeLinecap="round" strokeWidth="2.4"/>
+                      </svg>
+                    </button>
                   </div>
+                  {emojiOpen && (
+                    <div ref={emojiPickerRef} className="wa-emoji-picker" role="dialog" aria-label="Emoji picker">
+                      <div className="wa-emoji-grid" role="listbox">
+                        {EMOJIS.map((e) => (
+                          <button
+                            key={e}
+                            type="button"
+                            className="wa-emoji-cell"
+                            onClick={() => insertEmoji(e)}
+                            aria-label={`Insert ${e}`}
+                            onMouseDown={(ev) => ev.preventDefault()} /* don't steal input focus */
+                          >{e}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {draft.trim() ? (
                     <button className="wa-send" onClick={send} disabled={busy} aria-label="Send">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>

@@ -18,7 +18,7 @@ export interface AuthTokens {
 
 export interface AuthResult extends AuthTokens {
   user: {
-    id: string;
+    userId: string;
     email: string;
     role: UserRole;
     status: UserStatus;
