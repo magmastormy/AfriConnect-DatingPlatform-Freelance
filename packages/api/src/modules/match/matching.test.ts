@@ -1,4 +1,4 @@
-import { Gender, City, EducationLevel, RelationshipGoal } from '@africonnect/shared';
+import { Gender, City, EducationLevel } from '@africonnect/shared';
 import {
   cosineSimilarity,
   jaccardSimilarity,

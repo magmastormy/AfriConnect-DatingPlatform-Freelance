@@ -602,7 +602,9 @@ export class MockLLMProvider extends BaseLLMProvider {
  */
 export class GroqProvider extends BaseLLMProvider {
   readonly name = 'groq';
-  readonly defaultModel = 'llama-3.3-70b-versatile';
+  // Groq switched llama-3.3-70b-versatile off for free/developer tiers on
+  // 2026-08-16 and names openai/gpt-oss-120b as the production replacement.
+  readonly defaultModel = 'openai/gpt-oss-120b';
   static readonly BASE_URL = 'https://api.groq.com/openai/v1';
 
   constructor(config: LLMProviderConfig) {
@@ -615,6 +617,103 @@ export class GroqProvider extends BaseLLMProvider {
     }
   }
 
+  /**
+   * Builds a chat/completions request body.
+   *
+   * Groq's newer reasoning models (gpt-oss) document `max_completion_tokens`
+   * and do not accept every legacy sampling parameter, while older models only
+   * understand `max_tokens`. Any key listed in `omit` is left out entirely.
+   */
+  private buildBody(
+    messages: LLMMessage[],
+    cfg: LLMProviderConfig,
+    stream: boolean,
+    omit: ReadonlySet<string>,
+  ): Record<string, unknown> {
+    const maxTokens = cfg.maxTokens ?? 500;
+    const body: Record<string, unknown> = { model: cfg.model, messages, stream };
+
+    if (!omit.has('max_completion_tokens')) body.max_completion_tokens = maxTokens;
+    else if (!omit.has('max_tokens')) body.max_tokens = maxTokens;
+
+    if (!omit.has('temperature')) body.temperature = cfg.temperature ?? 0.7;
+    if (!omit.has('top_p')) body.top_p = cfg.topP ?? 1;
+    if (!omit.has('frequency_penalty')) body.frequency_penalty = cfg.frequencyPenalty ?? 0;
+    if (!omit.has('presence_penalty')) body.presence_penalty = cfg.presencePenalty ?? 0;
+    return body;
+  }
+
+  /**
+   * Identifies which request parameter a Groq 400 is complaining about, so the
+   * call can be replayed without it. Returns null when the failure is not a
+   * parameter problem (a decommissioned model, for instance) — those must
+   * surface to the caller rather than be retried.
+   */
+  private static rejectedParam(
+    errorText: string,
+    body: Record<string, unknown>,
+    omit: ReadonlySet<string>,
+  ): string | null {
+    let message = errorText;
+    try {
+      const parsed = JSON.parse(errorText) as { error?: { message?: string } };
+      if (parsed.error?.message) message = parsed.error.message;
+    } catch {
+      /* Not JSON — match against the raw text instead. */
+    }
+    // `model`, `messages` and `stream` are never the fix: a decommissioned
+    // model error quotes the model name, and retrying without it is pointless.
+    for (const key of Object.keys(body)) {
+      if (key === 'model' || key === 'messages' || key === 'stream') continue;
+      if (omit.has(key)) continue;
+      if (new RegExp(`\\b${key}\\b`).test(message)) return key;
+    }
+    return null;
+  }
+
+  /**
+   * POSTs to Groq, replaying once per rejected parameter.
+   *
+   * Groq retires models on short notice and its reasoning models reject some
+   * legacy sampling parameters. Reading the offending key out of the 400 keeps
+   * this provider working across model generations without a code change, and
+   * a decommissioned model still fails loudly instead of silently degrading.
+   */
+  private async post(
+    messages: LLMMessage[],
+    cfg: LLMProviderConfig,
+    stream: boolean,
+  ): Promise<Response> {
+    const baseUrl = cfg.baseUrl || GroqProvider.BASE_URL;
+    const omit = new Set<string>();
+
+    for (;;) {
+      const body = this.buildBody(messages, cfg, stream, omit);
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cfg.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(cfg.timeoutMs ?? 30000),
+      });
+      if (response.status !== 400) return response;
+
+      const errorText = await response.text();
+      const rejected = GroqProvider.rejectedParam(errorText, body, omit);
+      if (rejected === null) {
+        logger.error({ error: errorText, status: 400, model: cfg.model }, 'Groq API error');
+        throw new Error(`Groq API error: 400 ${errorText}`);
+      }
+      omit.add(rejected);
+      logger.warn(
+        { dropped: rejected, model: cfg.model },
+        'Groq rejected a request parameter; retrying without it',
+      );
+    }
+  }
+
   async complete(messages: LLMMessage[], config?: Partial<LLMProviderConfig>): Promise<LLMResponse> {
     const mergedConfig = this.getConfig(config);
     this.logRequest(messages, mergedConfig);
@@ -623,25 +722,7 @@ export class GroqProvider extends BaseLLMProvider {
       throw new Error('Groq API key not configured');
     }
 
-    const baseUrl = mergedConfig.baseUrl || GroqProvider.BASE_URL;
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mergedConfig.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: mergedConfig.model,
-        messages,
-        temperature: mergedConfig.temperature ?? 0.7,
-        max_tokens: mergedConfig.maxTokens ?? 500,
-        top_p: mergedConfig.topP ?? 1,
-        frequency_penalty: mergedConfig.frequencyPenalty ?? 0,
-        presence_penalty: mergedConfig.presencePenalty ?? 0,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(mergedConfig.timeoutMs ?? 30000),
-    });
+    const response = await this.post(messages, mergedConfig, false);
 
     if (!response.ok) {
       const error = await response.text();
@@ -682,25 +763,7 @@ export class GroqProvider extends BaseLLMProvider {
       throw new Error('Groq API key not configured');
     }
 
-    const baseUrl = mergedConfig.baseUrl || GroqProvider.BASE_URL;
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mergedConfig.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: mergedConfig.model,
-        messages,
-        temperature: mergedConfig.temperature ?? 0.7,
-        max_tokens: mergedConfig.maxTokens ?? 500,
-        top_p: mergedConfig.topP ?? 1,
-        frequency_penalty: mergedConfig.frequencyPenalty ?? 0,
-        presence_penalty: mergedConfig.presencePenalty ?? 0,
-        stream: true,
-      }),
-      signal: AbortSignal.timeout(mergedConfig.timeoutMs ?? 30000),
-    });
+    const response = await this.post(messages, mergedConfig, true);
 
     if (!response.ok) {
       const error = await response.text();
@@ -793,7 +856,7 @@ export function createLLMProvider(factoryConfig: LLMProviderFactoryConfig): ILLM
     case 'anthropic':
       return new AnthropicProvider(anthropic ?? { model: 'claude-3-haiku-20240307' });
     case 'groq':
-      return new GroqProvider(groq ?? { model: 'llama-3.3-70b-versatile' });
+      return new GroqProvider(groq ?? { model: 'openai/gpt-oss-120b' });
     case 'local':
       return new LocalLLMProvider(local ?? { model: 'llama3.1:8b', baseUrl: 'http://localhost:11434' });
     case 'mock':

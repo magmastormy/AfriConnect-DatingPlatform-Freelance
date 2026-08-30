@@ -68,7 +68,7 @@ upload.test.ts
 AfriConnect_Presentation.html
 *.html
 *.test.yml
-
+*.test*
 *.cmd
 
 

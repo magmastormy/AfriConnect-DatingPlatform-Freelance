@@ -35,33 +35,36 @@ interface RepoState {
 
 function fakeRepo(state: RepoState): IAuthRepository {
   return {
-    findUserByEmail: async (email) => {
+    // Parameter types are spelled out rather than inferred: this object is cast
+    // through `as unknown as IAuthRepository`, which erases any checking of the
+    // shapes above and would let a signature drift go unnoticed.
+    findUserByEmail: async (email: string) => {
       const u = state.byEmail[email];
       return u
         ? ({ id: u.id, emailVerified: u.emailVerified, phoneVerified: u.phoneVerified } as never)
         : null;
     },
-    findUserByPhone: async (phone) => {
+    findUserByPhone: async (phone: string) => {
       const u = Object.values(state.byEmail).find((x) => x.id === phone);
       return u ? ({ id: u.id, phoneVerified: u.phoneVerified } as never) : null;
     },
-    createVerificationToken: async (userId, tokenHash, expiresAt) => {
+    createVerificationToken: async (userId: string, tokenHash: string, expiresAt: Date) => {
       state.tokens[tokenHash] = { userId, expiresAt };
     },
-    findVerificationToken: async (tokenHash) => {
+    findVerificationToken: async (tokenHash: string) => {
       const t = state.tokens[tokenHash];
       if (!t) return null;
       if (t.expiresAt < new Date()) return null;
       return { userId: t.userId, expiresAt: t.expiresAt };
     },
-    deleteVerificationToken: async (tokenHash) => {
+    deleteVerificationToken: async (tokenHash: string) => {
       delete state.tokens[tokenHash];
     },
-    setEmailVerified: async (userId, verified) => {
+    setEmailVerified: async (userId: string, verified: boolean) => {
       const u = Object.values(state.byEmail).find((x) => x.id === userId);
       if (u) u.emailVerified = verified;
     },
-    setPhoneVerified: async (userId, verified) => {
+    setPhoneVerified: async (userId: string, verified: boolean) => {
       const u = Object.values(state.byEmail).find((x) => x.id === userId);
       if (u) u.phoneVerified = verified;
     },

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import type { SuperlikesReceivedView, UnreadCount } from '@/lib/types';
 import './BottomNav.css';
@@ -62,10 +63,21 @@ function NavIcon({ kind, active }: { kind: NavItem['icon']; active: boolean }) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [likes, setLikes] = useState(0);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
+    // The portal chrome paints as soon as Clerk's handshake resolves, which is
+    // well before the Clerk session has been exchanged for an AfriConnect
+    // access token. The shell gates the page tree on the session, but this nav
+    // bar is chrome and deliberately is not — so firing these on mount would
+    // 401 on every fresh load (and again on every focus/poll tick).
+    if (!user) {
+      setLikes(0);
+      setUnread(0);
+      return;
+    }
     let alive = true;
     const load = async () => {
       try {
@@ -89,7 +101,7 @@ export function BottomNav() {
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('visibilitychange', onFocus);
     };
-  }, []);
+  }, [user]);
 
   return (
     <nav className="bottom-nav" aria-label="Primary">

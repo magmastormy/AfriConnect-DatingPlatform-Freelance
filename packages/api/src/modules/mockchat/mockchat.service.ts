@@ -22,6 +22,21 @@ export interface MockChatConfig {
   rateLimitPerUserPerMinute: number;
 }
 
+/**
+ * What to set for each provider when `isAvailable()` is false.
+ *
+ * Kept next to the availability check rather than in docs because the whole
+ * point is that a misconfigured LLM is otherwise silent: the canned-response
+ * fallback means the operator sees a working chat and never looks at the docs.
+ */
+const LLM_KEY_HINT: Record<string, string> = {
+  openai: 'Set OPENAI_API_KEY.',
+  anthropic: 'Set ANTHROPIC_API_KEY.',
+  groq: 'Set GROQ_API_KEY (get one at https://console.groq.com/keys).',
+  local: 'Set LOCAL_LLM_URL to a running Ollama-compatible server.',
+  mock: 'Deliberate — canned replies are the intended behaviour.',
+};
+
 export interface SendMessageToMockUserInput {
   userId: string;
   personaId: string;
@@ -91,12 +106,38 @@ export class MockChatService implements IMockChatService {
     this.config = config;
     this.realtime = realtime;
     this.llmProvider = createLLMProvider(config.llm);
-    
-    logger.info({ 
-      provider: this.llmProvider.name, 
+
+    // A misconfigured provider is invisible at runtime: every LLM error is
+    // swallowed by the canned-response fallback in generatePersonaResponse(),
+    // so the chat looks alive while the model is dead or the key is missing.
+    // This boot-time check is the ONLY place the misconfiguration surfaces,
+    // so it has to be loud and has to say how to fix it.
+    const llmAvailable = this.llmProvider.isAvailable();
+    const llmLog = {
+      provider: this.llmProvider.name,
       model: this.llmProvider.defaultModel,
-      enabled: config.enabled 
-    }, 'MockChatService initialized');
+      llmAvailable,
+      enabled: config.enabled,
+    };
+
+    if (!llmAvailable) {
+      logger.warn(
+        llmLog,
+        `MockChat LLM provider "${this.llmProvider.name}" is not configured — every ` +
+          `persona reply will be a canned fallback. ${LLM_KEY_HINT[this.llmProvider.name] ?? ''}`,
+      );
+    } else {
+      logger.info(llmLog, 'MockChatService initialized');
+    }
+  }
+
+  /**
+   * True when the configured LLM can actually be called (i.e. its API key is
+   * present). When false the persona chat still works, but every reply is a
+   * canned fallback — indistinguishable from a live model at runtime.
+   */
+  isLlmAvailable(): boolean {
+    return this.llmProvider.isAvailable();
   }
 
   /**
@@ -287,12 +328,23 @@ export class MockChatService implements IMockChatService {
 
       return response;
     } catch (error) {
-      logger.error({ 
-        error, 
-        conversationId, 
-        personaId: persona.id 
-      }, 'Failed to generate persona response');
-      
+      // This failure is invisible to the member — the persona answers with a
+      // canned line and the conversation carries on — so this log is the only
+      // signal that the LLM is not actually driving the chat. Record the
+      // provider and model because the usual cause is a retired or rejected
+      // model (Groq retired llama-3.3-70b-versatile on 2026-08-16), not load.
+      logger.error(
+        {
+          error,
+          message: error instanceof Error ? error.message : String(error),
+          provider: this.llmProvider.name,
+          model: llmConfig.model ?? this.llmProvider.defaultModel,
+          conversationId,
+          personaId: persona.id,
+        },
+        'LLM call failed - serving canned fallback response',
+      );
+
       // Fallback response
       return {
         content: this.getFallbackResponse(persona),
