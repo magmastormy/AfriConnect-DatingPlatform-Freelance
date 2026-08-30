@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, memo } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { api, ApiError } from '@/lib/api';
@@ -13,8 +14,23 @@ import { useTrackProfileView } from '@/lib/useProfileView';
 import { useAuth } from '@/lib/auth';
 import { useViewport } from '@/lib/use-viewport';
 import { labelCity, labelEducation } from '@/lib/labels';
-import { FullScreenDiscover } from '@/components/discover/FullScreenDiscover';
 import { MatchCelebration } from '@/components/discover/MatchCelebration';
+
+// The immersive swipe deck is phone-only, but a static import pulled it (and
+// the 9 KB `app/discovery.css` it owns) into every desktop discover load. That
+// is what produced the "preloaded using link preload but not used" console
+// warning. Loading it on demand keeps the desktop chunk lean.
+const FullScreenDiscover = dynamic(
+  () => import('@/components/discover/FullScreenDiscover').then((m) => m.FullScreenDiscover),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="state" style={{ minHeight: '60vh' }}>
+        <span className="spinner" />
+      </div>
+    ),
+  },
+);
 
 type Mode = 'discover' | 'nearby';
 type ActAction = 'like' | 'pass' | 'superlike';
@@ -461,20 +477,21 @@ export default function DiscoverPage() {
     setLoading(true);
     setError(null);
     try {
-      const cards = await api.getDiscover({
-        city: filters.city || undefined,
-        ageMin: filters.ageMin ? Number(filters.ageMin) : undefined,
-        ageMax: filters.ageMax ? Number(filters.ageMax) : undefined,
-        interests: filters.interests?.trim() || undefined,
-        limit: 20,
-      });
+      // Deck and superlike count are independent: issuing them together keeps
+      // the feed from waiting on a second serial round trip.
+      const [cards, supers] = await Promise.all([
+        api.getDiscover({
+          city: filters.city || undefined,
+          ageMin: filters.ageMin ? Number(filters.ageMin) : undefined,
+          ageMax: filters.ageMax ? Number(filters.ageMax) : undefined,
+          interests: filters.interests?.trim() || undefined,
+          limit: 20,
+        }),
+        // Nice-to-have: a failure here must never take the deck down with it.
+        api.get<{ count: number }>('/matches/superlikes-received').catch(() => ({ count: 0 })),
+      ]);
       setDeck(cards);
-      try {
-        const s = await api.get<{ count: number }>('/matches/superlikes-received');
-        setSuperCount(s.count);
-      } catch {
-        // Superlike count is a nice-to-have; never block the deck on it.
-      }
+      setSuperCount(supers.count);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load discovery');
     } finally {

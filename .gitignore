@@ -73,3 +73,6 @@ AfriConnect_Presentation.html
 
 
 
+
+# Local build artifacts moved aside (safe-delete hook blocks rm)
+.next.bak.*/

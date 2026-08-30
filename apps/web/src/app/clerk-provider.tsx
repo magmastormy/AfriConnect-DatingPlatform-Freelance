@@ -54,11 +54,20 @@ function ClerkSignOutBridge({ children }: { children: React.ReactNode }) {
  * Guarded by a ref keyed on the Clerk session id so a re-render, a token
  * refresh or a `user` object change cannot trigger a second exchange for the
  * same session (which would rotate refresh tokens needlessly).
+ *
+ * Retried with backoff. It previously ran exactly once: when the backend was
+ * cold (Render's free tier spins instances down when idle) the request aborted,
+ * the guard ref stayed unset, no dependency changed, and the effect never ran
+ * again — leaving the portal pinned on a spinner until the shell's redirect
+ * timer fired and bounced the member out to sign-in.
  */
+const EXCHANGE_ATTEMPTS = 3;
+const EXCHANGE_BACKOFF_MS = [500, 1500];
+
 function ClerkSessionBridge() {
   const { isSignedIn, sessionId, getToken } = useClerkAuth();
   const { isLoaded: userLoaded } = useUser();
-  const { user: appUser, login } = useAuth();
+  const { user: appUser, login, failSession } = useAuth();
   const exchangedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -74,27 +83,41 @@ function ClerkSessionBridge() {
 
     let active = true;
     void (async () => {
-      try {
-        const token = await getToken();
-        if (!token || !active) return;
-        const res = await exchangeClerkToken(token);
-        if (!active || !res) return;
-        exchangedFor.current = sessionId;
-        login(res.accessToken, res.refreshToken, {
-          userId: res.user.userId,
-          email: res.user.email,
-          role: res.user.role as never,
-          status: res.user.status as never,
-        });
-      } catch {
-        // Surfaced by downstream route guards; never log the token.
+      for (let attempt = 0; attempt < EXCHANGE_ATTEMPTS; attempt++) {
+        if (!active) return;
+        try {
+          const token = await getToken();
+          if (!token || !active) return;
+          const res = await exchangeClerkToken(token);
+          if (!active) return;
+          if (res) {
+            exchangedFor.current = sessionId;
+            login(res.accessToken, res.refreshToken, {
+              userId: res.user.userId,
+              email: res.user.email,
+              role: res.user.role as never,
+              status: res.user.status as never,
+            });
+            return;
+          }
+        } catch {
+          // Surfaced downstream via AuthProvider.sessionError. Never log the token.
+        }
+        if (active && attempt < EXCHANGE_ATTEMPTS - 1) {
+          await new Promise((r) => setTimeout(r, EXCHANGE_BACKOFF_MS[attempt]));
+        }
+      }
+      // Every attempt failed. Tell the shell so it can stop spinning and offer
+      // a retry instead of hanging behind an invisible failure.
+      if (active) {
+        failSession('We could not complete sign-in. This is usually a slow or unreachable server.');
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [isSignedIn, userLoaded, sessionId, getToken, login, appUser]);
+  }, [isSignedIn, userLoaded, sessionId, getToken, login, failSession, appUser]);
 
   return null;
 }

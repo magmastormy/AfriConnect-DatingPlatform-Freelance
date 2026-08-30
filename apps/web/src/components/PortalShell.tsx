@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { useClerkIdentity } from '@/lib/useClerkIdentity';
 import { useClerkSignOut } from '@/app/clerk-provider';
+import { CLERK_ENABLED } from '@/lib/clerk';
 import { stageLabel } from '@/lib/membership';
 import { BottomNav } from '@/components/navigation/BottomNav';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -57,7 +58,7 @@ const GROUPS: NavGroup[] = [
 const WIDE_ROUTES = ['/portal/settings', '/portal/account', '/portal/messages'];
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, stage, logout } = useAuth();
+  const { user, loading, stage, logout, sessionError } = useAuth();
   const { user: clerkUser, isLoaded: clerkLoaded } = useClerkIdentity();
   const clerkSignOut = useClerkSignOut();
   const router = useRouter();
@@ -67,21 +68,31 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   const isWide = WIDE_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
   const isImmersiveDiscover = pathname === '/portal/discover';
 
+  // Clerk owns the credential lifecycle, so when it is enabled it — not the
+  // backend session — is the authority on whether someone is signed in. Gating
+  // on the backend session instead is what caused the redirect loop: a slow
+  // exchange tripped a 10s timer that bounced the member to /sign-in, where
+  // edge middleware (which does see the Clerk session) immediately sent them
+  // back to /portal/discover.
+  const clerkSignedIn = CLERK_ENABLED && clerkLoaded && Boolean(clerkUser);
+  const sessionReady = Boolean(user);
+
   useEffect(() => {
-    // Clerk can be authenticated a moment before its session bridge exchanges
-    // the Clerk JWT for the AfriConnect API session. Do not redirect back to
-    // sign-in during that short handoff or the app can enter a redirect loop.
-    const waitingForClerkExchange = !loading && !user && clerkLoaded && Boolean(clerkUser);
-    if (!loading && !user && clerkLoaded && !waitingForClerkExchange) {
-      router.replace('/sign-in');
+    if (CLERK_ENABLED) {
+      // Handshake first; once it reports, a signed-out visitor is genuinely
+      // signed out and there is nothing left to wait for.
+      if (!clerkLoaded) return;
+      if (!clerkSignedIn) router.replace('/sign-in');
       return;
     }
-    if (waitingForClerkExchange) {
-      const timeout = window.setTimeout(() => router.replace('/sign-in'), 10000);
-      return () => window.clearTimeout(timeout);
-    }
+    // OTP fallback: the backend session is the only signal, so wait for it to
+    // settle before deciding nobody is signed in.
+    if (!loading && !user) router.replace('/sign-in');
+  }, [CLERK_ENABLED, clerkLoaded, clerkSignedIn, loading, user, router]);
+
+  useEffect(() => {
     if (!loading && user && isAdmin(user.role)) router.replace('/admin');
-  }, [loading, user, clerkLoaded, clerkUser, router]);
+  }, [loading, user, router]);
 
   useEffect(() => {
     setNavOpen(false);
@@ -109,23 +120,30 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (loading || !clerkLoaded)
+  // Only Clerk's own handshake is allowed to blank the screen — it is the one
+  // signal we cannot render anything meaningful without. Everything after it
+  // paints the full chrome and lets the content area carry its own state, so
+  // the member sees the app instead of a bare spinner while the backend
+  // session is still being established.
+  if (CLERK_ENABLED && !clerkLoaded)
     return (
       <div className="state" style={{ minHeight: '60vh' }}>
         <span className="spinner" style={{ width: 22, height: 22 }} />
       </div>
     );
-  if (!user)
+
+  // In OTP mode there is no Clerk handshake, but the backend session still has
+  // to resolve before we know who is signed in.
+  if (!CLERK_ENABLED && loading)
     return (
-      <div className="state" role="status" aria-live="polite">
-        <span className="spinner" />
-        <span className="sr-only">Completing sign-in</span>
+      <div className="state" style={{ minHeight: '60vh' }}>
+        <span className="spinner" style={{ width: 22, height: 22 }} />
       </div>
     );
 
   const displayName =
     [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') ||
-    user.email?.split('@')[0] ||
+    user?.email?.split('@')[0] ||
     'Member';
   const isActive = (href: string) =>
     href === '/portal' ? pathname === '/portal' : pathname.startsWith(href);
@@ -193,7 +211,31 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         )}
-        {children}
+        {/*
+          The page tree is mounted only once the backend session exists, so its
+          data fetches never fire without an access token (which would 401 and
+          leave a stale error on screen). Until then the content area carries a
+          plain placeholder; the chrome around it is already interactive.
+        */}
+        {sessionReady ? (
+          children
+        ) : sessionError ? (
+          <div className="state" role="alert" style={{ minHeight: '40vh', gap: '1rem' }}>
+            <p className="muted">{sessionError}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+          <div className="state" role="status" aria-live="polite" style={{ minHeight: '40vh' }}>
+            <span className="spinner" />
+            <span className="sr-only">Completing sign-in</span>
+          </div>
+        )}
       </main>
 
       <BottomNav />

@@ -44,14 +44,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // poll count every 20s when logged in
   useEffect(() => {
-    void refresh();
     if (!user) return;
+    // Yield to the browser until it is idle: the badge is not on the critical
+    // path, and firing it the instant `user` lands puts it in lockstep with the
+    // page's own data fetch (and behind it, since browsers cap connections).
+    const ric = typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback : null;
+    const idle = ric ? ric(() => void refresh(), { timeout: 2000 }) : null;
+    if (!ric) void refresh();
     const id = window.setInterval(() => {
       void api.unreadNotificationCount().then((r) => setCount(r.count)).catch(() => {});
       if (open) void api.listNotifications().then(setItems).catch(() => {});
     }, 20000);
     pollRef.current = id;
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      if (idle !== null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idle);
+      }
+    };
   }, [user, open, refresh]);
 
   // when dropdown opens, fetch list

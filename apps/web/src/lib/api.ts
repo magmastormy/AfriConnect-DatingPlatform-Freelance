@@ -127,6 +127,45 @@ interface ApiResponse<T> {
   error: { code: string; message: string; field?: string; details?: unknown } | null;
 }
 
+// ── Cold-start warm-up ─────────────────────────────────────────────────────
+// The API runs on Render's free tier, which spins instances down when idle and
+// takes tens of seconds to answer the first request after a cold start. Firing
+// a cheap unauthenticated ping the moment the app boots lets that spin-up
+// overlap with Clerk's own handshake instead of landing serially behind it.
+let warmPromise: Promise<void> | null = null;
+
+export function warmApi(): void {
+  if (typeof window === 'undefined') return;
+  if (warmPromise) return;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
+  warmPromise = fetch('/healthz', {
+    signal: controller.signal,
+    // Keepalive so a navigation mid-flight does not cancel the spin-up.
+    keepalive: true,
+  })
+    .then(() => undefined)
+    .catch(() => undefined)
+    .finally(() => clearTimeout(timer));
+}
+
+// ── Retry policy ───────────────────────────────────────────────────────────
+// Only ever applied to idempotent verbs. A cold Render instance can take longer
+// than the per-attempt timeout, so a single abort used to surface as a hard
+// failure (and, on the session exchange, left the portal stuck on a spinner).
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const RETRY_DELAYS_MS = [400, 1200];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** True when a failed request is safe to replay. */
+function isRetryable(err: unknown): boolean {
+  if (err instanceof ApiError) {
+    return err.code === 'TIMEOUT' || err.code === 'NETWORK' || RETRYABLE_STATUS.has(err.status);
+  }
+  return false;
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 async function tryRefreshToken(): Promise<boolean> {
@@ -171,6 +210,30 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, allowRetry = true): Promise<T> {
+  // Replaying a non-idempotent verb could double-post a like or a message, so
+  // only safe verbs get a second chance.
+  const idempotent = method === 'GET' || method === 'HEAD';
+  const maxAttempts = idempotent ? RETRY_DELAYS_MS.length + 1 : 1;
+
+  for (let attemptNo = 0; attemptNo < maxAttempts; attemptNo++) {
+    try {
+      return await attemptRequest<T>(method, path, body, allowRetry);
+    } catch (err) {
+      const exhausted = attemptNo === maxAttempts - 1;
+      if (!idempotent || exhausted || !isRetryable(err)) throw err;
+      await sleep(RETRY_DELAYS_MS[attemptNo]);
+    }
+  }
+  // Unreachable: the loop either returns or throws on the final attempt.
+  throw new ApiError('Request failed', 'NETWORK', 0);
+}
+
+async function attemptRequest<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  allowRetry = true,
+): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -209,7 +272,9 @@ async function request<T>(method: string, path: string, body?: unknown, allowRet
   ) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
-      return request<T>(method, path, body, false);
+      // Recurse into the single-attempt primitive, not `request`, so a retried
+      // GET does not spawn a nested retry ladder on top of this one.
+      return attemptRequest<T>(method, path, body, false);
     }
   }
 

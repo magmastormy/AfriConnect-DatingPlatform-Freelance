@@ -91,12 +91,19 @@ const nextConfig = {
   },
   async rewrites() {
     const mount = (process.env.NEXT_PUBLIC_API_MOUNT || 'api').replace(/^\/+|\/+$/g, '');
+    const origin = process.env.API_BASE_URL || 'http://localhost:4000';
     return [
       {
         source: `/${mount}/:path*`,
-        destination: process.env.API_BASE_URL
-          ? `${process.env.API_BASE_URL}/${mount}/:path*`
-          : `http://localhost:4000/${mount}/:path*`,
+        destination: `${origin}/${mount}/:path*`,
+      },
+      // Cheap unauthenticated probe the client uses to absorb the backend's
+      // cold start (Render's free tier spins instances down when idle). Kept
+      // same-origin so it escapes CORS and the CSP connect-src allowlist, and
+      // it sits ahead of the API's rate limiter so it costs no quota.
+      {
+        source: '/healthz',
+        destination: `${origin}/healthz`,
       },
     ];
   },

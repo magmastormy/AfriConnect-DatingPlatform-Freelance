@@ -373,6 +373,31 @@ export class MatchService implements IMatchService {
   }
 
   /**
+   * The collaborative-filtering interaction sample.
+   *
+   * This is a global (not per-viewer) 2000-row read that barely changes between
+   * requests, so it is cached separately from the per-viewer deck. Without this
+   * every cache-miss discover paid for a large ordered scan of `match_matches`
+   * on top of its own queries.
+   */
+  private async loadInteractionSample(): Promise<
+    { userId: string; itemId: string; value: number }[]
+  > {
+    const key = `match:cf-sample:${CF_SAMPLE_SIZE}`;
+    if (process.env.NODE_ENV !== 'test') {
+      const cached = await redisGetJson<{ userId: string; itemId: string; value: number }[]>(
+        key,
+      ).catch(() => null);
+      if (cached && Array.isArray(cached)) return cached;
+    }
+    const sample = await this.repo.getInteractionSample(CF_SAMPLE_SIZE);
+    if (process.env.NODE_ENV !== 'test') {
+      await redisSetJson(key, sample, 120).catch(() => {});
+    }
+    return sample;
+  }
+
+  /**
    * Shared engine runner for `discover` and `recommend`. Loads the viewer, the
    * collaborative-filtering interaction sample, candidate metadata (Elo, age,
    * like-count) and the geo-filtered candidate pool, then delegates ranking to
@@ -400,7 +425,16 @@ export class MatchService implements IMatchService {
     );
     const topN = Math.min(50, opts.limit ?? RECOMMEND_TOP_N);
 
-    const cacheKey = `match:discover:${userId}:${topN}:${radiusKm}`;
+    // The key must cover every input that changes the result. It previously
+    // only had userId/topN/radius, so applying a city or age filter could hand
+    // back the unfiltered deck for the whole TTL.
+    const filterSig = [
+      opts.city ?? '',
+      opts.ageMin ?? '',
+      opts.ageMax ?? '',
+      (opts.interests ?? []).slice().sort().join(','),
+    ].join('|');
+    const cacheKey = `match:discover:${userId}:${topN}:${radiusKm}:${filterSig}`;
     if (process.env.NODE_ENV !== 'test') {
       const cached = await redisGetJson<RecommendCard[]>(cacheKey).catch(() => null);
       if (cached && Array.isArray(cached) && cached.length > 0) {
@@ -413,7 +447,7 @@ export class MatchService implements IMatchService {
       this.repo.loadUserTier(userId),
       this.repo.loadAccountCreatedAt(userId),
       this.repo.getViewerLikes(userId),
-      this.repo.getInteractionSample(CF_SAMPLE_SIZE),
+      this.loadInteractionSample(),
     ]);
     // Defense-in-depth vetting gate. The route mounts requireVetted(), but we
     // also enforce it here so the restriction holds even if a future caller
