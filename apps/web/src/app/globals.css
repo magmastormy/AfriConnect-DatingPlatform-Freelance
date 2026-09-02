@@ -1979,7 +1979,7 @@ a:hover { color: var(--brand-ink); }
 .wa-unread-badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 0.70rem; font-weight: 800; display: grid; place-items: center; }
 .wa-empty-hint { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 16px; }
 
-.wa-pane { display: flex; flex-direction: column; min-width: 0; background: #efeae2; position: relative; overscroll-behavior: none; touch-action: pan-y; }
+.wa-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: #efeae2; position: relative; overscroll-behavior: none; touch-action: pan-y; }
 html[data-theme='dark'] .wa-pane { background: #0b141a; }
 .wa-welcome { flex: 1; display: grid; place-items: center; padding: 24px; background: var(--surface-2); }
 .wa-welcome-card { max-width: 420px; text-align: center; display: grid; gap: 8px; place-items: center; }
@@ -2108,7 +2108,7 @@ html[data-theme='dark'] .wa-skel.mine { background: #005c4b; }
   body:has(.wa-page) .portal-mobilebar { flex: none; }
 
   .wa-page {
-    height: auto;
+    height: 0;
     flex: 1 1 auto;
     min-height: 0;
     max-height: calc(100dvh - 88px); /* never extend behind the bottom nav */

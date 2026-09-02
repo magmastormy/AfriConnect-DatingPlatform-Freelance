@@ -85,6 +85,14 @@ export const config = {
     apiSecret: process.env.SMILE_API_SECRET || '',
     sandbox: (process.env.SMILE_SANDBOX ?? 'true').toLowerCase() !== 'false',
   },
+  // ── Prototype / proof-of-concept mode ────────────────────────────────────
+  // Runs the product as a hands-off demo for stakeholder review. When enabled:
+  //   • every account gets an active Premium subscription at signup
+  //   • vetting submissions are auto-approved (no admin review queue to work)
+  //   • the profile-completeness gate is relaxed so discovery works immediately
+  // Defaults to ON because this build is the review prototype. Set
+  // PROTOTYPE_MODE=false to restore the real gated production behaviour.
+  prototypeMode: (process.env.PROTOTYPE_MODE ?? 'true').toLowerCase() !== 'false',
 } as const;
 
 // ─── Stripe test-mode enforcement (billing must never run live) ────────────

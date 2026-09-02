@@ -11,15 +11,20 @@ import './BottomNav.css';
 interface NavItem {
   href: string;
   label: string;
-  icon: 'home' | 'compass' | 'heart' | 'chat' | 'cal';
+  icon: 'home' | 'compass' | 'heart' | 'chat' | 'cal' | 'bot';
   badge?: 'likes' | 'unread';
 }
+
+// AI demo companions (mockchat / Groq personas). Gated on a web flag so a
+// non-mounted backend module doesn't leave a dead tab.
+const COMPANIONS_ENABLED = process.env.NEXT_PUBLIC_MOCK_CHAT_ENABLED !== 'false';
 
 const ITEMS: NavItem[] = [
   { href: '/portal', label: 'Home', icon: 'home' },
   { href: '/portal/discover', label: 'Discover', icon: 'compass' },
   { href: '/portal/matches', label: 'Matches', icon: 'heart', badge: 'likes' },
   { href: '/portal/messages', label: 'Chats', icon: 'chat', badge: 'unread' },
+  ...(COMPANIONS_ENABLED ? [{ href: '/portal/companions', label: 'AI', icon: 'bot' as const }] : []),
   { href: '/portal/events', label: 'Events', icon: 'cal' },
 ];
 
@@ -56,6 +61,15 @@ function NavIcon({ kind, active }: { kind: NavItem['icon']; active: boolean }) {
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.7} aria-hidden>
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      );
+    case 'bot':
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="4" y="8" width="16" height="11" rx="3" />
+          <path d="M12 8V4M9 4h6" />
+          <circle cx="9" cy="13" r="1.2" fill={fill} />
+          <circle cx="15" cy="13" r="1.2" fill={fill} />
         </svg>
       );
   }

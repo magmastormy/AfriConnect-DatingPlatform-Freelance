@@ -24,6 +24,7 @@ import {
 import { logger, NotificationChannel } from '@africonnect/shared';
 import type { INotificationService } from '@modules/notification/notification.service';
 import { redisGetJson, redisSetJson } from '../../config/redis';
+import { config } from '@config/index';
 import {
   DAILY_MATCH_LIMIT,
   DISCOVER_PREVIEW_LIMIT,
@@ -120,7 +121,11 @@ export class MatchService implements IMatchService {
 
     const viewer = await this.profileRepo.findByUserId(userId);
     if (!viewer) throw new NotFoundError('Complete your profile before viewing matches');
-    if (!viewer.isComplete) {
+    // Prototype: onboarding is trimmed to the essentials (name, DOB, photo) and
+    // the remainder is completed later in Settings, so the 80% completeness bar
+    // would lock every reviewer out of discovery. Enforce it in the real product
+    // only. The soft signal (completeness %) still drives ranking below.
+    if (!viewer.isComplete && !config.prototypeMode) {
       throw new ValidationError('Complete your profile before viewing matches');
     }
     if (viewer.isPaused) throw new ValidationError('Your profile is currently paused');
@@ -413,7 +418,8 @@ export class MatchService implements IMatchService {
     // Strict gate: discovery is a vetted-member surface. The viewer must have a
     // complete profile (the pre-condition for vetting) — we refuse early so an
     // incomplete applicant cannot browse the pool while still drafting.
-    if (!viewer.isComplete) {
+    // Prototype: relaxed because onboarding collects only the essentials.
+    if (!viewer.isComplete && !config.prototypeMode) {
       throw new ValidationError('Complete your profile before discovering');
     }
 

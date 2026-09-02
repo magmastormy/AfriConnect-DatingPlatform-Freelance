@@ -10,6 +10,7 @@ import {
 } from '@africonnect/shared';
 import { INotificationService } from '@modules/notification/notification.service';
 import { recordWebhookEvent } from '@webhooks/dedupe';
+import { config } from '@config/index';
 import { startSmileSession, verifySmileWebhook } from './vetting.smile';
 import type { VettingMode, VettingSessionStatus } from './vetting.types';
 
@@ -55,7 +56,12 @@ export class VettingService implements IVettingService {
       where: { id: userId },
       select: { role: true, status: true },
     });
-    const verified = user?.role === UserRole.Member && user?.status === UserStatus.Active;
+    // "Vetted" means an active member-tier account. Premium counts as a member
+    // tier (mirrors VETTED_ROLES in the requireVetted middleware) — without it a
+    // member upgraded to Premium would still read as unverified to the poller.
+    const verified =
+      (user?.role === UserRole.Member || user?.role === UserRole.Premium) &&
+      user?.status === UserStatus.Active;
     return {
       status: (session?.status as VettingSessionStatus) ?? 'none',
       mode: (session?.mode as VettingMode) ?? null,
@@ -115,7 +121,11 @@ export class VettingService implements IVettingService {
   private async approve(userId: string, sessionId: string): Promise<void> {
     await prisma.user.update({
       where: { id: userId },
-      data: { role: UserRole.Member, status: UserStatus.Active },
+      data: {
+        // Prototype build: approved members land on the top tier.
+        role: config.prototypeMode ? UserRole.Premium : UserRole.Member,
+        status: UserStatus.Active,
+      },
     });
     // Keep any open manual application consistent with the KYC decision.
     await prisma.application.updateMany({

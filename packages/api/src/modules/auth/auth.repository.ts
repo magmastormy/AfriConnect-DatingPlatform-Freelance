@@ -1,6 +1,7 @@
 import { PrismaClient, User } from '@prisma/client';
 import { InternalError } from '@africonnect/shared';
 import { logger } from '@africonnect/shared';
+import { ensurePrototypePremium } from '@config/prototype';
 
 export interface IAuthRepository {
   findOrCreateUser(email: string, phone: string): Promise<User>;
@@ -51,7 +52,11 @@ export class AuthRepository implements IAuthRepository {
     try {
       const existing = await this.prisma.user.findUnique({ where: { email } });
       if (existing) return existing;
-      return await this.prisma.user.create({ data: { email, phone } });
+      const created = await this.prisma.user.create({ data: { email, phone } });
+      // Prototype: every account starts on the paid tier so the reviewer can
+      // explore premium features without checking out.
+      await ensurePrototypePremium(created.id);
+      return created;
     } catch (error) {
       logger.error({ error, email }, 'AuthRepository: findOrCreateUser failed');
       throw new InternalError('Could not create/lookup user', { email });
@@ -104,6 +109,10 @@ export class AuthRepository implements IAuthRepository {
         status: 'pending',
       },
     });
+
+    // Prototype: paid tier from the moment the account exists. Vetting is still
+    // required — being Premium does not bypass the verification gate.
+    await ensurePrototypePremium(user.id);
 
     // If Clerk provided profile data, create a basic profile record
     if (profileData && (profileData.firstName || profileData.lastName || profileData.fullName)) {

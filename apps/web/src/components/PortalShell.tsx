@@ -32,6 +32,11 @@ function IcoUser() { return <svg width="18" height="18" viewBox="0 0 24 24" fill
 function IcoSettings() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M16.9 16.9l2.1 2.1M2 12h3M19 12h3M4.9 19l2.1-2.1M16.9 7l2.1-2.1"/></svg>; }
 function IcoChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M4 19V9M10 19V5M16 19V13M22 19H2"/></svg>; }
 function IcoBell() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7-6 11-6 11s-6-4-6-11"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>; }
+function IcoSparkle() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l1.8 4.9L18.5 9.7 13.8 11.5 12 16.4 10.2 11.5 5.5 9.7 10.2 7.9z"/><path d="M19 14l.8 2.2L22 17l-2.2 1.1L19 20l-.8-2.2L16 17l2.2-1.1z"/></svg>; }
+
+// AI demo companions (mockchat / Groq personas). Gated on a web flag so we never
+// surface a dead link when the backend module isn't mounted (MOCK_CHAT_ENABLED).
+const COMPANIONS_ENABLED = process.env.NEXT_PUBLIC_MOCK_CHAT_ENABLED !== 'false';
 
 const GROUPS: NavGroup[] = [
   {
@@ -40,6 +45,7 @@ const GROUPS: NavGroup[] = [
       { href: '/portal/discover', label: 'Discover', icon: <IcoCompass /> },
       { href: '/portal/matches', label: 'Matches', icon: <IcoHeart /> },
       { href: '/portal/messages', label: 'Messages', icon: <IcoChat /> },
+      ...(COMPANIONS_ENABLED ? [{ href: '/portal/companions', label: 'Companions', icon: <IcoSparkle /> }] : []),
       { href: '/portal/events', label: 'Events', icon: <IcoCal /> },
     ],
   },

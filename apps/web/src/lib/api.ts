@@ -16,6 +16,9 @@ import type {
   SuperlikesReceivedView,
   ConversationInit,
   UnreadCount,
+  PublicPersona,
+  MockConversationView,
+  ChatMessage,
 } from './types';
 
 const API_MOUNT = (process.env.NEXT_PUBLIC_API_MOUNT || 'api').replace(/^\/+|\/+$/g, '');
@@ -209,7 +212,13 @@ async function tryRefreshToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, allowRetry = true): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  allowRetry = true,
+  timeoutMs = 15000,
+): Promise<T> {
   // Replaying a non-idempotent verb could double-post a like or a message, so
   // only safe verbs get a second chance.
   const idempotent = method === 'GET' || method === 'HEAD';
@@ -217,7 +226,7 @@ async function request<T>(method: string, path: string, body?: unknown, allowRet
 
   for (let attemptNo = 0; attemptNo < maxAttempts; attemptNo++) {
     try {
-      return await attemptRequest<T>(method, path, body, allowRetry);
+      return await attemptRequest<T>(method, path, body, allowRetry, timeoutMs);
     } catch (err) {
       const exhausted = attemptNo === maxAttempts - 1;
       if (!idempotent || exhausted || !isRetryable(err)) throw err;
@@ -233,6 +242,7 @@ async function attemptRequest<T>(
   path: string,
   body?: unknown,
   allowRetry = true,
+  timeoutMs = 15000,
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
@@ -241,7 +251,11 @@ async function attemptRequest<T>(
   if (deviceId) headers['X-Device-Id'] = deviceId;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  // Per-request ceiling. Most calls use the 15s default; the persona auto-respond
+  // POST passes a long budget because Groq + a typing delay can run well past
+  // 15s, and a cold Render start can exceed both. Aborting early is what made
+  // persona sends look like "nothing happened".
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
@@ -274,7 +288,7 @@ async function attemptRequest<T>(
     if (refreshed) {
       // Recurse into the single-attempt primitive, not `request`, so a retried
       // GET does not spawn a nested retry ladder on top of this one.
-      return attemptRequest<T>(method, path, body, false);
+      return attemptRequest<T>(method, path, body, false, timeoutMs);
     }
   }
 
@@ -410,6 +424,33 @@ export const api = {
   // ── Admin global search (members / applications / subscriptions) ────────
   globalSearch: (q: string) =>
     request<GlobalSearchResult>('GET', `/admin/search?q=${encodeURIComponent(q)}`),
+
+  // ── AI demo companions (mockchat / Groq personas) ─────────────────────────
+  /** Public list of roleplay personas. The UI labels these as AI demos. */
+  listPersonas: () => request<{ personas: PublicPersona[] }>('GET', '/mockchat/personas'),
+  /** Single persona detail by stable UUID (used to enrich the chat header). */
+  getPersona: (id: string) => request<PublicPersona>('GET', `/mockchat/personas/${id}`),
+  /** Member's persona threads. */
+  listMockConversations: () =>
+    request<{
+      conversations: MockConversationView[];
+      meta: { total: number; hasMore: boolean };
+    }>('GET', '/mockchat/conversations'),
+  /** Open (or return) a thread with a persona; the body is the persona's UUID. */
+  createMockConversation: (personaId: string) =>
+    request<MockConversationView>('POST', '/mockchat/conversations', { personaId }),
+  /** Messages in a persona thread. */
+  getMockMessages: (id: string) =>
+    request<{ messages: ChatMessage[] }>('GET', `/mockchat/conversations/${id}`),
+  /** Send a message to a persona; the response body IS the persona's reply
+   *  (the service awaits its auto-respond before resolving), so no polling.
+   *  A long client timeout is passed because Groq + a typing delay can exceed
+   *  the default 15s budget, and a cold Render start can exceed both. */
+  sendMockMessage: (id: string, content: string, timeoutMs = 90000) =>
+    request<ChatMessage>('POST', `/mockchat/conversations/${id}`, { content }, false, timeoutMs),
+  /** Mark a persona thread read. */
+  markMockRead: (id: string) =>
+    request<{ marked: boolean }>('POST', `/mockchat/conversations/${id}/read`, {}),
 };
 
 /**

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { IApplicationService } from './application.service';
-import { createApplicationSchema, reviewApplicationSchema } from './application.schema';
+import { getCreateApplicationSchema, reviewApplicationSchema } from './application.schema';
 import { asyncHandler, success, ValidationError } from '@africonnect/shared';
 import { ApplicationStatus } from '@africonnect/shared';
 
@@ -16,7 +16,9 @@ export class ApplicationController {
    * orphaned records that no member could ever see the status of.
    */
   submit = asyncHandler(async (req: Request, res: Response) => {
-    const body = createApplicationSchema.parse(req.body);
+    // Schema is resolved per request so the prototype build can relax the
+    // professional dossier without shipping looser rules to production.
+    const body = getCreateApplicationSchema().parse(req.body);
     const result = await this.service.submit(body, req.user!);
     res.status(201).json(success(result));
   });

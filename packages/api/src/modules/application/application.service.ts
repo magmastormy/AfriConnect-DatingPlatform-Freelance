@@ -11,6 +11,9 @@ import {
   ConflictError,
   ValidationError,
   ProofOfWorkType,
+  Gender,
+  EducationLevel,
+  City,
   asEnum,
   AdminScope,
   NotificationChannel,
@@ -18,6 +21,8 @@ import {
 } from '@africonnect/shared';
 import { encryptPii } from '@africonnect/shared';
 import { INotificationService } from '@modules/notification/notification.service';
+import { config } from '@config/index';
+import { autoApproveVetting } from '@config/prototype';
 
 export interface IApplicationService {
   submit(
@@ -38,6 +43,14 @@ const OPEN_STATUSES: ApplicationStatus[] = [
   ApplicationStatus.UnderReview,
   ApplicationStatus.Approved,
 ];
+
+/**
+ * Written when the applicant did not supply part of the professional dossier.
+ * The prototype build only collects identity documents, and these columns are
+ * NOT NULL — but fabricating a plausible employer would misrepresent what the
+ * reviewer actually submitted, so we record the absence explicitly instead.
+ */
+const NOT_PROVIDED = 'Not provided';
 
 export class ApplicationService implements IApplicationService {
   constructor(
@@ -72,14 +85,53 @@ export class ApplicationService implements IApplicationService {
       throw new ValidationError('Unable to resolve account email/phone for this application');
     }
 
+    // Professional dossier. These columns are NOT NULL but are optional on the
+    // input (the prototype collects identity documents only), so anything the
+    // applicant skipped is recorded as an explicit placeholder. In the real
+    // product the schema demands every field, making this a no-op.
+    const dossier = {
+      nationality: input.nationality ?? NOT_PROVIDED,
+      profession: input.profession ?? NOT_PROVIDED,
+      employer: input.employer ?? NOT_PROVIDED,
+      educationLevel: input.educationLevel ?? EducationLevel.Professional,
+      institution: input.institution ?? NOT_PROVIDED,
+      city: input.city ?? City.Johannesburg,
+      // The trimmed prototype onboarding omits gender; the Application.gender
+      // column is NOT NULL, so record a neutral placeholder rather than null.
+      gender: input.gender ?? Gender.NonBinary,
+    };
+
     // Encrypt PII columns at rest (AGENTS.md Clause 3.1).
     const created = await this.repo.create({
       ...input,
+      ...dossier,
       userId: user.userId,
       email: encryptPii(email),
       phone: encryptPii(phone),
       status: ApplicationStatus.Submitted,
     });
+
+    // ── Prototype shortcut ───────────────────────────────────────────────────
+    // The reviewer still submits exactly the same documents and sees the whole
+    // flow, but the approval lands immediately so nobody has to work the admin
+    // queue in the demo. Returns early: no point creating a pending review task
+    // for a decision that has already been made.
+    if (config.prototypeMode) {
+      await autoApproveVetting(user.userId);
+      const approved = await this.repo.updateStatus(
+        created.id,
+        ApplicationStatus.Approved,
+        'Auto-approved in prototype mode — no reviewer action required.',
+        'prototype',
+      );
+      await this.notifyMember(user.userId, {
+        type: 'vetting.approved',
+        title: "You're verified",
+        body: 'Your documents checked out — welcome in. You now have full access to matches and messaging.',
+        link: '/portal/discover',
+      });
+      return { id: approved.id, status: asEnum<ApplicationStatus>(approved.status) };
+    }
 
     // Surface the new submission to vetting admins as an in-app alert
     // (AGENTS.md: events needing admin intervention must notify).

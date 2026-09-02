@@ -5,89 +5,60 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useClerkIdentity } from '@/lib/useClerkIdentity';
+import { CLERK_ENABLED } from '@/lib/clerk';
 import { useToast } from '@/components/Toast';
-import { Button, Input, Select, Textarea } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
 import { FileUpload } from '@/components/FileUpload';
-import { Gender, City, EducationLevel } from '@/lib/shared';
-import {
-  NATIONALITIES,
-  INDUSTRIES,
-  PROOF_OF_WORK_TYPES,
-  PROOF_OF_WORK_HINTS,
-  type ProofOfWorkType,
-} from '@/lib/shared';
 import { validateRequired, sanitizeText } from '@/lib/validate';
 import { MembershipStage } from '@/lib/membership';
 import { SmileVerify } from '@/components/SmileVerify';
 
 /**
- * Verification flow (post-sign-up, and re-reachable at /get-vetted).
+ * Lightweight onboarding + verification flow.
  *
- * Two calm steps:
- *   1. About you & work (professional identity + proof of work)
- *   2. Identity check (ID document + selfie upload)
+ * Step 1 — the essentials: name, date of birth, and a profile photo. Everything
+ * else (work, education, bio, interests, preferences) is finished later from
+ * My Profile / Settings, so signing up is instant.
  *
- * Submits the profile (upsert) and a vetting application. Members with an
- * application in review see a status card instead of the form; verified
- * members see a done card.
+ * Step 2 — the identity check (ID document + selfie). This is the verification
+ * "process" the member still walks through; in prototype mode it auto-approves,
+ * so there is no admin queue to work.
  */
-interface Identity {
+interface Essentials {
   firstName: string;
   lastName: string;
   dateOfBirth: string;
-  gender: Gender | '';
-  nationality: string;
-  city: City | '';
-  profession: string;
-  employer: string;
-  educationLevel: EducationLevel | '';
-  institution: string;
-  bio: string;
-  linkedInUrl: string;
-  industries: string[];
 }
 
-const PROOF_LABELS: Record<ProofOfWorkType, string> = {
-  resume: 'Résumé / CV',
-  work_badge: 'Work badge',
-  selfie_company: 'Workplace selfie',
-  linkedin: 'LinkedIn URL',
-};
-
-const STEP_LABELS = ['About you & work', 'Identity check'];
+const STEP_LABELS = ['About you', 'Identity check'];
 
 export function OnboardingForm() {
   const router = useRouter();
   const toast = useToast();
   const { user, loading, stage, refreshApplication } = useAuth();
+  const { user: clerkUser, isLoaded: clerkLoaded } = useClerkIdentity();
 
   const [step, setStep] = useState<0 | 1>(0);
   const [checking, setChecking] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [identity, setIdentity] = useState<Identity>({
+  const [essentials, setEssentials] = useState<Essentials>({
     firstName: '',
     lastName: '',
     dateOfBirth: '',
-    gender: '',
-    nationality: '',
-    city: '',
-    profession: '',
-    employer: '',
-    educationLevel: '',
-    institution: '',
-    bio: '',
-    linkedInUrl: '',
-    industries: [],
   });
-  const [proofOfWorkType, setProofOfWorkType] = useState<ProofOfWorkType | ''>('');
-  const [proofOfWorkUrl, setProofOfWorkUrl] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [idDocumentUrl, setIdDocumentUrl] = useState('');
   const [selfieUrl, setSelfieUrl] = useState('');
 
+  // OAuth (Google/Clerk) already supplies a photo, so the upload is optional there.
+  const hasOAuthPhoto = Boolean(clerkUser?.imageUrl);
+
   useEffect(() => {
     if (loading) return;
+    if (CLERK_ENABLED && !clerkLoaded) return;
     if (!user) {
       setChecking(false);
       return;
@@ -95,21 +66,13 @@ export function OnboardingForm() {
     let active = true;
     void (async () => {
       try {
-        const p = await api.get<Partial<Identity>>('/profile/me');
+        const p = await api.get<Partial<Essentials>>('/profile/me');
         if (!active) return;
-        setIdentity((f) => ({
+        setEssentials((f) => ({
           ...f,
           firstName: p.firstName ?? '',
           lastName: p.lastName ?? '',
           dateOfBirth: p.dateOfBirth ? String(p.dateOfBirth).slice(0, 10) : '',
-          gender: (p.gender as Gender) ?? '',
-          city: (p.city as City) ?? '',
-          profession: (p.profession as string) ?? '',
-          employer: (p.employer as string) ?? '',
-          educationLevel: (p.educationLevel as EducationLevel) ?? '',
-          institution: (p.institution as string) ?? '',
-          bio: (p.bio as string) ?? '',
-          industries: (p.industries as string[]) ?? [],
         }));
       } catch (err) {
         if (!(err instanceof ApiError && err.status === 404)) {
@@ -122,37 +85,19 @@ export function OnboardingForm() {
     return () => {
       active = false;
     };
-  }, [user, loading]);
+  }, [user, loading, clerkLoaded]);
 
-  function set<K extends keyof Identity>(k: K, v: Identity[K]) {
-    setIdentity((f) => ({ ...f, [k]: v }));
-  }
-
-  function toggleIndustry(industry: string) {
-    setIdentity((f) => ({
-      ...f,
-      industries: f.industries.includes(industry)
-        ? f.industries.filter((i) => i !== industry)
-        : [...f.industries, industry],
-    }));
+  function set<K extends keyof Essentials>(k: K, v: Essentials[K]) {
+    setEssentials((f) => ({ ...f, [k]: v }));
   }
 
   function validateStep1(): string | null {
-    const proofOk =
-      proofOfWorkType === 'linkedin' ? identity.linkedInUrl.trim() !== '' : proofOfWorkUrl !== '';
     return (
-      validateRequired(identity.firstName, 'First name') ??
-      validateRequired(identity.lastName, 'Last name') ??
-      validateRequired(identity.dateOfBirth, 'Date of birth') ??
-      validateRequired(identity.gender, 'Gender') ??
-      validateRequired(identity.nationality, 'Nationality') ??
-      validateRequired(identity.city, 'City') ??
-      validateRequired(identity.profession, 'Profession') ??
-      validateRequired(identity.employer, 'Employer') ??
-      validateRequired(identity.educationLevel, 'Education level') ??
-      validateRequired(identity.institution, 'Institution') ??
-      (proofOfWorkType === '' ? 'Choose a proof-of-work method' : null) ??
-      (proofOk ? null : 'Provide the chosen proof of work')
+      validateRequired(essentials.firstName, 'First name') ??
+      validateRequired(essentials.lastName, 'Last name') ??
+      validateRequired(essentials.dateOfBirth, 'Date of birth') ??
+      // Photo is required only when the account has no OAuth-supplied image.
+      (hasOAuthPhoto ? null : validateRequired(photoUrl, 'A profile photo'))
     );
   }
 
@@ -176,43 +121,29 @@ export function OnboardingForm() {
     setError(null);
     setSaving(true);
     try {
-      // 1) Persist the profile (upsert).
+      // 1) Persist the essentials.
       await api.put('/profile/me', {
-        firstName: sanitizeText(identity.firstName),
-        lastName: sanitizeText(identity.lastName),
-        dateOfBirth: identity.dateOfBirth,
-        gender: identity.gender as Gender,
-        city: identity.city as City,
-        nationality: sanitizeText(identity.nationality),
-        bio: sanitizeText(identity.bio),
-        profession: sanitizeText(identity.profession),
-        employer: sanitizeText(identity.employer),
-        educationLevel: identity.educationLevel as EducationLevel,
-        institution: sanitizeText(identity.institution),
-        industries: identity.industries,
+        firstName: sanitizeText(essentials.firstName),
+        lastName: sanitizeText(essentials.lastName),
+        dateOfBirth: essentials.dateOfBirth,
       });
 
-      // 2) Submit the vetting application with the uploaded URLs.
+      // 2) Persist the uploaded photo (skipped when OAuth already supplied one).
+      if (photoUrl) {
+        await api.post('/profile/me/photos', { url: photoUrl, isPrimary: true });
+      }
+
+      // 3) Submit the vetting application (ID + selfie). Prototype mode auto-approves.
       await api.post('/applications', {
-        firstName: sanitizeText(identity.firstName),
-        lastName: sanitizeText(identity.lastName),
-        dateOfBirth: identity.dateOfBirth,
-        gender: identity.gender as Gender,
-        nationality: sanitizeText(identity.nationality),
-        city: identity.city as City,
-        profession: sanitizeText(identity.profession),
-        employer: sanitizeText(identity.employer),
-        educationLevel: identity.educationLevel as EducationLevel,
-        institution: sanitizeText(identity.institution),
-        linkedInUrl: identity.linkedInUrl.trim() || undefined,
-        proofOfWorkType: proofOfWorkType || undefined,
-        proofOfWorkUrl: proofOfWorkUrl || undefined,
+        firstName: sanitizeText(essentials.firstName),
+        lastName: sanitizeText(essentials.lastName),
+        dateOfBirth: essentials.dateOfBirth,
         idDocumentUrl,
         selfieUrl,
       });
 
       await refreshApplication();
-      toast('Application submitted — our team will review it shortly', 'success');
+      toast('Verification submitted — you’re being verified now', 'success');
       router.push('/portal/discover');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not submit your application');
@@ -301,7 +232,7 @@ export function OnboardingForm() {
       <header className="vet-head">
         <p className="kicker">Verification</p>
         <h1>Get verified</h1>
-        <p>Two short steps to join the verified community: your details, then a quick ID check.</p>
+        <p>Two short steps: your details, then a quick ID check. You can finish your full profile later from Settings.</p>
       </header>
 
       <div className="vet-card">
@@ -322,164 +253,39 @@ export function OnboardingForm() {
               <div className="grid2">
                 <Input
                   label="First name"
-                  value={identity.firstName}
+                  value={essentials.firstName}
                   onChange={(e) => set('firstName', e.currentTarget.value)}
                 />
                 <Input
                   label="Last name"
-                  value={identity.lastName}
+                  value={essentials.lastName}
                   onChange={(e) => set('lastName', e.currentTarget.value)}
                 />
                 <Input
                   label="Date of birth"
                   type="date"
-                  value={identity.dateOfBirth}
+                  value={essentials.dateOfBirth}
                   onChange={(e) => set('dateOfBirth', e.currentTarget.value)}
-                />
-                <Select
-                  label="Gender"
-                  value={identity.gender}
-                  onChange={(e) => set('gender', e.currentTarget.value as Gender)}
-                >
-                  <option value="">Select…</option>
-                  {Object.values(Gender).map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  label="Nationality"
-                  value={identity.nationality}
-                  onChange={(e) => set('nationality', e.currentTarget.value)}
-                >
-                  <option value="">Select…</option>
-                  {NATIONALITIES.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </Select>
-                <Select
-                  label="City"
-                  value={identity.city}
-                  onChange={(e) => set('city', e.currentTarget.value as City)}
-                >
-                  <option value="">Select…</option>
-                  {Object.values(City).map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </section>
-
-            <section className="vet-section">
-              <h2>Work &amp; education</h2>
-              <div className="grid2">
-                <Input
-                  label="Profession"
-                  value={identity.profession}
-                  onChange={(e) => set('profession', e.currentTarget.value)}
-                />
-                <Input
-                  label="Employer"
-                  value={identity.employer}
-                  onChange={(e) => set('employer', e.currentTarget.value)}
-                />
-                <Select
-                  label="Education level"
-                  value={identity.educationLevel}
-                  onChange={(e) => set('educationLevel', e.currentTarget.value as EducationLevel)}
-                >
-                  <option value="">Select…</option>
-                  {Object.values(EducationLevel).map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </Select>
-                <Input
-                  label="Institution"
-                  value={identity.institution}
-                  onChange={(e) => set('institution', e.currentTarget.value)}
                 />
               </div>
 
               <div className="field">
-                <span>
-                  Industries{identity.industries.length > 0 && ` (${identity.industries.length})`}
-                </span>
-                <div className="vet-chip-grid">
-                  {INDUSTRIES.map((industry) => {
-                    const checked = identity.industries.includes(industry);
-                    return (
-                      <button
-                        key={industry}
-                        type="button"
-                        className={`vet-chip ${checked ? 'is-on' : ''}`}
-                        aria-pressed={checked}
-                        onClick={() => toggleIndustry(industry)}
-                      >
-                        {industry}
-                      </button>
-                    );
-                  })}
-                </div>
+                <span>Profile photo</span>
+                {hasOAuthPhoto ? (
+                  <p className="vet-hint">
+                    We’ll use the photo from your sign-in account. You can add more from Settings.
+                  </p>
+                ) : (
+                  <p className="vet-hint">A clear photo helps other members recognise you. Required to continue.</p>
+                )}
+                <FileUpload
+                  label="Upload photo"
+                  accept="image/*"
+                  folder="photos"
+                  value={photoUrl}
+                  onChange={setPhotoUrl}
+                />
               </div>
-
-              <Textarea
-                label="Short bio"
-                value={identity.bio}
-                onChange={(e) => set('bio', e.currentTarget.value)}
-                placeholder="What you do, what you care about, what you are looking for."
-              />
-            </section>
-
-            <section className="vet-section">
-              <h2>Proof of work</h2>
-              <p className="vet-hint">
-                Choose how you’ll prove your professional identity. One method is required.
-              </p>
-              <div className="vet-chip-grid" style={{ marginTop: 12 }}>
-                {PROOF_OF_WORK_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={`vet-chip ${proofOfWorkType === type ? 'is-on' : ''}`}
-                    aria-pressed={proofOfWorkType === type}
-                    onClick={() => {
-                      setProofOfWorkType(type);
-                      // Switching method clears the previously supplied artifact.
-                      setProofOfWorkUrl('');
-                    }}
-                  >
-                    {PROOF_LABELS[type]}
-                  </button>
-                ))}
-              </div>
-              {proofOfWorkType && (
-                <div style={{ marginTop: 14 }}>
-                  <p className="vet-hint">{PROOF_OF_WORK_HINTS[proofOfWorkType]}</p>
-                  {proofOfWorkType === 'linkedin' ? (
-                    <Input
-                      label="LinkedIn URL"
-                      value={identity.linkedInUrl}
-                      onChange={(e) => set('linkedInUrl', e.currentTarget.value)}
-                      placeholder="https://linkedin.com/in/…"
-                    />
-                  ) : (
-                    <FileUpload
-                      label="Upload proof"
-                      accept="image/*,application/pdf"
-                      folder="proof"
-                      value={proofOfWorkUrl}
-                      onChange={setProofOfWorkUrl}
-                    />
-                  )}
-                </div>
-              )}
             </section>
 
             <div className="vet-actions">

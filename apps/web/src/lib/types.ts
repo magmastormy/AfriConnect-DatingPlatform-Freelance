@@ -293,6 +293,41 @@ export interface ConversationView {
   updatedAt: string;
 }
 
+/** Safe public view of a roleplay persona (GET /mockchat/personas). The app
+ *  labels these as AI demo companions, NOT real members. */
+export interface PublicPersona {
+  id: string;
+  name: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  background: {
+    age: number;
+    city: string;
+    profession: string;
+    bio: string;
+  };
+  interests: string[];
+  communicationStyle: {
+    tone: string;
+    responseLength: string;
+  };
+}
+
+/** A persona thread as returned by GET /mockchat/conversations. */
+export interface MockConversationView {
+  id: string;
+  userId: string;
+  personaId: string;
+  personaName: string;
+  personaDisplayName: string;
+  personaAvatarUrl?: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  unreadCount: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface MessageView {
   id: string;
   senderId: string;
