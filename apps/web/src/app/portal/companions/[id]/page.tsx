@@ -6,7 +6,7 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/Toast';
 import type { ChatMessage, PublicPersona } from '@/lib/types';
-import './companions.css';
+import '../companions.css';
 
 function avatarInitial(name: string): string {
   return (name || '?').charAt(0).toUpperCase();
