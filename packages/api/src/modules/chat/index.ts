@@ -42,11 +42,11 @@ function buildAiProvider(): ILLMProvider | null {
 export function buildChatModule(matchService?: IMatchService): Router {
   const repo = new ChatRepository(prisma);
   const aiProvider = buildAiProvider();
-  const service: IChatService = new ChatService(repo, realtime, matchService, {
+  const media = createMediaStorage();
+  const service: IChatService = new ChatService(repo, realtime, matchService, media, {
     llm: aiProvider ?? undefined,
     aiChatEnabled: config.aiChatEnabled,
   });
-  const media = createMediaStorage();
   const controller = new ChatController(service, media);
   return chatRoutes(controller, service);
 }

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { IChatService } from './chat.service';
 import { sendMessageSchema, editMessageSchema, createConversationSchema } from './chat.schema';
-import { asyncHandler, success, IMediaStorage } from '@africonnect/shared';
+import { asyncHandler, success, IMediaStorage, toBrowserMediaUrl } from '@africonnect/shared';
 import { z } from 'zod';
 
 const uploadSchema = z.object({
@@ -42,7 +42,9 @@ export class ChatController {
     const b64 = matches ? matches[1] : data;
     const buffer = Buffer.from(b64, 'base64');
     const result = await this.media.upload(buffer, ext, 'chat');
-    res.status(201).json(success({ url: result.url }));
+    // Presign for private buckets (R2) so the returned URL renders immediately.
+    const url = (await toBrowserMediaUrl(result.url, this.media)) ?? result.url;
+    res.status(201).json(success({ url }));
   });
 
   edit = asyncHandler(async (req: Request, res: Response) => {

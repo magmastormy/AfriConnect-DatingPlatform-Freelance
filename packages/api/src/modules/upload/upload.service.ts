@@ -1,4 +1,4 @@
-import { IMediaStorage, UploadResult, ValidationError } from '@africonnect/shared';
+import { IMediaStorage, UploadResult, ValidationError, toBrowserMediaUrl } from '@africonnect/shared';
 import { UPLOAD_MAX_BYTES, UPLOAD_MAGIC_SIGNATURES } from '@africonnect/shared';
 import { UploadFolder, CanonicalExt } from './upload.types';
 import { sanitizeUpload, noopScan, type ScanAdapter } from './upload.sanitize';
@@ -39,6 +39,13 @@ export class UploadService implements IUploadService {
     }
     const ext = this.detectExt(buffer);
     const safe = await sanitizeUpload(buffer, ext, this.scan);
-    return this.storage.upload(safe, ext, folder);
+    const result = await this.storage.upload(safe, ext, folder);
+    // Return a browser-loadable URL: on private R2 buckets the raw object URL
+    // 403s for anonymous GETs, so mint a presigned URL right here. The raw key
+    // is preserved as publicId for later removal/re-signing.
+    return {
+      ...result,
+      url: (await toBrowserMediaUrl(result.url, this.storage)) ?? result.url,
+    };
   }
 }

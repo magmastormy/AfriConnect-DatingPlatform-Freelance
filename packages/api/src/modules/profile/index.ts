@@ -4,10 +4,11 @@ import { ProfileRepository } from './profile.repository';
 import { ProfileController } from './profile.controller';
 import { profileRoutes } from './profile.routes';
 import { prisma } from '@config/prisma';
+import { createMediaStorage } from '@config/providers';
 
 export function buildProfileModule(): Router {
   const repo = new ProfileRepository(prisma);
-  const service: IProfileService = new ProfileService(repo);
+  const service: IProfileService = new ProfileService(repo, createMediaStorage());
   const controller = new ProfileController(service);
   return profileRoutes(controller, service);
 }

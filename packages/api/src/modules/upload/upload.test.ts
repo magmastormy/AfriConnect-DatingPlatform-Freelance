@@ -32,10 +32,16 @@ describe('UploadService', () => {
   it('uploads a valid PNG and passes canonical ext to storage', async () => {
     const storage = makeStorage();
     storage.upload.mockResolvedValue({ url: 'https://cdn/y.png', publicId: 'vetting/y.png' });
+    // UploadService re-signs non-public URLs on the way out, so the mock
+    // storage's getSignedUrl must simulate the presigned URL the real R2/CDN
+    // storage would return.
+    storage.getSignedUrl.mockResolvedValue('https://cdn/y.png?X-Amz-Signature=abc');
     const svc = new UploadService(storage);
     const res = await svc.upload(PNG_MAGIC, 'vetting');
-    expect(res.url).toBe('https://cdn/y.png');
+    expect(res.url).toBe('https://cdn/y.png?X-Amz-Signature=abc');
     expect(storage.upload).toHaveBeenCalledWith(expect.any(Buffer), 'png', 'vetting');
+    // Key extraction for a CDN-host URL: the full path is the object key.
+    expect(storage.getSignedUrl).toHaveBeenCalledWith('y.png', expect.any(Number));
   });
 
   it('detects JPG and PDF magic bytes', async () => {

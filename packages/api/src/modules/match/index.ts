@@ -7,18 +7,21 @@ import { prisma } from '@config/prisma';
 import { ProfileRepository } from '@modules/profile/profile.repository';
 import { NotificationService } from '@modules/notification/notification.service';
 import { NotificationRepository } from '@modules/notification/notification.repository';
+import { createMediaStorage } from '@config/providers';
 
 /**
  * Builds the MatchService with its notification dependency wired in so that
  * superlikes and mutual matches fan out in-app alerts. Shared by the match
  * router and any consumer that needs `isMutual` (e.g. the chat module guards
- * conversation creation on a mutual match).
+ * conversation creation on a mutual match). Media storage signs the photo
+ * URLs on every card before they leave the API (private R2 buckets 403
+ * anonymous GETs).
  */
 export function buildMatchService(): IMatchService {
   const repo = new MatchRepository(prisma);
   const profileRepo = new ProfileRepository(prisma);
   const notify = new NotificationService(new NotificationRepository(prisma));
-  return new MatchService(repo, profileRepo, notify);
+  return new MatchService(repo, profileRepo, notify, createMediaStorage());
 }
 
 export function buildMatchModule(): Router {

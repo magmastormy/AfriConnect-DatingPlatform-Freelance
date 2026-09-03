@@ -1,7 +1,14 @@
 import { IChatRepository } from './chat.repository';
 import { RealtimeHub } from './chat.ws';
 import { SendMessageInput, EditMessageInput } from './chat.types';
-import { ValidationError, NotFoundError, ConflictError, logger } from '@africonnect/shared';
+import {
+  ValidationError,
+  NotFoundError,
+  ConflictError,
+  logger,
+  IMediaStorage,
+  toBrowserMediaUrl,
+} from '@africonnect/shared';
 import type { IMatchService } from '@modules/match';
 import { ILLMProvider, LLMMessage } from '../../lib/llm';
 
@@ -29,8 +36,20 @@ export class ChatService implements IChatService {
     private readonly repo: IChatRepository,
     private readonly realtime?: RealtimeHub,
     private readonly match?: IMatchService,
+    private readonly media?: IMediaStorage,
     private readonly opts: { llm?: ILLMProvider; aiChatEnabled?: boolean } = {},
   ) {}
+
+  /**
+   * Signs a message row's imageUrl for browser/realtime delivery. The row in
+   * the DB keeps the raw storage URL (re-signing on every read keeps links
+   * valid); only the copy we return/broadcast carries the presigned URL.
+   */
+  private async withSignedImage<T extends { imageUrl?: string | null }>(message: T): Promise<T> {
+    if (!this.media || !message.imageUrl) return message;
+    const imageUrl = await toBrowserMediaUrl(message.imageUrl, this.media);
+    return imageUrl ? { ...message, imageUrl } : message;
+  }
 
   private get aiChatEnabled(): boolean {
     return this.opts.aiChatEnabled ?? false;
@@ -45,7 +64,27 @@ export class ChatService implements IChatService {
   }
 
   async listConversationsDetailed(userId: string): Promise<unknown[]> {
-    return this.repo.listConversationsWithDetails(userId);
+    const list = await this.repo.listConversationsWithDetails(userId);
+    return Promise.all(
+      list.map(async (row) => {
+        const conv = row as {
+          other?: { photo?: string | null } | null;
+          lastMessage?: { imageUrl?: string | null } | null;
+        };
+        if (!this.media || (!conv.other?.photo && !conv.lastMessage?.imageUrl)) return row;
+        const [photo, lastMessage] = await Promise.all([
+          toBrowserMediaUrl(conv.other?.photo ?? null, this.media),
+          conv.lastMessage
+            ? this.withSignedImage(conv.lastMessage).then((m) => m as unknown)
+            : Promise.resolve(conv.lastMessage),
+        ]);
+        return {
+          ...(row as object),
+          other: conv.other ? { ...conv.other, photo } : conv.other,
+          lastMessage,
+        };
+      }),
+    );
   }
 
   async getMessages(userId: string, conversationId: string): Promise<unknown[]> {
@@ -54,15 +93,18 @@ export class ChatService implements IChatService {
     if (conv.participant1Id !== userId && conv.participant2Id !== userId) {
       throw new ConflictError('You are not a participant in this conversation');
     }
-    return this.repo.getMessages(conversationId, { skip: 0, take: 100 });
+    const messages = await this.repo.getMessages(conversationId, { skip: 0, take: 100 });
+    return Promise.all(messages.map((m) => this.withSignedImage(m)));
   }
 
   async send(userId: string, conversationId: string, input: SendMessageInput): Promise<unknown> {
     const body = (input.content ?? '').trim();
     if (!body && !input.imageUrl) throw new ValidationError('Empty message');
     const message = await this.repo.sendMessage(conversationId, userId, body, input.imageUrl);
+    // The broadcast + response carry a presigned copy; the DB row keeps raw URL.
+    const outbound = await this.withSignedImage(message);
     // Realtime: push to both participants if either is connected.
-    void this.realtime?.broadcastMessage(conversationId, message);
+    void this.realtime?.broadcastMessage(conversationId, outbound);
     // Fire-and-forget AI auto-reply (the other participant's voice). Kept off the
     // request path so Groq latency never blocks the 201; the reply arrives via
     // the same realtime channel the client already listens on.
@@ -71,7 +113,7 @@ export class ChatService implements IChatService {
         logger.error({ err, conversationId }, 'ChatService: AI reply generation crashed'),
       );
     }
-    return message;
+    return outbound;
   }
 
   async edit(userId: string, messageId: string, input: EditMessageInput): Promise<unknown> {

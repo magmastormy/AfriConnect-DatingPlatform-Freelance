@@ -7,7 +7,14 @@ import {
   ProfileRedNoteView,
 } from './profile.types';
 import { NotFoundError, ValidationError } from '@africonnect/shared';
-import { PROFILE_MAX_PHOTOS, City, EducationLevel, Gender } from '@africonnect/shared';
+import {
+  PROFILE_MAX_PHOTOS,
+  City,
+  EducationLevel,
+  Gender,
+  IMediaStorage,
+  toBrowserMediaUrls,
+} from '@africonnect/shared';
 import { getPlatformSettings } from '@modules/settings';
 import { logger } from '@africonnect/shared';
 
@@ -27,7 +34,27 @@ export interface IProfileService {
 }
 
 export class ProfileService implements IProfileService {
-  constructor(private readonly repo: IProfileRepository) {}
+  constructor(
+    private readonly repo: IProfileRepository,
+    private readonly storage: IMediaStorage,
+  ) {}
+
+  /**
+   * Re-signs every photo URL on a profile row before it leaves the API. Photo
+   * URLs may point at a private R2 bucket (anonymous GET → 403 XML), so the
+   * browser always receives presigned URLs. Already-public URLs (local
+   * /uploads, Cloudinary) pass through the helper unchanged.
+   */
+  private async withSignedPhotos(
+    row: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const raw = Array.isArray(row.photos) ? (row.photos as unknown[]) : [];
+    const urls = raw
+      .map((p) => (typeof p === 'string' ? p : (p as { url?: string } | null)?.url))
+      .filter((u): u is string => Boolean(u));
+    const signed = await toBrowserMediaUrls(urls, this.storage);
+    return { ...row, photos: signed.map((url) => ({ url })) };
+  }
 
   async getOwn(userId: string): Promise<Record<string, unknown>> {
     const profile = await this.repo.findByUserId(userId);
@@ -45,7 +72,7 @@ export class ProfileService implements IProfileService {
         photos: [],
       };
     }
-    return profile;
+    return this.withSignedPhotos(profile as Record<string, unknown>);
   }
 
   async upsert(userId: string, input: UpdateProfileInput): Promise<Record<string, unknown>> {
@@ -67,7 +94,10 @@ export class ProfileService implements IProfileService {
     // edits from the account page don't resend DOB).
     if (input.dateOfBirth) data.dateOfBirth = new Date(input.dateOfBirth);
     else if (existing?.dateOfBirth) data.dateOfBirth = existing.dateOfBirth;
-    return existing ? this.repo.update(userId, data) : this.repo.create(userId, data);
+    const saved = existing
+      ? await this.repo.update(userId, data)
+      : await this.repo.create(userId, data);
+    return this.withSignedPhotos(saved as Record<string, unknown>);
   }
 
   async updatePreferences(
@@ -77,14 +107,16 @@ export class ProfileService implements IProfileService {
     const existing = await this.repo.findByUserId(userId);
     if (!existing) throw new NotFoundError('Profile not found', { userId });
     const preferences = { ...(existing.preferences as object), ...input };
-    return this.repo.update(userId, { preferences });
+    const saved = await this.repo.update(userId, { preferences });
+    return this.withSignedPhotos(saved as Record<string, unknown>);
   }
 
   async updatePrivacy(userId: string, input: UpdatePrivacyInput): Promise<Record<string, unknown>> {
     const existing = await this.repo.findByUserId(userId);
     if (!existing) throw new NotFoundError('Profile not found', { userId });
     const privacy = { ...(existing.privacy as object), ...input };
-    return this.repo.update(userId, { privacy });
+    const saved = await this.repo.update(userId, { privacy });
+    return this.withSignedPhotos(saved as Record<string, unknown>);
   }
 
   async addPhoto(userId: string, url: string, isPrimary = false): Promise<Record<string, unknown>> {
@@ -92,7 +124,8 @@ export class ProfileService implements IProfileService {
     if (!existing) throw new NotFoundError('Profile not found', { userId });
     const photos = Array.isArray(existing.photos) ? (existing.photos as object[]) : [];
     const order = photos.length + 1;
-    return this.repo.addPhoto(userId, { url, order, isPrimary });
+    const saved = await this.repo.addPhoto(userId, { url, order, isPrimary });
+    return this.withSignedPhotos(saved as Record<string, unknown>);
   }
 
   async removePhoto(userId: string, url: string): Promise<Record<string, unknown>> {
@@ -101,7 +134,8 @@ export class ProfileService implements IProfileService {
 
   async pause(userId: string, paused: boolean): Promise<Record<string, unknown>> {
     logger.info({ userId, paused }, 'Profile pause toggled');
-    return this.repo.setPaused(userId, paused);
+    const saved = await this.repo.setPaused(userId, paused);
+    return this.withSignedPhotos(saved as Record<string, unknown>);
   }
 
   async updateNearby(userId: string, input: UpdateNearbyInput): Promise<Record<string, unknown>> {
@@ -117,8 +151,11 @@ export class ProfileService implements IProfileService {
     if (input.nearbyEnabled !== undefined) data.nearbyEnabled = input.nearbyEnabled;
     if (input.latitude !== undefined) data.latitude = input.latitude;
     if (input.longitude !== undefined) data.longitude = input.longitude;
-    if (Object.keys(data).length === 0) return existing;
-    return this.repo.updateNearby(userId, data);
+    if (Object.keys(data).length === 0) {
+      return this.withSignedPhotos(existing as Record<string, unknown>);
+    }
+    const saved = await this.repo.updateNearby(userId, data);
+    return this.withSignedPhotos(saved as Record<string, unknown>);
   }
 
   async getRedNote(viewerId: string, targetId: string): Promise<ProfileRedNoteView> {
@@ -150,7 +187,12 @@ export class ProfileService implements IProfileService {
     const extraCap = restricted
       ? settings.freeViewMaxExtraPhotos
       : Math.max(0, PROFILE_MAX_PHOTOS - heroCount);
-    const photos = photosRaw.slice(0, heroCount + extraCap);
+    // Re-sign for the viewer: private R2 URLs must be presigned or the gallery
+    // renders broken-image icons (public/local/cloudinary URLs pass through).
+    const photos = await toBrowserMediaUrls(
+      photosRaw.slice(0, heroCount + extraCap),
+      this.storage,
+    );
 
     return {
       userId: target.userId,

@@ -55,6 +55,71 @@ export interface IMediaStorage {
   getSignedUrl(publicId: string, ttlSeconds: number): Promise<string>;
 }
 
+/** TTL for presigned media URLs handed to browsers (1 hour). */
+export const SIGNED_MEDIA_URL_TTL_SECONDS = 3600;
+
+/**
+ * Converts a stored media URL into a URL the browser can actually GET.
+ *
+ * R2 buckets are kept private (vet documents contain PII — POPIA), so an
+ * unsigned browser GET against `…r2.cloudflarestorage.com/<bucket>/<key>`
+ * replies with R2's XML `<Error><Code>InvalidArgument</Code><Message>
+ * Authorization…</Message></Error>` and the <img> renders a broken-image icon.
+ * We mint a short-lived SigV4 presigned URL on every read boundary instead.
+ *
+ * - Local dev storage (`/uploads/...`): served statically by the API → unchanged.
+ * - Cloudinary: public secure_url → unchanged.
+ * - R2 default host (`…r2.cloudflarestorage.com/<bucket>/<key>`): extract the
+ *   key (path after the bucket segment) and sign.
+ * - R2 custom CDN host (`https://<cdn>/<key>`): the full path is the key.
+ *
+ * Already-signed URLs are safe to re-sign: the object key is taken from the
+ * path only, so stale query params are discarded and a fresh signature is
+ * minted. Never throws — on failure the original URL is returned so a signing
+ * hiccup never blanks out an image.
+ */
+export async function toBrowserMediaUrl(
+  url: string | null | undefined,
+  storage: IMediaStorage,
+  ttlSeconds: number = SIGNED_MEDIA_URL_TTL_SECONDS,
+): Promise<string | null> {
+  if (!url) return null;
+  // Local storage: served by the API's static `/uploads` route. Leave untouched.
+  if (url.startsWith('/uploads/')) return url;
+  // Cloudinary: public secure_url. Leave untouched.
+  if (url.includes('res.cloudinary.com')) return url;
+  try {
+    const u = new URL(url);
+    // Absolute local-storage URL (LocalMediaStorage given an API origin) —
+    // already browser-loadable via the API's static /uploads route.
+    if (u.pathname.startsWith('/uploads/')) return url;
+    const segments = u.pathname.replace(/^\/+/, '').split('/');
+    // Default R2 host nests the bucket as the first path segment; a custom CDN
+    // host does not.
+    const key = u.hostname.endsWith('.r2.cloudflarestorage.com')
+      ? segments.slice(1).join('/')
+      : segments.join('/');
+    if (!key) return url;
+    return await storage.getSignedUrl(key, ttlSeconds);
+  } catch (err) {
+    // Relative or otherwise unparseable URL — pass through unchanged.
+    logger.warn({ err, url }, 'toBrowserMediaUrl: signing skipped, returning original URL');
+    return url;
+  }
+}
+
+/** Maps a list of stored URLs through {@link toBrowserMediaUrl}, dropping nulls. */
+export async function toBrowserMediaUrls(
+  urls: Array<string | null | undefined>,
+  storage: IMediaStorage,
+  ttlSeconds: number = SIGNED_MEDIA_URL_TTL_SECONDS,
+): Promise<string[]> {
+  const signed = await Promise.all(
+    urls.map((u) => toBrowserMediaUrl(u, storage, ttlSeconds)),
+  );
+  return signed.filter((u): u is string => Boolean(u));
+}
+
 const LOCAL_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
 /**

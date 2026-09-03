@@ -64,13 +64,13 @@ designs/
 docs/
 *.test.ts
 upload.test.ts
-
+*.cjs
 AfriConnect_Presentation.html
 *.html
 *.test.yml
 *.test*
 *.cmd
-
+*.docx
 
 
 

@@ -18,6 +18,8 @@ import {
   AdminScope,
   NotificationChannel,
   logger,
+  IMediaStorage,
+  toBrowserMediaUrl,
 } from '@africonnect/shared';
 import { encryptPii } from '@africonnect/shared';
 import { INotificationService } from '@modules/notification/notification.service';
@@ -56,6 +58,9 @@ export class ApplicationService implements IApplicationService {
   constructor(
     private readonly repo: IApplicationRepository,
     private readonly notifications: INotificationService,
+    // Optional: when wired (member-facing module), doc URLs are presigned on
+    // the way out. The admin module constructs without it and signs itself.
+    private readonly storage?: IMediaStorage,
   ) {}
 
   /**
@@ -199,7 +204,7 @@ export class ApplicationService implements IApplicationService {
 
   async listForAdmin(filter?: { status?: ApplicationStatus }): Promise<ApplicationView[]> {
     const apps = await this.repo.list(filter);
-    return apps.map((a) => this.toView(a));
+    return Promise.all(apps.map((a) => this.toView(a)));
   }
 
   async getById(
@@ -241,7 +246,7 @@ export class ApplicationService implements IApplicationService {
     return this.toView(updated);
   }
 
-  private toView(a: {
+  private async toView(a: {
     id: string;
     firstName: string;
     lastName: string;
@@ -263,8 +268,8 @@ export class ApplicationService implements IApplicationService {
     status: unknown;
     createdAt: Date;
     reviewedBy?: string | null;
-  }): ApplicationView {
-    return {
+  }): Promise<ApplicationView> {
+    const view: ApplicationView = {
       id: a.id,
       firstName: a.firstName,
       lastName: a.lastName,
@@ -277,6 +282,7 @@ export class ApplicationService implements IApplicationService {
       employer: a.employer,
       educationLevel: asEnum<ApplicationView['educationLevel']>(a.educationLevel),
       institution: a.institution,
+      // External link — never run through storage signing.
       linkedInUrl: a.linkedInUrl ?? undefined,
       proofOfWorkType: (a.proofOfWorkType as ProofOfWorkType) ?? undefined,
       proofOfWorkUrl: a.proofOfWorkUrl ?? undefined,
@@ -286,6 +292,23 @@ export class ApplicationService implements IApplicationService {
       status: asEnum<ApplicationView['status']>(a.status),
       createdAt: a.createdAt,
       reviewedBy: a.reviewedBy ?? null,
+    };
+    if (!this.storage) return view;
+    // Presign the uploaded vetting documents so they render from a private R2
+    // bucket (public/local/cloudinary URLs pass through the helper unchanged).
+    const [idDocumentUrl, selfieUrl, degreeCertificateUrl, proofOfWorkUrl] =
+      await Promise.all([
+        toBrowserMediaUrl(view.idDocumentUrl, this.storage),
+        toBrowserMediaUrl(view.selfieUrl, this.storage),
+        toBrowserMediaUrl(view.degreeCertificateUrl ?? null, this.storage),
+        toBrowserMediaUrl(view.proofOfWorkUrl ?? null, this.storage),
+      ]);
+    return {
+      ...view,
+      idDocumentUrl: idDocumentUrl ?? view.idDocumentUrl,
+      selfieUrl: selfieUrl ?? view.selfieUrl,
+      degreeCertificateUrl: degreeCertificateUrl ?? view.degreeCertificateUrl,
+      proofOfWorkUrl: proofOfWorkUrl ?? view.proofOfWorkUrl,
     };
   }
 }

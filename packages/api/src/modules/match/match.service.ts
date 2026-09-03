@@ -21,7 +21,13 @@ import {
   ConflictError,
   NotFoundError,
 } from '@africonnect/shared';
-import { logger, NotificationChannel } from '@africonnect/shared';
+import {
+  logger,
+  NotificationChannel,
+  IMediaStorage,
+  toBrowserMediaUrl,
+  toBrowserMediaUrls,
+} from '@africonnect/shared';
 import type { INotificationService } from '@modules/notification/notification.service';
 import { redisGetJson, redisSetJson } from '../../config/redis';
 import { config } from '@config/index';
@@ -111,13 +117,47 @@ export class MatchService implements IMatchService {
     private readonly repo: IMatchRepository,
     private readonly profileRepo: IProfileRepository,
     private readonly notify?: INotificationService,
+    private readonly storage?: IMediaStorage,
   ) {}
+
+  /**
+   * Signs the single `photo` URL on daily/mutual match cards for browser
+   * delivery. R2 object URLs 403 for anonymous GETs, so every read boundary
+   * must mint a fresh presigned URL. When no storage is wired (unit tests)
+   * the cards pass through unchanged.
+   */
+  private async signPhotoCards<T extends { photo: string | null }>(
+    items: T[],
+  ): Promise<T[]> {
+    if (!this.storage) return items;
+    return Promise.all(
+      items.map(async (item) => ({
+        ...item,
+        photo: (await toBrowserMediaUrl(item.photo, this.storage!)) ?? null,
+      })),
+    );
+  }
+
+  /** Signs every URL in a card's `photos` array (discover/recommend/preview). */
+  private async signPhotoArrays<T extends { photos: string[] }>(cards: T[]): Promise<T[]> {
+    if (!this.storage) return cards;
+    return Promise.all(
+      cards.map(async (card) => ({
+        ...card,
+        photos: await toBrowserMediaUrls(card.photos, this.storage!),
+      })),
+    );
+  }
 
   async generateDailyMatches(
     userId: string,
   ): Promise<{ matches: DailyMatchEntry[]; cached: boolean }> {
     const cached = await this.repo.findTodaysQueue(userId);
-    if (cached) return { matches: cached.matches, cached: true };
+    if (cached) {
+      // Queue rows persist the raw storage URL; re-sign on every read so
+      // private R2 links stay valid even when the queue is reused all day.
+      return { matches: await this.signPhotoCards(cached.matches), cached: true };
+    }
 
     const viewer = await this.profileRepo.findByUserId(userId);
     if (!viewer) throw new NotFoundError('Complete your profile before viewing matches');
@@ -206,7 +246,7 @@ export class MatchService implements IMatchService {
 
     await this.repo.createDailyQueue(userId, entries);
     logger.info({ userId, generated: entries.length }, 'Daily matches generated');
-    return { matches: entries, cached: false };
+    return { matches: await this.signPhotoCards(entries), cached: false };
   }
 
   async expressInterest(
@@ -323,7 +363,7 @@ export class MatchService implements IMatchService {
     const counterpartIds = matches.map((m) => m.matchedUserId);
     const profiles = await this.profileRepo.findByUserIds(counterpartIds);
     const byUser = new Map(profiles.map((p) => [p.userId, p]));
-    return matches.map((m) => {
+    const cards = matches.map((m) => {
       const profile = byUser.get(m.matchedUserId);
       return {
         id: m.id,
@@ -338,6 +378,7 @@ export class MatchService implements IMatchService {
         city: profile?.city ?? null,
       };
     });
+    return this.signPhotoCards(cards);
   }
 
   /**
@@ -445,7 +486,9 @@ export class MatchService implements IMatchService {
       const cached = await redisGetJson<RecommendCard[]>(cacheKey).catch(() => null);
       if (cached && Array.isArray(cached) && cached.length > 0) {
         logger.debug({ userId, cacheKey }, 'Discover cache hit');
-        return cached;
+        // Cache stores RAW storage URLs — sign on the way out so presigned
+        // links can never outlive their TTL while sitting in Redis.
+        return this.signPhotoArrays(cached);
       }
     }
 
@@ -589,9 +632,11 @@ export class MatchService implements IMatchService {
     });
 
     if (process.env.NODE_ENV !== 'test') {
+      // Persist unsigned cards — signing happens on the way out so the cached
+      // URLs never age past their presign TTL.
       await redisSetJson(cacheKey, cards, 30).catch(() => {});
     }
-    return cards;
+    return this.signPhotoArrays(cards);
   }
 
   /**
@@ -613,7 +658,7 @@ export class MatchService implements IMatchService {
       { skip: 0, take: cap },
     );
 
-    return candidates.map((c) => {
+    const cards = candidates.map((c) => {
       const candidate = toCandidate(c);
       const photos = Array.isArray(c.photos)
         ? (c.photos as { url: string }[]).map((p) => p.url).filter(Boolean)
@@ -645,5 +690,6 @@ export class MatchService implements IMatchService {
         isPremium,
       } as DiscoverCard;
     });
+    return this.signPhotoArrays(cards);
   }
 }

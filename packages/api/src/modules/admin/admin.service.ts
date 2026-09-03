@@ -14,7 +14,7 @@ import { IApplicationService } from '@modules/application/application.service';
 import { IEventService } from '@modules/event/event.service';
 import { IBillingService } from '@modules/billing/billing.service';
 import { INotificationService } from '@modules/notification/notification.service';
-import { IMediaStorage } from '@africonnect/shared';
+import { IMediaStorage, toBrowserMediaUrl } from '@africonnect/shared';
 import {
   AuthedUser,
   UserRole,
@@ -154,41 +154,10 @@ export class AdminService implements IAdminService {
    * stored URL is a public-shaped R2 URL that the browser cannot GET unsigned —
    * R2 replies with `<Error><Code>InvalidArgument</Code><Message>Authorization…
    * </Error>`. We sign on the way out so the admin "view" link actually works.
-   *
-   * - Local: stored URL is `/uploads/<key>` → already served by the API's static
-   *   `/uploads` route, so we leave it alone.
-   * - Cloudinary: stored URL is the public secure_url → leave it alone.
-   * - R2: extract the object key, mint a 1-hour SigV4 presigned URL.
+   * The provider-specific rules live in the shared helper.
    */
   private async withSignedUrl(url: string | undefined | null): Promise<string | undefined> {
-    if (!url) return undefined;
-    // Local storage: served by static `/uploads`. Leave untouched.
-    if (url.startsWith('/uploads/')) return url;
-    // Cloudinary: public secure_url. Leave untouched.
-    if (url.includes('res.cloudinary.com')) return url;
-    // R2: extract key after the bucket segment and mint a presigned GET URL.
-    if (url.includes('.r2.cloudflarestorage.com/')) {
-      try {
-        const u = new URL(url);
-        // path looks like "/<bucket>/<key...>"
-        const parts = u.pathname.replace(/^\/+/, '').split('/');
-        const key = parts.slice(1).join('/'); // drop bucket segment
-        if (!key) return url;
-        return await this.storage.getSignedUrl(key, 3600);
-      } catch (err) {
-        logger.warn({ err, url }, 'admin.service: failed to sign R2 URL, returning original');
-        return url;
-      }
-    }
-    // Custom CDN over R2: extract path after the CDN host.
-    try {
-      const u = new URL(url);
-      const key = u.pathname.replace(/^\/+/, '');
-      if (!key) return url;
-      return await this.storage.getSignedUrl(key, 3600);
-    } catch {
-      return url;
-    }
+    return (await toBrowserMediaUrl(url, this.storage)) ?? undefined;
   }
 
   async dashboard(): Promise<AdminDashboard> {
