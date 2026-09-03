@@ -93,6 +93,13 @@ export const config = {
   // Defaults to ON because this build is the review prototype. Set
   // PROTOTYPE_MODE=false to restore the real gated production behaviour.
   prototypeMode: (process.env.PROTOTYPE_MODE ?? 'true').toLowerCase() !== 'false',
+  // ── AI-powered messaging (prototype stand-in for real two-way chat) ──────
+  // When enabled, the chat service answers the OTHER participant with an LLM
+  // (driven by that member's profile) so messaging stays functional in the
+  // demo even before a real mutual match exists. The relationship is still a
+  // real 1:1 Conversation row; only the replies are generated. Set
+  // AI_CHAT_ENABLED=false to restore the strict "mutual match only" behaviour.
+  aiChatEnabled: (process.env.AI_CHAT_ENABLED ?? 'true').toLowerCase() !== 'false',
 } as const;
 
 // ─── Stripe test-mode enforcement (billing must never run live) ────────────

@@ -54,6 +54,26 @@ export interface IChatRepository {
   /** Counts unread messages (sent by others, not yet read) across every
    *  conversation the caller participates in. */
   unreadCountAcross(userId: string): Promise<number>;
+  /** The other participant's public profile — used to voice the AI reply. */
+  getMemberProfile(
+    userId: string,
+  ): Promise<{
+    displayName: string | null;
+    firstName: string;
+    lastName: string;
+    city: string;
+    headline: string | null;
+    profession: string | null;
+    employer: string | null;
+    bio: string | null;
+    interests: string[];
+    gender: string;
+    dateOfBirth: Date | null;
+  } | null>;
+  /** Recent messages for a conversation, ordered oldest→newest (capped). */
+  getRecentMessages(conversationId: string, take: number): Promise<Message[]>;
+  /** Whether a user id resolves to a real account (for the relaxed gate). */
+  userExists(userId: string): Promise<boolean>;
 }
 
 export class ChatRepository implements IChatRepository {
@@ -259,5 +279,42 @@ export class ChatRepository implements IChatRepository {
         },
       },
     });
+  }
+
+  async getMemberProfile(userId: string) {
+    return this.prisma.profile.findUnique({
+      where: { userId },
+      select: {
+        displayName: true,
+        firstName: true,
+        lastName: true,
+        city: true,
+        headline: true,
+        profession: true,
+        employer: true,
+        bio: true,
+        interests: true,
+        gender: true,
+        dateOfBirth: true,
+      },
+    });
+  }
+
+  async getRecentMessages(conversationId: string, take: number): Promise<Message[]> {
+    const recent = await this.prisma.message.findMany({
+      where: { conversationId, isDeleted: false },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+    // Return chronological (oldest first) so the LLM sees a natural transcript.
+    return recent.reverse();
+  }
+
+  async userExists(userId: string): Promise<boolean> {
+    const found = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    return Boolean(found);
   }
 }

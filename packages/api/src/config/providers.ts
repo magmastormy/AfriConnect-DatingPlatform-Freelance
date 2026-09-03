@@ -52,5 +52,5 @@ export function createMediaStorage(): IMediaStorage {
     });
   }
 
-  return new LocalMediaStorage();
+  return new LocalMediaStorage(config.apiBaseUrl);
 }

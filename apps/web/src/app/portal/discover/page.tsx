@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { api, ApiError } from '@/lib/api';
-import { DiscoverCard, NearbyProfileView, ProfileRedNoteView, City, DiscoverFilters } from '@/lib/types';
+import { DiscoverCard, NearbyProfileView, ProfileRedNoteView } from '@/lib/types';
 import { isPremium, SubscriptionView, can, Capability } from '@/lib/membership';
 import { ApiState, Badge, Card, Button } from '@/components/ui';
 import { useToast } from '@/components/Toast';
@@ -91,83 +91,9 @@ function formatDistance(distanceKm: number | null): string | null {
   return `${Math.round(distanceKm)} km away`;
 }
 
-const CITY_OPTIONS = ['johannesburg', 'cape_town', 'durban', 'pretoria', 'pietermaritzburg'] as const;
-
-// Presentational filter bar. All fields optional — clearing everything returns
-// to the default engine-ranked deck. `onChange` lifts the draft to the page so
-// the deck reloads only when the user applies.
-const DiscoverFiltersBar = memo(function DiscoverFiltersBar({
-  value,
-  onChange,
-  onApply,
-  onReset,
-}: {
-  value: DiscoverFilters;
-  onChange: (next: DiscoverFilters) => void;
-  onApply: () => void;
-  onReset: () => void;
-}) {
-  const hasFilters = Boolean(value.city || value.ageMin || value.ageMax || value.interests);
-  return (
-    <div className="discover-filters" aria-label="Discover filters">
-      <label className="field field-inline">
-        <span>City</span>
-        <select
-          value={value.city ?? ''}
-          onChange={(e) => onChange({ ...value, city: (e.target.value || undefined) as City | undefined })}
-        >
-          <option value="">Any</option>
-          {CITY_OPTIONS.map((c) => (
-            <option key={c} value={c}>
-              {c.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field field-inline">
-        <span>Min age</span>
-        <input
-          type="number"
-          min={18}
-          max={99}
-          placeholder="18"
-          value={value.ageMin ?? ''}
-          onChange={(e) => onChange({ ...value, ageMin: (e.target.value || undefined) as number | undefined })}
-        />
-      </label>
-      <label className="field field-inline">
-        <span>Max age</span>
-        <input
-          type="number"
-          min={18}
-          max={99}
-          placeholder="99"
-          value={value.ageMax ?? ''}
-          onChange={(e) => onChange({ ...value, ageMax: (e.target.value || undefined) as number | undefined })}
-        />
-      </label>
-      <label className="field field-inline field-grow">
-        <span>Interests (comma-separated)</span>
-        <input
-          type="text"
-          placeholder="travel, music"
-          value={value.interests ?? ''}
-          onChange={(e) => onChange({ ...value, interests: e.target.value })}
-        />
-      </label>
-      <div className="row-actions" style={{ marginLeft: 'auto', gap: 8 }}>
-        <button className="btn btn-subtle" type="button" onClick={onApply}>
-          Apply
-        </button>
-        {hasFilters && (
-          <button className="btn btn-ghost" type="button" onClick={onReset}>
-            Reset
-          </button>
-        )}
-      </div>
-    </div>
-  );
-});
+// Discover filters (city / age / interests) were removed — the match engine
+// ranks the deck by city, age and shared interests server-side, so no client
+// filter bar is needed. See DiscoverFiltersBar history for the old UI.
 
 function HeartIcon() {
   return (
@@ -466,8 +392,6 @@ export default function DiscoverPage() {
 
   // ── Discover deck (match scoring) ──────────────────────────────────────────
   const [deck, setDeck] = useState<DiscoverCard[]>([]);
-  const [filters, setFilters] = useState<DiscoverFilters>({});
-  const [draft, setDraft] = useState<DiscoverFilters>({});
   const [superCount, setSuperCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -480,13 +404,7 @@ export default function DiscoverPage() {
       // Deck and superlike count are independent: issuing them together keeps
       // the feed from waiting on a second serial round trip.
       const [cards, supers] = await Promise.all([
-        api.getDiscover({
-          city: filters.city || undefined,
-          ageMin: filters.ageMin ? Number(filters.ageMin) : undefined,
-          ageMax: filters.ageMax ? Number(filters.ageMax) : undefined,
-          interests: filters.interests?.trim() || undefined,
-          limit: 20,
-        }),
+        api.getDiscover({ limit: 20 }),
         // Nice-to-have: a failure here must never take the deck down with it.
         api.get<{ count: number }>('/matches/superlikes-received').catch(() => ({ count: 0 })),
       ]);
@@ -497,7 +415,7 @@ export default function DiscoverPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   useEffect(() => {
     if (mode === 'discover') void load();
@@ -729,18 +647,6 @@ export default function DiscoverPage() {
           Nearby
         </button>
       </div>
-
-      {mode === 'discover' && (
-        <DiscoverFiltersBar
-          value={draft}
-          onChange={setDraft}
-          onApply={() => setFilters(draft)}
-          onReset={() => {
-            setDraft({});
-            setFilters({});
-          }}
-        />
-      )}
 
       {mode === 'discover' && (
         <>

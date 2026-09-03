@@ -53,13 +53,8 @@ export interface DiscoverCard {
   isPremium: boolean;
 }
 
-/** Opt-in Discover filters — all optional. Mirrors the backend DiscoverQuery. */
-export interface DiscoverFilters {
-  city?: City | '';
-  ageMin?: number | '';
-  ageMax?: number | '';
-  interests?: string;
-}
+// Discover filters (city / age / interests) were removed — the match engine
+// ranks the deck server-side, so no client-side DiscoverFilters type is needed.
 
 export interface ChatMessage {
   id: string;
@@ -291,41 +286,6 @@ export interface ConversationView {
   lastMessage: string;
   unread: boolean;
   updatedAt: string;
-}
-
-/** Safe public view of a roleplay persona (GET /mockchat/personas). The app
- *  labels these as AI demo companions, NOT real members. */
-export interface PublicPersona {
-  id: string;
-  name: string;
-  displayName: string;
-  avatarUrl?: string | null;
-  background: {
-    age: number;
-    city: string;
-    profession: string;
-    bio: string;
-  };
-  interests: string[];
-  communicationStyle: {
-    tone: string;
-    responseLength: string;
-  };
-}
-
-/** A persona thread as returned by GET /mockchat/conversations. */
-export interface MockConversationView {
-  id: string;
-  userId: string;
-  personaId: string;
-  personaName: string;
-  personaDisplayName: string;
-  personaAvatarUrl?: string | null;
-  lastMessageAt: string | null;
-  lastMessagePreview: string | null;
-  unreadCount: number;
-  isActive: boolean;
-  createdAt: string;
 }
 
 export interface MessageView {

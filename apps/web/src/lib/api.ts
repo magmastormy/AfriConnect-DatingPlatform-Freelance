@@ -16,9 +16,6 @@ import type {
   SuperlikesReceivedView,
   ConversationInit,
   UnreadCount,
-  PublicPersona,
-  MockConversationView,
-  ChatMessage,
 } from './types';
 
 const API_MOUNT = (process.env.NEXT_PUBLIC_API_MOUNT || 'api').replace(/^\/+|\/+$/g, '');
@@ -251,10 +248,10 @@ async function attemptRequest<T>(
   if (deviceId) headers['X-Device-Id'] = deviceId;
 
   const controller = new AbortController();
-  // Per-request ceiling. Most calls use the 15s default; the persona auto-respond
-  // POST passes a long budget because Groq + a typing delay can run well past
+  // Per-request ceiling. Most calls use the 15s default; AI chat auto-reply
+  // requests pass a long budget because Groq + a typing delay can run well past
   // 15s, and a cold Render start can exceed both. Aborting early is what made
-  // persona sends look like "nothing happened".
+  // AI replies look like "nothing happened".
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
@@ -326,19 +323,13 @@ export const api = {
     const q = qs.toString();
     return request<NearbyProfileView[]>('GET', `/discover/nearby${q ? `?${q}` : ''}`);
   },
-  /** Discover deck with opt-in filters (city, age band, interests). */
+  /** Discover deck with an opt-in city filter. */
   getDiscover: (filters?: {
     city?: string;
-    ageMin?: number;
-    ageMax?: number;
-    interests?: string;
     limit?: number;
   }) => {
     const qs = new URLSearchParams();
     if (filters?.city) qs.set('city', filters.city);
-    if (filters?.ageMin != null) qs.set('ageMin', String(filters.ageMin));
-    if (filters?.ageMax != null) qs.set('ageMax', String(filters.ageMax));
-    if (filters?.interests) qs.set('interests', filters.interests);
     if (filters?.limit) qs.set('limit', String(filters.limit));
     const q = qs.toString();
     return request<DiscoverCard[]>('GET', `/matches/discover${q ? `?${q}` : ''}`);
@@ -424,33 +415,6 @@ export const api = {
   // ── Admin global search (members / applications / subscriptions) ────────
   globalSearch: (q: string) =>
     request<GlobalSearchResult>('GET', `/admin/search?q=${encodeURIComponent(q)}`),
-
-  // ── AI demo companions (mockchat / Groq personas) ─────────────────────────
-  /** Public list of roleplay personas. The UI labels these as AI demos. */
-  listPersonas: () => request<{ personas: PublicPersona[] }>('GET', '/mockchat/personas'),
-  /** Single persona detail by stable UUID (used to enrich the chat header). */
-  getPersona: (id: string) => request<PublicPersona>('GET', `/mockchat/personas/${id}`),
-  /** Member's persona threads. */
-  listMockConversations: () =>
-    request<{
-      conversations: MockConversationView[];
-      meta: { total: number; hasMore: boolean };
-    }>('GET', '/mockchat/conversations'),
-  /** Open (or return) a thread with a persona; the body is the persona's UUID. */
-  createMockConversation: (personaId: string) =>
-    request<MockConversationView>('POST', '/mockchat/conversations', { personaId }),
-  /** Messages in a persona thread. */
-  getMockMessages: (id: string) =>
-    request<{ messages: ChatMessage[] }>('GET', `/mockchat/conversations/${id}`),
-  /** Send a message to a persona; the response body IS the persona's reply
-   *  (the service awaits its auto-respond before resolving), so no polling.
-   *  A long client timeout is passed because Groq + a typing delay can exceed
-   *  the default 15s budget, and a cold Render start can exceed both. */
-  sendMockMessage: (id: string, content: string, timeoutMs = 90000) =>
-    request<ChatMessage>('POST', `/mockchat/conversations/${id}`, { content }, false, timeoutMs),
-  /** Mark a persona thread read. */
-  markMockRead: (id: string) =>
-    request<{ marked: boolean }>('POST', `/mockchat/conversations/${id}/read`, {}),
 };
 
 /**

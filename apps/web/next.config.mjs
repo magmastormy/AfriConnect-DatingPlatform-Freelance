@@ -97,6 +97,14 @@ const nextConfig = {
         source: `/${mount}/:path*`,
         destination: `${origin}/${mount}/:path*`,
       },
+      // Local-media upload URLs are relative /uploads/<folder>/<file>. Proxy
+      // them through to the API backend so <img src="/uploads/..."> resolves
+      // correctly on the Vercel frontend. (Cloudinary/R2 URLs are already
+      // absolute and bypass this entirely.)
+      {
+        source: '/uploads/:path*',
+        destination: `${origin}/uploads/:path*`,
+      },
       // Cheap unauthenticated probe the client uses to absorb the backend's
       // cold start (Render's free tier spins instances down when idle). Kept
       // same-origin so it escapes CORS and the CSP connect-src allowlist, and

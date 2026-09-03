@@ -67,6 +67,10 @@ export const metadata: Metadata = {
     description: 'A vetted, curated dating community for highly educated African professionals.',
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export const viewport: Viewport = {

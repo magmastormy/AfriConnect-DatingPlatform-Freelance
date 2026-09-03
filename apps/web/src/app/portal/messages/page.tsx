@@ -81,6 +81,7 @@ export default function MessagesPage() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [showActions, setShowActions] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [showAiBanner, setShowAiBanner] = useState(true);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -249,6 +250,22 @@ export default function MessagesPage() {
   return (
     <div className="wa-page">
       <ApiState loading={loading} error={error} empty={conversations.length === 0} emptyText="No conversations yet. Match with people on Discover, then say hello here.">
+        {showAiBanner && (
+          <div className="ai-test-banner" role="status">
+            <span className="ai-test-banner-ico" aria-hidden>🤖</span>
+            <span className="ai-test-banner-text">
+              Prototype mode — your messages are answered by an AI playing the other person. It’s just for testing.
+            </span>
+            <button
+              className="ai-test-banner-close"
+              type="button"
+              onClick={() => setShowAiBanner(false)}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className={`wa-shell ${hasActive ? 'has-active' : ''}`}>
           {/* ── Left: chat list (WhatsApp Web left pane) ── */}
           <aside className="wa-list" aria-label="Chats">

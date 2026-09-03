@@ -3105,3 +3105,32 @@ img { image-rendering: -webkit-optimize-contrast; }
   .card, .discover-card, .member-card { transition: none; }
   .discover-card:hover { transform: none; }
 }
+
+/* ── AI test banner (messages: prototype AI-messaging disclosure) ────────── */
+.ai-test-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: .82rem;
+  line-height: 1.35;
+}
+.ai-test-banner-ico { font-size: 1.1rem; line-height: 1; }
+.ai-test-banner-text { flex: 1; }
+.ai-test-banner-close {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+.ai-test-banner-close:hover { background: var(--surface-3); color: var(--text); }

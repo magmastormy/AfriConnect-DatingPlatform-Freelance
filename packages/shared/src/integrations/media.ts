@@ -57,9 +57,19 @@ export interface IMediaStorage {
 
 const LOCAL_UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
-/** Writes files to ./uploads and returns a public /uploads/<file> URL. */
+/**
+ * Writes files to ./uploads and returns a public URL.
+ * If `apiBaseUrl` is provided, the URL is absolute (https://host/uploads/...)
+ * so it works from any frontend domain without a proxy rewrite.
+ * Otherwise returns the relative `/uploads/<folder>/<file>` path.
+ */
 export class LocalMediaStorage implements IMediaStorage {
   readonly name = 'local';
+  private readonly apiBaseUrl?: string;
+
+  constructor(apiBaseUrl?: string) {
+    this.apiBaseUrl = apiBaseUrl?.replace(/\/+$/, '');
+  }
 
   async upload(buffer: Buffer, ext: string, folder: string): Promise<UploadResult> {
     const safeFolder = folder.replace(/[^a-z0-9_-]/gi, '');
@@ -68,10 +78,12 @@ export class LocalMediaStorage implements IMediaStorage {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const file = `${id}.${ext}`;
     await writeFile(path.join(dir, file), buffer);
-    // url is the public path served by the static /uploads route; publicId is the
-    // path relative to the uploads dir (used by remove()).
-    const url = `/uploads/${safeFolder}/${file}`;
+    // publicId is the path relative to the uploads dir (used by remove()).
     const publicId = `${safeFolder}/${file}`;
+    const relativeUrl = `/uploads/${safeFolder}/${file}`;
+    const url = this.apiBaseUrl
+      ? `${this.apiBaseUrl}${relativeUrl}`
+      : relativeUrl;
     return { url, publicId };
   }
 
@@ -84,9 +96,11 @@ export class LocalMediaStorage implements IMediaStorage {
   }
 
   // Local files are served by the static `/uploads` route on the API — the
-  // URL is already browser-loadable without signing.
+  // URL is already browser-loadable without signing. Prefer absolute URL when
+  // the API origin is known so callers from other domains can reach it.
   async getSignedUrl(publicId: string, _ttlSeconds: number): Promise<string> {
-    return `/uploads/${publicId.replace(/^\/+/, '')}`;
+    const relative = `/uploads/${publicId.replace(/^\/+/, '')}`;
+    return this.apiBaseUrl ? `${this.apiBaseUrl}${relative}` : relative;
   }
 }
 
