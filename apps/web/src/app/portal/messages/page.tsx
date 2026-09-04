@@ -249,7 +249,12 @@ export default function MessagesPage() {
 
   return (
     <div className="wa-page">
-      <ApiState loading={loading} error={error} empty={conversations.length === 0} emptyText="No conversations yet. Match with people on Discover, then say hello here.">
+      {/* NOTE: do NOT gate the whole page on `empty`. With zero conversations
+          (normal in a fresh prototype) ApiState would swallow its children and
+          hide the banner + the entire chat shell. The shell always renders; the
+          left list carries its own "no conversations" hint and the right pane
+          shows the welcome card when nothing is selected. */}
+      <ApiState loading={loading} error={error}>
         {showAiBanner && (
           <div className="ai-test-banner" role="status">
             <span className="ai-test-banner-ico" aria-hidden>🤖</span>
@@ -311,7 +316,13 @@ export default function MessagesPage() {
                   </button>
                 );
               })}
-              {filtered.length === 0 && <div className="wa-empty-hint">No chats in this filter.</div>}
+              {filtered.length === 0 && (
+                <div className="wa-empty-hint">
+                  {conversations.length === 0
+                    ? 'No conversations yet. Match with people on Discover, then say hello here.'
+                    : 'No chats in this filter.'}
+                </div>
+              )}
             </div>
           </aside>
 
