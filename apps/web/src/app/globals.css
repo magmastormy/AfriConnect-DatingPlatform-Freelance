@@ -321,7 +321,7 @@ a:hover { color: var(--brand-ink); }
 .table-scroll .table { min-width: 720px; }
 .row-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-.badge { display: inline-block; padding: 0.18rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+.badge { display: inline-block; white-space: nowrap; padding: 0.18rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
 .badge-neutral { background: var(--neutral-bg); color: var(--neutral-fg); }
 .badge-good { background: var(--good-bg); color: var(--good-fg); }
 .badge-warn { background: var(--warn-bg); color: var(--warn-fg); }
@@ -358,6 +358,17 @@ a:hover { color: var(--brand-ink); }
   color: var(--good-fg);
   font-size: 0.78rem;
   font-weight: 800;
+}
+/* Narrow screens: drop the action buttons onto their own row. Inline they
+   squeeze the meta column to ~80px, which wraps "Refilwe S." onto two lines
+   and truncates the profession ("Journali…"). Full-width buttons also give
+   fat, finger-friendly tap targets. */
+@media (max-width: 720px) {
+  .match-card { flex-wrap: wrap; }
+  .match-card > .match-actions,
+  .match-card > .btn { flex: 1 1 100%; margin-left: 0; }
+  .match-card .match-actions { flex-wrap: nowrap; }
+  .match-card .match-actions .btn { flex: 1 1 0; padding-left: 10px; padding-right: 10px; }
 }
 /* Profile modal opened from a match row */
 .match-profile-modal { max-width: 420px; padding: 0; overflow: hidden; }
@@ -1173,10 +1184,12 @@ a:hover { color: var(--brand-ink); }
 
 .ledger { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .ledger-row {
-  display: grid; grid-template-columns: 2ch 1fr; gap: 1rem; align-items: center;
+  /* `auto` (not a fixed 2ch) sizes the mark track to its widest cell — "Done"
+     is 4 chars and used to overflow into the label column ("DonComplete"). */
+  display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center;
   padding: 0.85rem 0; border-bottom: 1px solid var(--line);
 }
-.ledger-mark { font-family: var(--font-mono); color: var(--muted); font-size: 1rem; }
+.ledger-mark { font-family: var(--font-mono); color: var(--muted); font-size: 0.95rem; white-space: nowrap; }
 .ledger-row.is-done .ledger-mark { color: var(--dot-good); }
 .ledger-label { color: var(--ink); text-decoration: none; }
 .ledger-row.is-done .ledger-label { color: var(--muted); }
@@ -1585,7 +1598,7 @@ a:hover { color: var(--brand-ink); }
 .acct-photo-slot { aspect-ratio: 4/5; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); position: relative; display: grid; place-items: center; }
 .acct-photo-slot.has img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .acct-photo-slot.primary { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
-.acct-photo-tag { position: absolute; top: 8px; left: 8px; background: var(--brand); color: var(--on-brand); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; }
+.acct-photo-tag { position: absolute; top: 8px; left: 8px; background: var(--brand); color: var(--on-brand); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
 .acct-photo-actions { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; gap: 6px; }
 .acct-photo-empty { width: 100%; height: 100%; display: grid; place-items: center; gap: 6px; padding: 16px; text-align: center; cursor: pointer; color: var(--muted); }
 .acct-photo-plus { width: 44px; height: 44px; border-radius: 50%; border: 1.5px dashed var(--line-strong); display: grid; place-items: center; font-size: 1.5rem; }
@@ -1681,6 +1694,7 @@ a:hover { color: var(--brand-ink); }
   z-index: 2;
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .discover-card-scrim {
@@ -1999,7 +2013,7 @@ html[data-theme='dark'] .wa-pane { background: #0b141a; }
 .wa-wallpaper { position: absolute; inset: 0; opacity: 0.06; pointer-events: none; background-image: radial-gradient(circle at 1px 1px, var(--ink) 1px, transparent 0); background-size: 24px 24px; }
 html[data-theme='dark'] .wa-wallpaper { opacity: 0.08; }
 .wa-date-sep { display: flex; justify-content: center; margin: 10px 0; position: relative; z-index: 1; }
-.wa-date-sep span { font-size: 0.70rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--surface); color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.wa-date-sep span { font-size: 0.70rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--surface); color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); white-space: nowrap; }
 .wa-row { display: flex; position: relative; z-index: 1; }
 .wa-row.mine { justify-content: flex-end; }
 .wa-row.theirs { justify-content: flex-start; }
@@ -2496,7 +2510,7 @@ body:has(.modal-shell) { overflow: hidden; }
 }
 .v2-timeline-item h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.25rem; margin: 0.5rem 0 0.4rem; }
 .v2-timeline-item p { margin: 0; color: var(--ink-soft); font-size: 0.95rem; line-height: 1.5; }
-.v2-timeline-meta { display: inline-block; margin-top: 0.7rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); padding: 0.2rem 0.5rem; border-radius: 999px; }
+.v2-timeline-meta { display: inline-block; white-space: nowrap; margin-top: 0.7rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); padding: 0.2rem 0.5rem; border-radius: 999px; }
 
 /* 05 MODEL — score + ledger */
 .v2-model { max-width: var(--v2-max); margin: 0 auto; padding: 0 1.5rem; }
@@ -2522,14 +2536,14 @@ body:has(.modal-shell) { overflow: hidden; }
 .v2-ledger-row dd { margin: 0; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; }
 
 /* 06 TABLE */
-.v2-table-wrap { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.v2-table-wrap { border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; overflow-y: hidden; background: var(--surface); }
 .v2-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
 .v2-table th { text-align: left; padding: 0.7rem 1rem; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--surface-3); }
 .v2-table td { padding: 0.9rem 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 .v2-table tr:last-child td { border-bottom: none; }
 .v2-table td strong { display: block; font-size: 1rem; }
 .v2-table td span { color: var(--muted); font-size: 0.84rem; }
-.v2-pill { display: inline-block; font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: var(--ink); color: var(--on-ink); padding: 0.22rem 0.6rem; border-radius: 999px; }
+.v2-pill { display: inline-block; white-space: nowrap; font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); background: var(--ink); color: var(--on-ink); padding: 0.22rem 0.6rem; border-radius: 999px; }
 .v2-pill--muted { background: var(--line); color: var(--muted); }
 
 /* live events slot */
@@ -2581,8 +2595,16 @@ body:has(.modal-shell) { overflow: hidden; }
 @media (max-width: 560px) {
   .v2-proof-row { grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
   .v2-table th:nth-child(2), .v2-table td:nth-child(2) { display: none; }
+  .v2-table th, .v2-table td { padding-left: 0.65rem; padding-right: 0.65rem; }
   .v2-stack { width: 320px; }
   .v2-dossier { width: 280px; }
+}
+@media (max-width: 380px) {
+  .v2-section, .v2-pull { padding-left: 1rem; padding-right: 1rem; }
+  .v2-table th, .v2-table td { padding-left: 0.5rem; padding-right: 0.5rem; }
+  .v2-pill { font-size: 0.68rem; padding: 0.2rem 0.5rem; }
+  /* Let long city names break so the date pill keeps its own line instead of the table scrolling */
+  .v2-table td:first-child strong { overflow-wrap: anywhere; }
 }
 @media (prefers-reduced-motion: reduce) {
   .v2-marquee-track { animation: none; }

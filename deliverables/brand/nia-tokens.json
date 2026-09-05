@@ -1,0 +1,36 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "nia": {
+    "color": {
+      "gold": { "value": "#D4AF37", "usage": "highlights, active states" },
+      "bronze": { "value": "#C08A3E", "usage": "primary accent, CTAs" },
+      "bronze-deep": { "value": "#7A4E21", "usage": "hover/pressed, borders" },
+      "black": { "value": "#201409", "usage": "dark surfaces, app icon background" },
+      "ivory": { "value": "#F5E6C8", "usage": "text on dark, reversed mark" },
+      "patina": { "value": "#6B7F4B", "usage": "editorial accent only, never UI controls" },
+      "surface-dark": { "value": "#201409" },
+      "surface-darker": { "value": "#150D06" }
+    },
+    "gradient": {
+      "mark": {
+        "value": "linear-gradient(135deg, #F2D9A7 0%, #E0B269 16%, #C08A3E 38%, #D9A85C 55%, #8A5726 78%, #5E3A18 100%)"
+      },
+      "bead": {
+        "value": "radial-gradient(circle at 35% 30%, #F7E3B8 0%, #E3B778 35%, #A5712F 70%, #6B421C 100%)"
+      }
+    },
+    "typography": {
+      "font-ui": { "value": "Inter, Soehne, system-ui, -apple-system, 'Segoe UI', sans-serif" },
+      "font-display": { "value": "Fraunces, Canela, Georgia, serif" }
+    },
+    "asset": {
+      "mark": { "value": "nia-mark-primary.svg" },
+      "wordmark": { "value": "nia-wordmark.svg" },
+      "lockup-vertical": { "value": "nia-lockup-vertical.svg" },
+      "lockup-horizontal": { "value": "nia-lockup-horizontal.svg" },
+      "app-icon": { "value": "nia-app-icon.svg" },
+      "favicon": { "value": "nia-favicon.svg" },
+      "og-card": { "value": "og/nia-og-card.png" }
+    }
+  }
+}

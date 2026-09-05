@@ -2,7 +2,12 @@ import { UploadService } from './upload.service';
 import { ValidationError } from '@africonnect/shared';
 
 const makeStorage = (
-  over: Partial<{ upload: jest.Mock; remove: jest.Mock; getSignedUrl: jest.Mock }> = {},
+  over: Partial<{
+    upload: jest.Mock;
+    remove: jest.Mock;
+    getSignedUrl: jest.Mock;
+    assetHosts: jest.Mock;
+  }> = {},
 ) => ({
   name: 'mock',
   upload: over.upload ?? jest.fn(),
@@ -10,6 +15,9 @@ const makeStorage = (
   // getSignedUrl is required by IMediaStorage (admin.service calls it). Upload
   // tests don't exercise signing, so a no-op is fine.
   getSignedUrl: over.getSignedUrl ?? jest.fn(async (id: string) => id),
+  // Simulate an R2/CDN host the storage owns so 'https://cdn/...' fixtures go
+  // through the signing path; external hosts (randomuser.me etc.) do not.
+  assetHosts: over.assetHosts ?? jest.fn(() => ['cdn']),
 });
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0]);

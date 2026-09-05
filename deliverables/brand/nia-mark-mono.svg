@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+  <title>Nia — mono mark (ink)</title>
+  <desc>Single-colour version of the Nia mark for small sizes, print and single-ink use.</desc>
+  <g fill="#2A1B0C">
+    <path d="M117.10 25.95 A76 76 0 1 1 82.90 25.95 L86.95 43.48 A58 58 0 1 0 113.05 43.48 Z"/>
+    <circle cx="84.93" cy="34.72" r="9.5"/>
+    <circle cx="115.07" cy="34.72" r="9.5"/>
+  </g>
+</svg>

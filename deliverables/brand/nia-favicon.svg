@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="32" height="32">
+  <title>Nia — favicon</title>
+  <desc>Open cast-bronze ring with two polished bead terminals.</desc>
+  <defs>
+    <linearGradient id="fBronze" gradientUnits="userSpaceOnUse" x1="34" y1="16" x2="168" y2="188">
+      <stop offset="0" stop-color="#F2D9A7"/>
+      <stop offset="0.16" stop-color="#E0B269"/>
+      <stop offset="0.38" stop-color="#C08A3E"/>
+      <stop offset="0.55" stop-color="#D9A85C"/>
+      <stop offset="0.78" stop-color="#8A5726"/>
+      <stop offset="1" stop-color="#5E3A18"/>
+    </linearGradient>
+    <radialGradient id="fBead" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#F7E3B8"/>
+      <stop offset="0.35" stop-color="#E3B778"/>
+      <stop offset="0.7" stop-color="#A5712F"/>
+      <stop offset="1" stop-color="#6B421C"/>
+    </radialGradient>
+  </defs>
+  <g>
+    <path fill="url(#fBronze)" d="M117.10 25.95 A76 76 0 1 1 82.90 25.95 L86.95 43.48 A58 58 0 1 0 113.05 43.48 Z"/>
+    <circle fill="url(#fBead)" cx="84.93" cy="34.72" r="9.5"/>
+    <circle fill="url(#fBead)" cx="115.07" cy="34.72" r="9.5"/>
+  </g>
+</svg>

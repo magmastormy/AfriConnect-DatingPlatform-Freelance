@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" width="400" height="200">
+  <title>Nia — wordmark</title>
+  <desc>Custom geometric letterforms for NIA, cut at the same weight as the mark.</desc>
+  <defs>
+    <linearGradient id="wordBronze" gradientUnits="userSpaceOnUse" x1="0" y1="20" x2="0" y2="80">
+      <stop offset="0" stop-color="#E8C081"/>
+      <stop offset="0.5" stop-color="#C9973F"/>
+      <stop offset="1" stop-color="#8A5726"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#wordBronze)">
+    <path transform="translate(34.5,20)" d="M0 60 L0 0 L11 0 L35 38 L35 0 L46 0 L46 60 L35 60 L11 22 L11 60 Z"/>
+    <path transform="translate(93.5,20)" d="M0 0 H11 V60 H0 Z"/>
+    <path transform="translate(117.5,20)" fill-rule="evenodd" d="M21 0 L27 0 L48 60 L39.9 60 L35.8 48 L12.2 48 L8.1 60 L0 60 Z M24 14 L33 40 L15 40 Z"/>
+  </g>
+</svg>

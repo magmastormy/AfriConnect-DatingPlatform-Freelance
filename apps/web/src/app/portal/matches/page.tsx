@@ -95,7 +95,7 @@ export default function MatchesPage() {
     const distance = formatDistance(m.distanceKm);
     return (
       <div
-        className="match"
+        className="match match-card"
         key={m.userId}
         style={{ alignItems: 'center', padding: '12px 12px', borderRadius: 14 }}
         onClick={() => openProfile(m.userId)}
@@ -104,13 +104,7 @@ export default function MatchesPage() {
         aria-label={`View profile of ${m.displayName ?? 'member'}`}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(m.userId); } }}
       >
-        <div className="avatar" style={{ width: 56, height: 56, fontSize: '1.1rem', flex: 'none' }}>
-          {m.photo ? (
-            <img className="avatar-img" src={m.photo} alt={m.displayName ?? 'Member'} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
-          ) : (
-            initial
-          )}
-        </div>
+        <MatchAvatar src={m.photo} alt={m.displayName ?? 'Member'} initial={initial} />
         <div className="meta" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <strong style={{ fontSize: '1rem' }}>{m.displayName ?? 'Anonymous'}</strong>
@@ -121,7 +115,7 @@ export default function MatchesPage() {
             {m.profession ?? 'Professional'}{m.city ? ` · ${labelCity(m.city)}` : ''}
           </div>
         </div>
-        <div className="row-actions" style={{ gap: 6, flexWrap: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
+        <div className="row-actions match-actions" onClick={(e) => e.stopPropagation()}>
           <button className="btn btn-ghost" disabled={busyId === m.userId} onClick={() => act(m.userId, 'pass')} style={{ borderRadius: 999, minHeight: 38, padding: '0 14px' }}>Pass</button>
           <button className="btn btn-primary" disabled={busyId === m.userId} onClick={() => act(m.userId, 'like')} style={{ borderRadius: 999, minHeight: 38, padding: '0 16px', fontWeight: 800 }}>Like</button>
           <button className="btn btn-danger" disabled={busyId === m.userId} onClick={() => act(m.userId, 'superlike')} title="Superlike" style={{ borderRadius: 999, minWidth: 42, minHeight: 38 }}>Super</button>
@@ -204,7 +198,7 @@ export default function MatchesPage() {
             ) : (
               mutual.map((m) => (
                 <div
-                  className="match"
+                  className="match match-card"
                   key={m.id}
                   style={{ alignItems: 'center', padding: '12px 14px', borderRadius: 14 }}
                   onClick={() => openProfile(m.userId)}
@@ -213,11 +207,7 @@ export default function MatchesPage() {
                   aria-label={`View profile of ${m.name}`}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(m.userId); } }}
                 >
-                  {m.photo ? (
-                    <img src={m.photo} alt={m.name} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flex: 'none' }} />
-                  ) : (
-                    <div className="avatar" style={{ width: 56, height: 56 }}>{m.name.charAt(0).toUpperCase()}</div>
-                  )}
+                  <MatchAvatar src={m.photo} alt={m.name} initial={m.name.charAt(0).toUpperCase()} />
                   <div className="meta" style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       <strong>{m.name}</strong>
@@ -254,6 +244,39 @@ export default function MatchesPage() {
           loading={profileLoading}
           onClose={closeProfile}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Round avatar with an initials fallback. A dead or expired photo URL (e.g. a
+ * presigned link that outlived its TTL while the page was open) must never
+ * render the browser's broken-image glyph over the red avatar circle.
+ */
+function MatchAvatar({
+  src,
+  alt,
+  initial,
+  size = 56,
+}: {
+  src: string | null | undefined;
+  alt: string;
+  initial: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+
+  return (
+    <div
+      className="avatar"
+      style={{ width: size, height: size, flex: 'none', fontSize: '1.1rem', overflow: 'hidden' }}
+    >
+      {src && !failed ? (
+        <img className="avatar-img" src={src} alt={alt} onError={() => setFailed(true)} />
+      ) : (
+        initial
       )}
     </div>
   );

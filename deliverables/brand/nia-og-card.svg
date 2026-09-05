@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <title>Nia — social card</title>
+  <desc>Open Graph card: Nia mark, wordmark and tagline on a bronze-black field.</desc>
+  <defs>
+    <linearGradient id="oBronze" gradientUnits="userSpaceOnUse" x1="34" y1="16" x2="168" y2="188">
+      <stop offset="0" stop-color="#F2D9A7"/>
+      <stop offset="0.16" stop-color="#E0B269"/>
+      <stop offset="0.38" stop-color="#C08A3E"/>
+      <stop offset="0.55" stop-color="#D9A85C"/>
+      <stop offset="0.78" stop-color="#8A5726"/>
+      <stop offset="1" stop-color="#5E3A18"/>
+    </linearGradient>
+    <radialGradient id="oBead" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#F7E3B8"/>
+      <stop offset="0.35" stop-color="#E3B778"/>
+      <stop offset="0.7" stop-color="#A5712F"/>
+      <stop offset="1" stop-color="#6B421C"/>
+    </radialGradient>
+    <linearGradient id="oWord" gradientUnits="userSpaceOnUse" x1="0" y1="340" x2="0" y2="436">
+      <stop offset="0" stop-color="#E8C081"/>
+      <stop offset="0.5" stop-color="#C9973F"/>
+      <stop offset="1" stop-color="#8A5726"/>
+    </linearGradient>
+    <radialGradient id="oSurface" cx="0.5" cy="0.44" r="0.8">
+      <stop offset="0" stop-color="#2B1C0E"/>
+      <stop offset="1" stop-color="#150D06"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#oSurface)"/>
+
+  <g transform="translate(490,90) scale(1.1)">
+    <path fill="url(#oBronze)" d="M117.10 25.95 A76 76 0 1 1 82.90 25.95 L86.95 43.48 A58 58 0 1 0 113.05 43.48 Z"/>
+    <circle fill="url(#oBead)" cx="84.93" cy="34.72" r="9.5"/>
+    <circle fill="url(#oBead)" cx="115.07" cy="34.72" r="9.5"/>
+  </g>
+
+  <g fill="url(#oWord)" transform="translate(495.2,340) scale(1.6)">
+    <path d="M0 60 L0 0 L11 0 L35 38 L35 0 L46 0 L46 60 L35 60 L11 22 L11 60 Z"/>
+    <path transform="translate(59,0)" d="M0 0 H11 V60 H0 Z"/>
+    <path transform="translate(83,0)" fill-rule="evenodd" d="M21 0 L27 0 L48 60 L39.9 60 L35.8 48 L12.2 48 L8.1 60 L0 60 Z M24 14 L33 40 L15 40 Z"/>
+  </g>
+
+  <text x="600" y="500" text-anchor="middle" font-family="'Avenir Next','Futura','Century Gothic','Segoe UI',sans-serif" font-size="22" letter-spacing="8" fill="#A5712F">LOVE, WITH INTENTION</text>
+</svg>

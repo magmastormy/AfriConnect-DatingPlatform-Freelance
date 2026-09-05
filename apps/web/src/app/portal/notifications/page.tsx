@@ -32,6 +32,36 @@ function typeIcon(type: string) {
   return '·';
 }
 
+/** Backend type codes (mutual_match, vetting.approved…) are for machines —
+ *  members get a friendly label, falling back to a prettified code for any
+ *  future type this map doesn't know about. */
+const TYPE_LABELS: Record<string, string> = {
+  mutual_match: 'Match',
+  superlike_received: 'Superlike',
+  'vetting.submitted': 'Vetting',
+  'vetting.pending': 'Vetting',
+  'vetting.approved': 'Verified',
+  'vetting.declined': 'Vetting',
+};
+
+function typeLabel(type: string): string {
+  return (
+    TYPE_LABELS[type.toLowerCase()] ??
+    type.replace(/[._]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  in_app: 'In-app',
+  email: 'Email',
+  sms: 'SMS',
+  push: 'Push',
+};
+
+function channelLabel(channel: string): string {
+  return CHANNEL_LABELS[channel.toLowerCase()] ?? channel;
+}
+
 export default function NotificationsPage() {
   const router = useRouter();
   const { items: ctxItems, markRead, markAllRead } = useNotifications();
@@ -111,12 +141,12 @@ export default function NotificationsPage() {
               <span className="notif-page-main">
                 <span className="notif-page-title">
                   {n.title}
-                  <Badge tone={n.isRead ? 'neutral' : 'warn'}>{n.type}</Badge>
+                  <Badge tone={n.isRead ? 'neutral' : 'warn'}>{typeLabel(n.type)}</Badge>
                   {!n.isRead && <span className="notif-page-dot" aria-label="Unread" />}
                 </span>
                 <span className="notif-page-body">{n.body}</span>
                 <span className="notif-page-foot">
-                  <span className="notif-page-time">{timeAgo(n.createdAt)} · {n.channel}</span>
+                  <span className="notif-page-time">{timeAgo(n.createdAt)} · {channelLabel(n.channel)}</span>
                   {n.link && <span className="notif-page-cta">Open →</span>}
                 </span>
               </span>

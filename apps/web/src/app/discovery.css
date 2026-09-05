@@ -139,7 +139,7 @@
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
 }
 .fs-card-sub { font-size: 0.95rem; opacity: 0.95; margin-top: 2px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
-.fs-card-badges { display: flex; gap: 6px; margin-top: 8px; }
+.fs-card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 
 /* Photo pager dots */
 .fs-dots {
@@ -265,7 +265,7 @@
 .fs-sheet-head { padding: 0.9rem 1rem 0.4rem; }
 .fs-sheet-name { font-family: var(--font-display); font-weight: 600; font-size: 1.4rem; }
 .fs-sheet-sub { color: var(--muted); font-size: 0.9rem; }
-.fs-sheet-badges { display: flex; gap: 6px; margin-top: 8px; }
+.fs-sheet-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .fs-sheet-loading { padding: 1rem; color: var(--muted); font-size: 0.9rem; }
 .fs-sheet-body { padding: 0.4rem 1rem 1rem; }
 .fs-sheet-headline { font-weight: 600; margin: 0.5rem 0 0.25rem; }

@@ -53,6 +53,16 @@ export interface IMediaStorage {
    * For local/Cloudinary the original public URL is fine.
    */
   getSignedUrl(publicId: string, ttlSeconds: number): Promise<string>;
+  /**
+   * Hostnames this storage is authoritative for. The read-time signer only
+   * rewrites URLs whose host is owned here (the R2 default host, a custom R2
+   * CDN domain). External URLs — seed/demo portraits on randomuser.me or
+   * picsum.photos, Cloudinary URLs, anything else we don't host — must pass
+   * through to the browser untouched: signing one would mint a presigned URL
+   * for a key that doesn't exist in the bucket, and R2 replies with its XML
+   * 403 instead of the image.
+   */
+  assetHosts?(): readonly string[];
 }
 
 /** TTL for presigned media URLs handed to browsers (1 hour). */
@@ -69,9 +79,13 @@ export const SIGNED_MEDIA_URL_TTL_SECONDS = 3600;
  *
  * - Local dev storage (`/uploads/...`): served statically by the API → unchanged.
  * - Cloudinary: public secure_url → unchanged.
+ * - External hosts we don't own (seed portraits on randomuser.me/picsum.photos,
+ *   any third-party URL) → unchanged. Signing these would mint a presigned URL
+ *   for a key that doesn't exist in the bucket and the <img> would 403.
  * - R2 default host (`…r2.cloudflarestorage.com/<bucket>/<key>`): extract the
  *   key (path after the bucket segment) and sign.
- * - R2 custom CDN host (`https://<cdn>/<key>`): the full path is the key.
+ * - R2 custom CDN host (`https://<cdn>/<key>`, listed by storage.assetHosts()):
+ *   the full path is the key.
  *
  * Already-signed URLs are safe to re-sign: the object key is taken from the
  * path only, so stale query params are discarded and a fresh signature is
@@ -93,6 +107,12 @@ export async function toBrowserMediaUrl(
     // Absolute local-storage URL (LocalMediaStorage given an API origin) —
     // already browser-loadable via the API's static /uploads route.
     if (u.pathname.startsWith('/uploads/')) return url;
+    // Only presign objects our storage actually serves. Anything hosted
+    // elsewhere (seed/demo content, third-party images) passes through.
+    const ownedHosts = storage.assetHosts?.() ?? [];
+    const isOwned =
+      u.hostname.endsWith('.r2.cloudflarestorage.com') || ownedHosts.includes(u.hostname);
+    if (!isOwned) return url;
     const segments = u.pathname.replace(/^\/+/, '').split('/');
     // Default R2 host nests the bucket as the first path segment; a custom CDN
     // host does not.
@@ -295,6 +315,17 @@ export class CloudflareR2MediaStorage implements IMediaStorage {
       return `https://${this.cdnDomain}/${key}`;
     }
     return `https://${this.accountId}.r2.cloudflarestorage.com/${this.bucket}/${key}`;
+  }
+
+  /**
+   * Hosts this storage can serve objects from. Used by the read-time signer to
+   * tell owned R2/CDN URLs apart from external (seed/third-party) URLs, which
+   * must never be presigned.
+   */
+  assetHosts(): readonly string[] {
+    return [this.cdnDomain, `${this.accountId}.r2.cloudflarestorage.com`].filter(
+      (h): h is string => Boolean(h),
+    );
   }
 
   /**

@@ -1,0 +1,41 @@
+:root {
+  /* Nia brand tokens — drop into the Next.js app global stylesheet */
+
+  /* Palette */
+  --brand-gold: #D4AF37;        /* Antique Gold — highlights, active states */
+  --brand-bronze: #C08A3E;      /* Cast Bronze — primary accent, CTAs */
+  --brand-bronze-deep: #7A4E21; /* Deep Bronze — pressed/hover, borders */
+  --brand-black: #201409;       /* Bronze Black — dark surfaces, app icon bg */
+  --brand-ivory: #F5E6C8;       /* Ivory — text on dark, reversed mark */
+  --brand-patina: #6B7F4B;      /* Patina — editorial accent ONLY, never UI controls */
+
+  /* Mark gradient (135deg, light gold to deep bronze) */
+  --brand-gradient: linear-gradient(
+    135deg,
+    #F2D9A7 0%,
+    #E0B269 16%,
+    #C08A3E 38%,
+    #D9A85C 55%,
+    #8A5726 78%,
+    #5E3A18 100%
+  );
+
+  /* Bead highlight (radial) */
+  --brand-bead-gradient: radial-gradient(
+    circle at 35% 30%,
+    #F7E3B8 0%,
+    #E3B778 35%,
+    #A5712F 70%,
+    #6B421C 100%
+  );
+
+  /* Surfaces */
+  --brand-surface-dark: #201409;
+  --brand-surface-darker: #150D06;
+
+  /* Typography */
+  --brand-font-ui: "Inter", "Söhne", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --brand-font-display: "Fraunces", "Canela", Georgia, serif;
+
+  /* Logotype: always render from nia-wordmark.svg paths — never re-typeset in a font */
+}
