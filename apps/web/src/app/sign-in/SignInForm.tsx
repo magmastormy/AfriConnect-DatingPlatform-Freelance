@@ -26,7 +26,7 @@ export function SignInForm() {
         fallbackRedirectUrl={AFTER_SIGN_IN_URL}
       />
       <p className="auth-switch">
-        New to AfriConnect? <Link href={SIGN_UP_URL}>Create an account</Link>
+        New to Nia? <Link href={SIGN_UP_URL}>Create an account</Link>
       </p>
     </>
   );

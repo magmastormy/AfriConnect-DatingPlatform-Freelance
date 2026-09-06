@@ -162,7 +162,7 @@ export function OtpSignIn() {
       )}
 
       <p className="auth-switch">
-        New to AfriConnect? <Link href="/sign-up">Create an account</Link>
+        New to Nia? <Link href="/sign-up">Create an account</Link>
       </p>
     </div>
   );

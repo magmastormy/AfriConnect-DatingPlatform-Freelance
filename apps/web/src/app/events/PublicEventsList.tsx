@@ -267,7 +267,7 @@ export function PublicEventsList() {
 
       {detail && (
         <div className="modal-shell" onClick={() => setDetail(null)}>
-          <div className="modal-card" style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={detail.title}>
+          <div className="modal-card ev-detail-modal" style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={detail.title}>
             <div className="modal-title-row">
               <div className="modal-name">{detail.title}</div>
               <button className="btn btn-ghost" onClick={() => setDetail(null)}>Close</button>

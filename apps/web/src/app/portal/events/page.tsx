@@ -353,7 +353,7 @@ export default function EventsPage() {
       )}
       {detailEvent && (
         <div className="modal-shell" onClick={() => setDetailEvent(null)}>
-          <div className="modal-card" style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={detailEvent.title}>
+          <div className="modal-card ev-detail-modal" style={{ maxWidth: 560, maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={detailEvent.title}>
             <div className="modal-title-row">
               <div className="modal-name">{detailEvent.title}</div>
               <button className="btn btn-ghost" onClick={() => setDetailEvent(null)}>Close</button>

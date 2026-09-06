@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Matches',
-  description: 'Your mutual matches on AfriConnect Professionals.',
+  description: 'Your mutual matches on Nia.',
 };
 
 /**

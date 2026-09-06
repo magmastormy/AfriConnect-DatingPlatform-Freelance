@@ -5,7 +5,7 @@ import { LandingRedirect } from './LandingRedirect';
 export const metadata = {
   title: 'A vetted community for African professionals',
   description:
-    'AfriConnect Professionals — curated, degree- and ID-verified dating community for highly educated African professionals. Serious introductions, exclusive events, POPIA-compliant.',
+    'Nia — curated, degree- and ID-verified dating community for highly educated African professionals. Serious introductions, exclusive events, POPIA-compliant.',
   alternates: { canonical: '/' },
 };
 
@@ -23,8 +23,7 @@ export default function LandingPage() {
           <div className="v2-hero-inner">
             <div className="v2-hero-copy" style={{ position: 'relative', zIndex: 2 }}>
               <span className="v2-eyebrow">
-                <i className="v2-eyebrow-dot" aria-hidden /> AfriConnect Professionals — Verified
-                since 2024
+                <i className="v2-eyebrow-dot" aria-hidden /> Nia — Love, with intention
               </span>
               <h1 className="v2-display">
                 The people
@@ -436,7 +435,7 @@ export default function LandingPage() {
             “We would rather be judged on the quality of a short list than the hours you sink into a
             feed.”
           </blockquote>
-          <cite>AfriConnect Professionals — Built for people who value their time.</cite>
+          <cite>Nia — Built for people who value their time.</cite>
         </div>
       </section>
 

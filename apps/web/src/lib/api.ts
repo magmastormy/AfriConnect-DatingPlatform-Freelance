@@ -29,12 +29,14 @@ const REFRESH_KEY = 'africonnect.refreshToken';
 const DEVICE_KEY = 'africonnect.deviceId';
 
 // Stable per-browser device identifier used for token theft detection. Stored in
-// sessionStorage (cleared on tab close) so a stolen access/refresh token replayed
-// from another device fails the server-side device binding check.
+// localStorage so the same device fingerprint is reused across tab closures and
+// page reloads. This prevents false device-mismatch rejections when a user closes
+// the tab and returns later with a live Clerk session — the refresh token would be
+// rejected as a "new device" if a fresh ID were generated each time.
 function getDeviceId(): string {
   if (typeof window === 'undefined') return '';
   try {
-    let id = window.sessionStorage.getItem(DEVICE_KEY);
+    let id = window.localStorage.getItem(DEVICE_KEY);
     if (!id) {
       // 24 random bytes -> base64url, ~32 chars, matches server's validation regex.
       const bytes = crypto.getRandomValues(new Uint8Array(24));
@@ -42,7 +44,7 @@ function getDeviceId(): string {
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
-      window.sessionStorage.setItem(DEVICE_KEY, id);
+      window.localStorage.setItem(DEVICE_KEY, id);
     }
     return id;
   } catch {
@@ -54,12 +56,17 @@ function getDeviceId(): string {
 let memAccess: string | null = null;
 let memRefresh: string | null = null;
 
+// Tokens are persisted in localStorage (not sessionStorage) so that:
+//   1. A user who closes the tab and returns later does not lose their session.
+//   2. The Clerk session (which also persists in localStorage/cookies) and the
+//      AfriConnect tokens stay in sync — avoiding the "issue with sign-in" state
+//      where Clerk redirects the user to the portal but no backend tokens exist.
 function read(key: string): string | null {
   if (memAccess !== null && key === TOKEN_KEY) return memAccess;
   if (memRefresh !== null && key === REFRESH_KEY) return memRefresh;
   if (typeof window === 'undefined') return null;
   try {
-    return window.sessionStorage.getItem(key);
+    return window.localStorage.getItem(key);
   } catch {
     return null;
   }
@@ -70,7 +77,7 @@ function write(key: string, value: string): void {
   if (key === REFRESH_KEY) memRefresh = value;
   if (typeof window === 'undefined') return;
   try {
-    window.sessionStorage.setItem(key, value);
+    window.localStorage.setItem(key, value);
   } catch {
     /* storage may be unavailable (private mode); memory cache still works */
   }
@@ -81,7 +88,7 @@ function remove(key: string): void {
   if (key === REFRESH_KEY) memRefresh = null;
   if (typeof window === 'undefined') return;
   try {
-    window.sessionStorage.removeItem(key);
+    window.localStorage.removeItem(key);
   } catch {
     /* ignore */
   }

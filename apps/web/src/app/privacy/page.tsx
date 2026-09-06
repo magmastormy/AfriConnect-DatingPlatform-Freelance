@@ -3,7 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Privacy & POPIA Policy',
   description:
-    'How AfriConnect Professionals collects, protects, and shares your data — built POPIA-compliant by design.',
+    'How Nia collects, protects, and shares your data — built POPIA-compliant by design.',
   alternates: { canonical: '/privacy' },
 };
 
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <p className="updated">Last updated: 11 August 2026</p>
 
       <p>
-        AfriConnect Professionals is built privacy-first. This policy explains what we collect, why,
+        Nia is built privacy-first. This policy explains what we collect, why,
         and the controls you have — in plain language, aligned with the Protection of Personal
         Information Act (POPIA) and global good practice.
       </p>

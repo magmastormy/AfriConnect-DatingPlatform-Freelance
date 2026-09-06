@@ -61,7 +61,7 @@ export function SiteNav() {
 
   return (
     <nav className="nav" aria-label="Primary">
-      <Link href="/" className="brand" aria-label="AfriConnect Professionals home">
+      <Link href="/" className="brand" aria-label="Nia home">
         <div className="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="20" cy="20" r="18" fill="#581845" />
@@ -82,9 +82,7 @@ export function SiteNav() {
             />
           </svg>
         </div>
-        <span className="brand-name">
-          Afri<span>Connect</span>
-        </span>
+        <span className="brand-name">Nia</span>
       </Link>
 
       <div className="links desktop-links">

@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export const metadata = {
   title: 'Terms of Service',
-  description: 'Terms of Service for AfriConnect Professionals.',
+  description: 'Terms of Service for Nia.',
   alternates: { canonical: '/terms' },
 };
 
@@ -14,7 +14,7 @@ export default function TermsPage() {
 
       <h2>1. Acceptance of terms</h2>
       <p>
-        By creating an account or using AfriConnect Professionals (&ldquo;the Service&rdquo;), you
+        By creating an account or using Nia (&ldquo;the Service&rdquo;), you
         agree to these Terms. Membership is conditional on successful vetting and continued
         compliance with our community standards.
       </p>

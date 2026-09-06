@@ -36,12 +36,12 @@ const inter = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'AfriConnect Professionals — A vetted community for African professionals',
-    template: '%s · AfriConnect Professionals',
+    default: 'Nia — Love, with intention',
+    template: '%s · Nia',
   },
   description:
     'A vetted, curated dating community for highly educated African professionals. LinkedIn-, degree- and ID-verified. Serious introductions, exclusive events, POPIA-compliant.',
-  applicationName: 'AfriConnect Professionals',
+  applicationName: 'Nia',
   keywords: [
     'African professionals dating',
     'vetted dating South Africa',
@@ -49,27 +49,35 @@ export const metadata: Metadata = {
     'degree verified dating',
     'serious relationships professionals',
   ],
-  authors: [{ name: 'AfriConnect Professionals' }],
-  creator: 'AfriConnect Professionals',
+  authors: [{ name: 'Nia' }],
+  creator: 'Nia',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'en_ZA',
     url: SITE_URL,
-    siteName: 'AfriConnect Professionals',
-    title: 'AfriConnect Professionals — A vetted community for African professionals',
+    siteName: 'Nia',
+    title: 'Nia — Love, with intention',
     description:
       'A vetted, curated dating community for highly educated African professionals. Verified. Curated. Serious.',
+    images: [
+      {
+        url: '/og/nia-og-card.png',
+        width: 1200,
+        height: 630,
+        alt: 'Nia — Love, with intention',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AfriConnect Professionals',
+    title: 'Nia — Love, with intention',
     description: 'A vetted, curated dating community for highly educated African professionals.',
   },
   robots: { index: true, follow: true },
   icons: {
     icon: '/icon.svg',
-    apple: '/icon.svg',
+    apple: '/icons/apple-touch-icon-180.png',
   },
 };
 
@@ -90,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const orgLd = {
     '@context': 'https://schema.org',
     '@type': 'ProfessionalService',
-    name: 'AfriConnect Professionals',
+    name: 'Nia',
     url: SITE_URL,
     description: 'A vetted, curated dating community for highly educated African professionals.',
     areaServed: 'ZA',
@@ -99,7 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const siteLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'AfriConnect Professionals',
+    name: 'Nia',
     url: SITE_URL,
   };
 

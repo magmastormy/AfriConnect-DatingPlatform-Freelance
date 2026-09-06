@@ -68,7 +68,7 @@ html[data-theme='light'] {
   /* Chrome */
   --nav-bg: rgba(246, 241, 233, 0.82);
   --sheet-bg: rgba(246, 241, 233, 0.98);
-  --overlay: rgba(22, 19, 15, 0.3);
+  --overlay: rgba(22, 19, 15, 0.45);
   --focus-ring: rgba(194, 80, 46, 0.18);
   --spinner-track: #dcd4c6;
   --toast-bg: #16130f;    --toast-fg: #ffffff;
@@ -2244,6 +2244,7 @@ html[data-theme='dark'] .wa-skel.mine { background: #005c4b; }
 .modal-card {
   background: var(--surface);
   border-radius: var(--radius);
+  box-shadow: 0 24px 64px rgba(22, 19, 15, 0.28);
   max-width: 440px;
   width: 100%;
   max-height: 90vh;
@@ -2666,6 +2667,10 @@ body:has(.modal-shell) { overflow: hidden; }
 .attendee-modal { max-width: 480px; padding: 1.25rem; }
 .attendee-modal .modal-title-row { margin-bottom: 0.35rem; }
 .attendee-modal .modal-sub { margin: 0 0 0.75rem; }
+
+/* Event detail modal (portal + public) — raw .modal-card has no padding,
+   so text sat flush against the card edge and the card melted into the page. */
+.ev-detail-modal { padding: 1rem 1.1rem 1.2rem; }
 
 /* Host-an-event modal — sticky glass header/footer so Close + Submit are
    always reachable; the long form scrolls between them. */

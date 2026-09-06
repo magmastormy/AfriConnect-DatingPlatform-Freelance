@@ -5,7 +5,7 @@ import { SignUpForm } from './SignUpForm';
 export const metadata: Metadata = {
   title: 'Create your account',
   description:
-    'Create your AfriConnect Professionals account, build your profile, then get vetted.',
+    'Create your Nia account, build your profile, then get vetted.',
   robots: { index: true, follow: true },
 };
 

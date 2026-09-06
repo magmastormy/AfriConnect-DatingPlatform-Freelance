@@ -3,7 +3,7 @@ import { OnboardingForm } from '../onboarding/OnboardingForm';
 
 export const metadata: Metadata = {
   title: 'Get verified',
-  description: 'Verify your professional identity to join the AfriConnect community.',
+  description: 'Verify your professional identity to join the Nia community.',
   robots: { index: false, follow: false },
 };
 

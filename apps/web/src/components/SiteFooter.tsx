@@ -28,7 +28,7 @@ export function SiteFooter() {
     <footer className="lp-footer">
       <div className="lp-footer-inner">
         <div>
-          <span className="lp-wordmark">AfriConnect</span>
+          <span className="lp-wordmark">Nia</span>
           <p className="lp-footer-tag">
             A vetted community for highly educated African professionals.
           </p>
@@ -55,7 +55,7 @@ export function SiteFooter() {
       </div>
       <div className="lp-footer-base">
         <span>
-          © {new Date().getFullYear()} AfriConnect Professionals. All rights reserved.
+          © {new Date().getFullYear()} Nia. All rights reserved.
         </span>
         <span>Johannesburg · Cape Town · Nairobi</span>
       </div>

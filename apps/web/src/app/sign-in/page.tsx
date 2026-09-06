@@ -4,7 +4,7 @@ import { SignInForm } from './SignInForm';
 
 export const metadata: Metadata = {
   title: 'Sign in',
-  description: 'Sign in to your AfriConnect Professionals account.',
+  description: 'Sign in to your Nia account.',
   robots: { index: false, follow: false },
 };
 

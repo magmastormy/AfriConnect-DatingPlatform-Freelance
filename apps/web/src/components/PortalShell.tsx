@@ -202,7 +202,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             <button className="portal-menu-btn" onClick={() => setNavOpen(true)} aria-label="Open menu" type="button">
               <span className="portal-hamburger" aria-hidden><i/><i/><i/></span>
             </button>
-            <span className="portal-mobile-title">AfriConnect</span>
+            <span className="portal-mobile-title">Nia</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <NotificationBell />
               <Link href="/portal/account" className="portal-mobile-avatar" aria-label="My profile">

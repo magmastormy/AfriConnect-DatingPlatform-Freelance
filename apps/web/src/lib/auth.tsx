@@ -110,11 +110,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Awaited only so a pending request cannot outlive the provider; the UI
       // is already unblocked by the setUser above.
       await applicationTask;
-    } catch {
+    } catch (err) {
       clearTokens();
       if (loggedOut.current) return;
       setUser(null);
-      setSessionError('We could not reach AfriConnect. Check your connection and try again.');
+
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        // Auth failure (token expired/invalid). Let ClerkSessionBridge trigger a quiet refresh.
+      } else {
+        // Genuine network/server failure.
+        setSessionError('We could not reach Nia. Check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -133,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // `loading` lets the page render its own empty/error state.
       setLoading(false);
       setSessionError((prev) =>
-        prev ?? 'AfriConnect is taking longer than usual to respond.',
+        prev ?? 'Nia is taking longer than usual to respond.',
       );
     }, BOOTSTRAP_TIMEOUT_MS);
 
