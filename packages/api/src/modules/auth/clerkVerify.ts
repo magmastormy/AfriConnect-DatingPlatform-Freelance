@@ -40,6 +40,7 @@ export async function getClerkPrimaryEmail(clerkId: string): Promise<string | nu
   try {
     const res = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(clerkId)}`, {
       headers: { Authorization: `Bearer ${secretKey}` },
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) {
       logger.warn({ clerkId, status: res.status }, 'Clerk user lookup returned non-OK status');

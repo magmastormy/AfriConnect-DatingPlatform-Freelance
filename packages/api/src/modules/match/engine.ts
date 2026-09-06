@@ -82,21 +82,31 @@ export class MatchingEngine {
     const interestVocab = Array.from(new Set(candidates.flatMap((c) => c.interests ?? [])));
     const industryVocab = Array.from(new Set(candidates.flatMap((c) => c.industries ?? [])));
 
-    // ── 1. Hard constraints ──────────────────────────────────────────────────
-    const filtered = candidates.filter((c) => {
+    // ── 1. Hard constraints (gender, age, dealbreakers) ─────────────────────
+    const eligible = candidates.filter((c) => {
       if (prefs.genderPreference && c.gender !== prefs.genderPreference) return false;
       if (prefs.ageMin && prefs.ageMax && c.dateOfBirth) {
         const age = ageFromDob(c.dateOfBirth);
         if (age < prefs.ageMin || age > prefs.ageMax) return false;
       }
-      if (!withinRadius(viewer, c, radiusKm)) return false;
       const deal = viewer.dealbreakers ?? [];
       if (deal.length && (c.dealbreakers ?? []).some((d) => deal.includes(d))) return false;
       return true;
     });
 
+    // Proximity tiering: prioritize candidates within radiusKm.
+    // If local candidates are fewer than topN (or exhausted by previous passes),
+    // smoothly expand to the broader eligible candidate pool so the user
+    // never hits a starved deck when eligible members exist on the platform.
+    const local = eligible.filter((c) => withinRadius(viewer, c, radiusKm));
+    const filtered =
+      local.length >= this.config.topN
+        ? local
+        : Array.from(new Set([...local, ...eligible]));
+
     // ── 2–5. Score each survivor ─────────────────────────────────────────────
     const scored: { rc: RankedCandidate; vector: number[] }[] = filtered.map((c) => {
+      const isLocal = withinRadius(viewer, c, radiusKm);
       const contentScore = scoreCompatibility(
         { preferences: prefs, dealbreakers: viewer.dealbreakers },
         c,
@@ -116,6 +126,7 @@ export class MatchingEngine {
 
       const popAdj = popularityAdjustment(c.elo);
       base += popAdj;
+      if (isLocal) base += 8; // Proximity boost so nearby candidates naturally rank first
 
       let premiumBoost = 0;
       let newUserBoost = 0;

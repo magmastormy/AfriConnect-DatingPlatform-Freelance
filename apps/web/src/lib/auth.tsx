@@ -12,6 +12,7 @@ import {
 } from './api';
 import { UserRole, UserStatus, ApplicationStatus } from '@/lib/shared';
 import { MembershipStage, membershipStage } from '@/lib/membership';
+import { CLERK_ENABLED } from '@/lib/clerk';
 
 export interface AuthUser {
   userId: string;
@@ -117,8 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         // Auth failure (token expired/invalid). Let ClerkSessionBridge trigger a quiet refresh.
-      } else {
-        // Genuine network/server failure.
+      } else if (!CLERK_ENABLED) {
+        // Genuine network/server failure when not using Clerk.
         setSessionError('We could not reach Nia. Check your connection and try again.');
       }
     } finally {
@@ -138,9 +139,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Never let a hung backend pin the shell on a spinner forever. Releasing
       // `loading` lets the page render its own empty/error state.
       setLoading(false);
-      setSessionError((prev) =>
-        prev ?? 'Nia is taking longer than usual to respond.',
-      );
+      if (!CLERK_ENABLED) {
+        setSessionError((prev) =>
+          prev ?? 'Nia is taking longer than usual to respond.',
+        );
+      }
     }, BOOTSTRAP_TIMEOUT_MS);
 
     void bootstrap().finally(() => window.clearTimeout(guard));

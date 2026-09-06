@@ -71,9 +71,13 @@ function ClerkSessionBridge() {
   const exchangedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isSignedIn || !userLoaded || !sessionId) return;
-    // Already have an AfriConnect session for this Clerk session.
-    if (exchangedFor.current === sessionId) return;
+    if (!isSignedIn) {
+      exchangedFor.current = null;
+      return;
+    }
+    if (!userLoaded || !sessionId) return;
+    // Already have an active AfriConnect session for this Clerk session.
+    if (exchangedFor.current === sessionId && appUser) return;
     if (appUser && exchangedFor.current === null) {
       // A restored AfriConnect session already covers this Clerk session
       // (page reload with valid tokens); adopt it without re-exchanging.
@@ -87,7 +91,12 @@ function ClerkSessionBridge() {
         if (!active) return;
         try {
           const token = await getToken();
-          if (!token || !active) return;
+          if (!active) return;
+          if (!token) {
+            // Token refreshing from Clerk, wait before retry
+            await new Promise((r) => setTimeout(r, EXCHANGE_BACKOFF_MS[attempt] || 500));
+            continue;
+          }
           const res = await exchangeClerkToken(token);
           if (!active) return;
           if (res) {
@@ -109,7 +118,7 @@ function ClerkSessionBridge() {
       }
       // Every attempt failed. Tell the shell so it can stop spinning and offer
       // a retry instead of hanging behind an invisible failure.
-      if (active) {
+      if (active && !appUser) {
         failSession('We could not complete sign-in. This is usually a slow or unreachable server.');
       }
     })();

@@ -157,15 +157,15 @@ export class AuthService implements IAuthService {
       { subject: sub, hasProfileData: !!(firstName || lastName || fullName) },
       'Clerk token verified',
     );
-    // Session tokens often omit the email claim (Google-OAuth template here).
-    // Recover the real primary email from the Clerk Backend API so we never
-    // fall back to a `${clerkId}@clerk.local` placeholder.
+    let user = await this.repo.findUserByClerkId(sub);
     let resolvedEmail = '';
-    if (!resolvedEmail) {
+
+    // Only hit Clerk's Backend API if the user is not found or has an incomplete placeholder email
+    if (!user || user.email.endsWith('@clerk.local')) {
       const fromClerk = await getClerkPrimaryEmail(sub);
       if (fromClerk) resolvedEmail = fromClerk;
     }
-    let user = await this.repo.findUserByClerkId(sub);
+
     if (!user && resolvedEmail) {
       user = await this.repo.findUserByEmail(resolvedEmail);
       if (user) await this.repo.attachClerkId(user.id, sub);

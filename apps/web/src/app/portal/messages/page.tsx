@@ -183,6 +183,26 @@ export default function MessagesPage() {
     });
   }
 
+  // Reliable live polling fallback: ensures incoming messages and AI replies
+  // update seamlessly even if WebSocket connections are dropped or firewalled.
+  useEffect(() => {
+    if (!active) return;
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await api.get<ChatMessage[]>(`/chat/conversations/${active}`);
+        setMessages((prev) => {
+          if (fresh.length !== prev.length || (fresh.length > 0 && fresh[fresh.length - 1].id !== prev[prev.length - 1]?.id)) {
+            return fresh;
+          }
+          return prev;
+        });
+      } catch {
+        /* silent polling fail */
+      }
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [active]);
+
   async function send() {
     if (!active || !draft.trim()) return;
     const text = draft.trim();
@@ -195,6 +215,21 @@ export default function MessagesPage() {
       await api.post(`/chat/conversations/${active}`, { content: text });
       const m = await api.get<ChatMessage[]>(`/chat/conversations/${active}`);
       setMessages(m);
+
+      // Fast follow-up poll to catch the AI reply as soon as it is generated
+      const activeId = active;
+      setTimeout(async () => {
+        try {
+          const fresh = await api.get<ChatMessage[]>(`/chat/conversations/${activeId}`);
+          setMessages(fresh);
+        } catch { /* ignore */ }
+      }, 1500);
+      setTimeout(async () => {
+        try {
+          const fresh = await api.get<ChatMessage[]>(`/chat/conversations/${activeId}`);
+          setMessages(fresh);
+        } catch { /* ignore */ }
+      }, 3500);
     } catch (e) {
       toast(e instanceof ApiError ? e.message : 'Send failed', 'error');
       setMessages((prev) => prev.filter((m) => m.id !== tempId));

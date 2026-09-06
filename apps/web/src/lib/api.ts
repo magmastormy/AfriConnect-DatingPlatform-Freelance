@@ -249,8 +249,9 @@ async function attemptRequest<T>(
   timeoutMs = 15000,
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const isAuthExchange = path.startsWith('/auth/clerk/exchange') || path.startsWith('/auth/refresh') || path.startsWith('/auth/request-otp') || path.startsWith('/auth/verify-otp');
   const token = getAccessToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token && !isAuthExchange) headers.Authorization = `Bearer ${token}`;
   const deviceId = getDeviceId();
   if (deviceId) headers['X-Device-Id'] = deviceId;
 

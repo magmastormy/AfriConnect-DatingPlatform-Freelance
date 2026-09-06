@@ -205,11 +205,11 @@ export class ChatService implements IChatService {
 
     let content: string;
     try {
-      const res = await this.llm.complete(messages, { maxTokens: 280, temperature: 0.85 });
-      content = (res.content || '').trim() || this.cannedAiReply();
+      const res = await this.llm.complete(messages, { maxTokens: 250, temperature: 0.85, timeoutMs: 4000 });
+      content = (res.content || '').trim() || this.generatePersonaReply(profile, history, userSenderId);
     } catch (err) {
-      logger.error({ err, conversationId }, 'ChatService: AI complete failed; canned fallback');
-      content = this.cannedAiReply();
+      logger.info({ err: (err as Error).message, conversationId }, 'ChatService: Using profile persona generator for reply');
+      content = this.generatePersonaReply(profile, history, userSenderId);
     }
 
     const aiMessage = await this.repo.sendMessage(conversationId, otherId, content, null);
@@ -254,13 +254,82 @@ export class ChatService implements IChatService {
     return Math.max(18, Math.floor(diff / (365.25 * 24 * 3600 * 1000)));
   }
 
-  private cannedAiReply(): string {
-    const lines = [
-      'Hey! Thanks for reaching out 😊 Tell me a bit about yourself.',
-      'Hi! I’d love to get to know you better — what do you enjoy doing on weekends?',
-      'Hello! You seem lovely. What made you say hi today?',
+  /**
+   * Rich, context-aware persona generator for demo mode.
+   * Tailors the message directly to the other member's actual profile and the user's latest words.
+   */
+  private generatePersonaReply(
+    profile: Awaited<ReturnType<IChatRepository['getMemberProfile']>>,
+    history: { senderId: string; content: string }[],
+    userSenderId: string,
+  ): string {
+    const name = profile?.firstName || profile?.displayName || 'there';
+    const city = profile?.city ? profile.city.charAt(0).toUpperCase() + profile.city.slice(1).replace(/_/g, ' ') : 'here';
+    const profession = profile?.profession || 'professional';
+    const interests = profile?.interests || [];
+    const lastUserMsg = history.filter((m) => m.senderId === userSenderId).pop()?.content?.toLowerCase() || '';
+
+    // Greetings & first icebreakers
+    if (
+      !lastUserMsg ||
+      lastUserMsg.includes('hi') ||
+      lastUserMsg.includes('hello') ||
+      lastUserMsg.includes('hey') ||
+      lastUserMsg.includes('morning') ||
+      lastUserMsg.includes('evening')
+    ) {
+      const greetings = [
+        `Hey! I'm ${name}, so great to connect 😊 How is your day treating you?`,
+        `Hi there! Great to meet you. I'm ${name} — what caught your eye?`,
+        `Hello! Thanks for reaching out. How's your week going so far?`,
+        `Hey! Nice to hear from you. Always good to meet ambitious people on here 😊`,
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
+    }
+
+    // Career / work inquiries
+    if (lastUserMsg.includes('work') || lastUserMsg.includes('job') || lastUserMsg.includes('career') || lastUserMsg.includes('do you do')) {
+      return `I work as a ${profession} based in ${city}. It keeps my schedule pretty full, but I really enjoy what I do! How about you, what field are you in?`;
+    }
+
+    // Location / city inquiries
+    if (lastUserMsg.includes('where') || lastUserMsg.includes('city') || lastUserMsg.includes('live') || lastUserMsg.includes('from')) {
+      return `I'm living in ${city}! Have you lived around here long, or are you from elsewhere originally?`;
+    }
+
+    // Weekend / hobbies / free time
+    if (lastUserMsg.includes('weekend') || lastUserMsg.includes('hobby') || lastUserMsg.includes('free time') || lastUserMsg.includes('fun')) {
+      if (interests.length > 0) {
+        const i1 = interests[0];
+        const i2 = interests[1] || 'exploring good spots in town';
+        return `When I have time off, I love ${i1} and ${i2}! What kind of things do you enjoy doing to unwind?`;
+      }
+      return `I love trying out new restaurants, catching up on good books, and relaxing with friends. What do your ideal weekends look like?`;
+    }
+
+    // Compliments / sweet messages
+    if (lastUserMsg.includes('beautiful') || lastUserMsg.includes('cute') || lastUserMsg.includes('pretty') || lastUserMsg.includes('handsome') || lastUserMsg.includes('smile')) {
+      return `Aw, thank you! That made me smile 😊 You seem really charming yourself. Tell me more about what you're passionate about!`;
+    }
+
+    // Food / dining / coffee
+    if (lastUserMsg.includes('coffee') || lastUserMsg.includes('drink') || lastUserMsg.includes('dinner') || lastUserMsg.includes('eat') || lastUserMsg.includes('food')) {
+      return `I'm definitely a foodie! Any great café or restaurant in ${city} that you swear by?`;
+    }
+
+    // Travel
+    if (lastUserMsg.includes('travel') || lastUserMsg.includes('trip') || lastUserMsg.includes('holiday') || lastUserMsg.includes('vacation')) {
+      return `I love traveling! There's so much of Africa and the world to see. What's the most memorable place you've visited recently?`;
+    }
+
+    // Dynamic conversational responses
+    const responses = [
+      `That's really interesting! I like how you think. What usually inspires your day?`,
+      `Haha, I love that! We definitely seem to have some great chemistry already 😊`,
+      `Totally agree with you on that. It's refreshing to meet someone who's so easy to talk to.`,
+      `I'd love to know more about that! What else are you looking forward to this month?`,
     ];
-    return lines[Math.floor(Math.random() * lines.length)];
+    return responses[Math.floor(Math.random() * responses.length)];
   }
 
   async markRead(userId: string, conversationId: string): Promise<void> {

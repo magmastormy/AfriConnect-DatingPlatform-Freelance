@@ -1950,7 +1950,7 @@ a:hover { color: var(--brand-ink); }
    height, full content column width) — no arbitrary max-width/height caps that
    waste space on large monitors, since the chat is already constrained inside
    the portal shell's left-rail + content grid. */
-.wa-page { width: 100%; max-width: none; margin: 0; height: calc(100dvh - 88px - 1.75rem * 2); min-height: 640px; display: flex; flex-direction: column; min-height: 0; }
+.wa-page { width: 100%; max-width: none; margin: 0; height: calc(100dvh - 88px - 1.75rem * 2); min-height: 520px; display: flex; flex-direction: column; }
 .wa-shell {
   display: grid; grid-template-columns: 380px 1fr;
   flex: 1 1 auto;
@@ -2097,10 +2097,31 @@ html[data-theme='dark'] .wa-skel.mine { background: #005c4b; }
 .wa-send.muted { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
 .wa-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Mobile chat (full-screen app-style) ────────────────────────────────────
-   On phones the messages page takes the full viewport (no card chrome).
-   We use :has(.wa-page) so other portal pages keep their existing padding. */
-@media (max-width: 860px) {
+/* ── Tablet & Mobile Chat (responsive WhatsApp-style panes) ───────────────
+   Ensures panes never collapse to zero height or disappear on tablet/phone. */
+@media (max-width: 1024px) and (min-width: 721px) {
+  .wa-page {
+    height: calc(100dvh - 120px);
+    min-height: 520px;
+    width: 100%;
+  }
+  .wa-shell {
+    grid-template-columns: 280px minmax(0, 1fr) !important;
+    height: 100%;
+  }
+  .wa-list {
+    display: flex !important;
+    border-right: 1px solid var(--line);
+  }
+  .wa-pane {
+    display: flex !important;
+  }
+  .wa-back {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
   /* Lock page-level scroll & elastic drag on the messages route — only the
      message list itself scrolls, matching WhatsApp / Instagram DM mobile. */
   body:has(.wa-page) {
@@ -2110,40 +2131,47 @@ html[data-theme='dark'] .wa-skel.mine { background: #005c4b; }
     -webkit-user-drag: none;
   }
   body:has(.wa-page) .portal-content {
-    /* Turn portal-content into a flex column so wa-page fills the remaining
-       space below the mobile top bar exactly — no guessing, no calc drift. */
     display: flex;
     flex-direction: column;
-    /* BottomNav already reserves 88px safe-inset bottom, we cancel the extra
-       portal-content padding-bottom so the chat sits flush above the bar. */
     padding-bottom: 0 !important;
     min-height: 0;
   }
   body:has(.wa-page) .portal-mobilebar { flex: none; }
 
   .wa-page {
-    height: 0;
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: calc(100dvh - 88px); /* never extend behind the bottom nav */
-    /* Cancel portal-shell horizontal + vertical padding for edge-to-edge app feel */
+    height: calc(100dvh - 130px);
+    min-height: 420px;
+    width: 100%;
     margin: 0 calc(-1 * clamp(0.75rem, 4vw, 1.5rem)) 0;
   }
   .wa-shell {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     height: 100%;
     min-height: 0;
     max-height: 100%;
-    border-radius: 0;      /* rounded corners clip the send button on narrow screens */
+    border-radius: 0;
     border-left: 0;
     border-right: 0;
     box-shadow: none;
   }
-  .wa-list { border-right: 0; }
-  .wa-shell.has-active .wa-list { display: none; }
-  .wa-shell:not(.has-active) .wa-pane { display: none; }
+  .wa-list {
+    flex: 1 1 auto;
+    height: 100%;
+    border-right: 0;
+    display: flex;
+  }
+  .wa-pane {
+    flex: 1 1 auto;
+    height: 100%;
+    display: flex;
+  }
+  .wa-shell.has-active .wa-list { display: none !important; }
+  .wa-shell.has-active .wa-pane { display: flex !important; }
+  .wa-shell:not(.has-active) .wa-list { display: flex !important; }
+  .wa-shell:not(.has-active) .wa-pane { display: none !important; }
   .wa-back { display: grid; }
-  .wa-bubble { max-width: 82%; }
+  .wa-bubble { max-width: 85%; }
 
   /* Composer: protect from iPhone home indicator, prevent button touch zoom,
      and grow touch targets slightly larger than the visual pill. */

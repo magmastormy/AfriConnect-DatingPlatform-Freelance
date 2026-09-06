@@ -58,7 +58,7 @@ const GROUPS: NavGroup[] = [
 const WIDE_ROUTES = ['/portal/settings', '/portal/account', '/portal/messages'];
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, stage, logout, sessionError } = useAuth();
+  const { user, loading, stage, logout, sessionError, retrySession } = useAuth();
   const { user: clerkUser, isLoaded: clerkLoaded } = useClerkIdentity();
   const clerkSignOut = useClerkSignOut();
   const router = useRouter();
@@ -222,13 +222,22 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         ) : sessionError ? (
           <div className="state" role="alert" style={{ minHeight: '40vh', gap: '1rem' }}>
             <p className="muted">{sessionError}</p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Try again
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => retrySession()}
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         ) : (
           <div className="state" role="status" aria-live="polite" style={{ minHeight: '40vh' }}>
