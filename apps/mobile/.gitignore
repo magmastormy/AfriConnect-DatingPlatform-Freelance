@@ -1,0 +1,24 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+
+# `flutter create` writes these host folders; they are local scaffolding built
+# from the machine's own Gradle/Xcode templates, not shared source.
+/android/
+/ios/
+/linux/
+/macos/
+/web/
+/windows/
+
+# NOTE: pubspec.lock is intentionally committed. This is an application, not a
+# library -- a pinned lockfile keeps device and CI builds reproducible.
+
+# Local environment overrides
+.env
+*.local.dart
+# Generated Flutter build-time config (carries the obfuscated API mount path)
+.env.flutter.json

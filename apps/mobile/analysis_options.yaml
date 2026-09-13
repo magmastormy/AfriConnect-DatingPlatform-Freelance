@@ -1,0 +1,19 @@
+# Generated host folders (android/, ios/, etc.) are created by `flutter create`
+# and contain third-party plugin code, so they are excluded from analysis.
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - linux/**
+    - macos/**
+    - web/**
+    - windows/**
+
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    avoid_print: true
+    prefer_single_quotes: true
+    always_declare_return_types: true

@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Nia — Love, with intention',
     short_name: 'Nia',
+    name: 'Nia — Love, with intention',
     description: 'A vetted, curated dating community for highly educated African professionals.',
     start_url: '/',
     display: 'standalone',

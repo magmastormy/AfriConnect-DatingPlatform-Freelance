@@ -378,7 +378,7 @@ export default function EventsPage() {
               {rsvpd[detailEvent.id]
                 ? <Badge tone="good">{rsvpd[detailEvent.id] === 'waitlist' ? 'Waitlisted' : 'Confirmed'}</Badge>
                 : <Button disabled={busyId === detailEvent.id} onClick={() => rsvp(detailEvent.id)}>RSVP</Button>}
-              <Button variant="ghost" onClick={() => { const ev = detailEvent; setDetailEvent(null); openAttendees(ev); }}>
+              <Button variant="ghost" onClick={() => { const ev = detailEvent; setDetailEvent(null); void openAttendees(ev); }}>
                 View attendees ({detailEvent.attendeeCount})
               </Button>
             </div>

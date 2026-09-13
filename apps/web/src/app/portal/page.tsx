@@ -234,7 +234,7 @@ export default function PortalDashboard() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      openProfile(m.userId);
+                      void openProfile(m.userId);
                     }
                   }}
                   aria-label={`View profile of ${m.displayName ?? 'Member'}`}
@@ -258,7 +258,7 @@ export default function PortalDashboard() {
                       className="btn btn-subtle member-action"
                       onClick={(e) => {
                         e.stopPropagation();
-                        openProfile(m.userId);
+                        void openProfile(m.userId);
                       }}
                     >
                       View profile
@@ -441,4 +441,3 @@ function HomeProfileModal({
     </div>
   );
 }
-

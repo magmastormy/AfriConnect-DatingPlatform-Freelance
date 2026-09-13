@@ -102,7 +102,7 @@ export default function MatchesPage() {
         role="button"
         tabIndex={0}
         aria-label={`View profile of ${m.displayName ?? 'member'}`}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(m.userId); } }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void openProfile(m.userId); } }}
       >
         <MatchAvatar src={m.photo} alt={m.displayName ?? 'Member'} initial={initial} />
         <div className="meta" style={{ flex: 1, minWidth: 0 }}>
@@ -205,7 +205,7 @@ export default function MatchesPage() {
                   role="button"
                   tabIndex={0}
                   aria-label={`View profile of ${m.name}`}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(m.userId); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void openProfile(m.userId); } }}
                 >
                   <MatchAvatar src={m.photo} alt={m.name} initial={m.name.charAt(0).toUpperCase()} />
                   <div className="meta" style={{ flex: 1, minWidth: 0 }}>

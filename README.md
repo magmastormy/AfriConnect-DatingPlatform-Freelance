@@ -11,12 +11,14 @@ every module boundary, error type, and schema rule in it is enforced here.
 - **Backend:** Node.js + TypeScript + Express + Prisma (PostgreSQL)
 - **Shared:** `packages/shared` — errors, logger, constants, types, Zod schemas
 - **Frontend (scaffold):** Next.js 14 (App Router) at `apps/web`
+- **Mobile:** Flutter native client at `apps/mobile` (isolated from web code)
 - **Monorepo:** pnpm workspaces + Turborepo
 
 ## Architecture (Clauses 1–8 of AGENTS.md)
 
 ```
 apps/web                 → Next.js member portal + landing
+apps/mobile              → Flutter Android/iOS member app; consumes the API over HTTP
 packages/api             → Express API (modules/*, prisma, shared config)
 packages/shared          → Cross-cutting code (errors, logger, constants, crypto, types)
 ```
@@ -92,6 +94,19 @@ cp apps/web/.env.example apps/web/.env   # web: public/site + Clerk keys
 pnpm --filter @africonnect/api run prisma:migrate   # create DB schema
 pnpm dev                     # api on :4000, web on :3000
 ```
+
+The Nia mobile client is managed by Flutter rather than pnpm. It has its own
+dependencies and does not import `apps/web` or TypeScript packages:
+
+```bash
+cd apps/mobile
+flutter create --platforms=android,ios .
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api/v1
+```
+
+The mobile web return origin defaults to `https://africonnect.pro`; override it
+for staging with `--dart-define=NIA_WEB_BASE_URL=https://...`.
 
 ### What each credential enables
 
