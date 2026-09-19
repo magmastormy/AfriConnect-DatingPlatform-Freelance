@@ -6,6 +6,7 @@ import '../../../core/realtime/realtime_chat_client.dart';
 import '../../../core/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/nia_kit.dart';
 import '../data/chat_repository.dart';
 
 class ConversationScreen extends StatefulWidget {
@@ -164,13 +165,32 @@ class _ConversationScreenState extends State<ConversationScreen> {
           const SizedBox(width: 10),
           Expanded(
               child: Text(widget.name,
-                  style: editorial(22, weight: FontWeight.w700))),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: inter(17, weight: FontWeight.w700))),
           StatusPill(live ? 'Live' : 'Offline',
               tone: live ? PillTone.good : PillTone.neutral),
         ]),
       ),
       body: Column(children: [
         Expanded(child: _messageBody()),
+        if (!loading && error == null && messages.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+            child: SuggestionChips(
+              label: 'Start with an opener',
+              suggestions: const [
+                'What does a good evening look like for you?',
+                'What are you hoping to find here?',
+                'What have you been proud of lately?',
+                'What got you into your line of work?',
+              ],
+              onPick: (text) {
+                draft.text = text;
+                send();
+              },
+            ),
+          ),
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
@@ -181,17 +201,35 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   enabled: !sending && error == null,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => send(),
-                  decoration: const InputDecoration(
-                      hintText: 'Write something thoughtful'),
+                  style: inter(14.5,
+                      weight: FontWeight.w400, color: context.palette.ink),
+                  decoration: InputDecoration(
+                    hintText: 'Write something thoughtful',
+                    hintStyle: inter(14.5,
+                        weight: FontWeight.w400, color: context.palette.muted),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 14),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(NiaRadius.pill),
+                        borderSide: BorderSide(color: context.palette.line)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(NiaRadius.pill),
+                        borderSide: BorderSide(color: context.palette.line)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(NiaRadius.pill),
+                        borderSide: const BorderSide(
+                            color: AppColors.clay, width: 1.5)),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: sending || error != null ? null : send,
-                icon: const Icon(Icons.arrow_upward_rounded),
-                style: IconButton.styleFrom(
-                    backgroundColor: AppColors.clay,
-                    foregroundColor: Colors.white),
+              const SizedBox(width: 10),
+              ActionBubble(
+                icon: Icons.arrow_upward_rounded,
+                tone: ActionTone.brand,
+                size: 48,
+                semanticLabel: 'Send message',
+                busy: sending,
+                onTap: sending || error != null ? null : send,
               ),
             ]),
           ),
@@ -226,13 +264,28 @@ class _ConversationScreenState extends State<ConversationScreen> {
               color: mine ? AppColors.clay : context.palette.surface,
               border: Border.all(
                   color: mine ? AppColors.clay : context.palette.line),
-              borderRadius: BorderRadius.circular(16),
+              // Asymmetric corners: the corner nearest the sender is pulled
+              // in, so the bubble reads as coming from a side rather than
+              // being a floating rectangle.
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(NiaRadius.lg),
+                topRight: const Radius.circular(NiaRadius.lg),
+                bottomLeft: mine
+                    ? const Radius.circular(NiaRadius.lg)
+                    : const Radius.circular(NiaRadius.sm),
+                bottomRight: mine
+                    ? const Radius.circular(NiaRadius.sm)
+                    : const Radius.circular(NiaRadius.lg),
+              ),
             ),
             child: Text(
               message.isDeleted ? 'Message recalled' : message.content,
-              style: TextStyle(
-                  color: mine ? Colors.white : context.palette.ink,
-                  height: 1.4),
+              style: inter(14.5,
+                  weight: FontWeight.w400,
+                  // Text on a brand-filled bubble follows the same
+                  // "on-brand" rule as every other filled control.
+                  color: mine ? context.palette.onBrand : context.palette.ink,
+                  height: 1.45),
             ),
           ),
         );

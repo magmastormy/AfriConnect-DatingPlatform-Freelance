@@ -7,6 +7,8 @@ import '../../../core/config/app_config.dart';
 import '../../../core/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/nia_kit.dart';
+import '../../../core/widgets/theme_mode_selector.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -101,6 +103,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? word
             : '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
+  }
+
+  /// Honest, human-readable gender for the attribute-chip strip. Returns '' when
+  /// the member hasn't shared one, so no fake placeholder chip is ever shown.
+  String get genderLabel {
+    final raw = (profile?['gender'] as String?)?.trim().toLowerCase();
+    return switch (raw) {
+      'female' => 'Woman',
+      'male' => 'Man',
+      'non_binary' => 'Non-binary',
+      'other' => 'Other',
+      _ => '',
+    };
+  }
+
+  /// Only real profile attributes, in display order. Empty values are skipped;
+  /// [AttributeChips] turns a partial or empty list into a single add affordance.
+  List<String> get attributeChips {
+    final list = <String>[];
+    final prof = (profile?['profession'] as String?)?.trim() ?? '';
+    if (prof.isNotEmpty) list.add(prof);
+    final c = (profile?['city'] as String?)?.trim() ?? '';
+    if (c.isNotEmpty) list.add(_pretty(c));
+    final g = genderLabel;
+    if (g.isNotEmpty) list.add(g);
+    return list;
   }
 
   Uri _mobileHostedUri(String raw) {
@@ -404,47 +432,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: EdgeInsets.all(24), child: ShimmerBlock(height: 150));
     }
     final paused = profile?['isPaused'] == true;
+    final vettingVerified = vettingStatus?.contains('verified') == true;
     final complete = (profile?['completenessScore'] as num?)?.toInt() ??
         (profile?['isComplete'] == true ? 100 : 40);
     return ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: [
+          // Identity hero. Every other tab opens with a display headline and
+          // one supporting line; "You" opened with whatever settings happened
+          // to come first, which gave it no top at all.
           SurfaceCard(
-              child: Row(children: [
-            InitialAvatar(
-                displayName.isEmpty ? 'M' : displayName[0].toUpperCase(),
-                size: 68,
-                color: AppColors.plum),
-            const SizedBox(width: 14),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(displayName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 18)),
-                  const SizedBox(height: 4),
-                  Text('$profession - $city',
-                      style: const TextStyle(color: AppColors.muted)),
-                  const SizedBox(height: 9),
-                  Row(children: [
-                    StatusPill(
-                        vettingStatus?.contains('verified') == true
-                            ? 'Verified'
-                            : 'Vetting needed',
-                        tone: vettingStatus?.contains('verified') == true
-                            ? PillTone.good
-                            : PillTone.warn),
-                    const SizedBox(width: 6),
-                    StatusPill('$complete% complete',
-                        tone: complete >= 80 ? PillTone.good : PillTone.warn)
-                  ])
-                ])),
-            IconButton(
-                onPressed: editProfile,
-                tooltip: 'Edit profile',
-                icon: const Icon(Icons.edit_outlined))
-          ])),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      _ProfileAvatar(
+                        letter: displayName.isEmpty
+                            ? 'M'
+                            : displayName[0].toUpperCase(),
+                        photoUrl: photoUrls.isNotEmpty ? photoUrls.first : null,
+                        size: 72,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: editorial(22, weight: FontWeight.w700)),
+                          ])),
+                      IconButton(
+                          onPressed: editProfile,
+                          tooltip: 'Edit profile',
+                          icon: const Icon(Icons.edit_outlined))
+                    ]),
+                    const SizedBox(height: 14),
+                    AttributeChips(chips: attributeChips, onAdd: editProfile),
+                    const SizedBox(height: 18),
+                    _CompletenessBar(score: complete),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      StatusPill(
+                          // The status string is a human sentence, so this stays
+                          // a substring test rather than an equality check.
+                          vettingVerified ? 'Verified' : 'Vetting needed',
+                          tone:
+                              vettingVerified ? PillTone.good : PillTone.warn),
+                      const SizedBox(width: 6),
+                      StatusPill('$complete% complete',
+                          tone: complete >= 80 ? PillTone.good : PillTone.warn)
+                    ]),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: _showVoiceIntroSoon,
+                      borderRadius: BorderRadius.circular(NiaRadius.sm),
+                      child: Row(children: [
+                        Icon(Icons.graphic_eq_rounded,
+                            color: context.palette.muted, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('Voice intro',
+                              style: inter(14,
+                                  weight: FontWeight.w600,
+                                  color: context.palette.ink)),
+                        ),
+                        StatusPill('Soon', tone: PillTone.neutral),
+                        const SizedBox(width: 4),
+                        Icon(Icons.chevron_right, color: context.palette.muted),
+                      ]),
+                    ),
+                  ])),
           const SizedBox(height: 14),
           SectionHeader('Your photos', action: 'Add', onAction: addPhoto),
           SurfaceCard(
@@ -469,7 +529,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
                       itemBuilder: (context, index) => Stack(children: [
                         ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(NiaRadius.md),
                             child: Image.network(photoUrls[index],
                                 width: 96,
                                 height: 96,
@@ -502,8 +562,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(children: [
                   Expanded(
                       child: Text(vettingStatus!,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12))),
+                          style: TextStyle(
+                              color: context.palette.muted, fontSize: 12))),
                   TextButton(
                       onPressed: refreshVetting, child: const Text('Refresh'))
                 ])),
@@ -514,16 +574,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                   Text(paused ? 'Profile paused' : 'Ready to be seen?',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                      style: inter(15.5, weight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                       'Complete your identity check to unlock matching and messages.',
                       style: TextStyle(
-                          color: AppColors.muted, fontSize: 12, height: 1.4))
+                          color: context.palette.muted,
+                          fontSize: 12,
+                          height: 1.4))
                 ])),
-            OutlinedButton(
-                onPressed: saving ? null : startVetting,
-                child: Text(saving ? 'Opening...' : 'Get vetted'))
+            GhostButton(
+                label: saving ? 'Opening…' : 'Get vetted',
+                onPressed: saving ? null : startVetting)
           ])),
           const SizedBox(height: 12),
           SurfaceCard(
@@ -536,90 +598,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isPremium
                           ? 'Premium membership active'
                           : 'Premium membership',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                      style: inter(15.5, weight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                       'More introductions, priority events, and deeper profiles.',
                       style: TextStyle(
-                          color: AppColors.muted, fontSize: 12, height: 1.4))
+                          color: context.palette.muted,
+                          fontSize: 12,
+                          height: 1.4))
                 ])),
             if (!isPremium)
-              FilledButton(
-                  onPressed: openPayment,
-                  style:
-                      FilledButton.styleFrom(backgroundColor: AppColors.clay),
-                  child: const Text('Upgrade'))
+              PillCta(
+                  label: 'Upgrade',
+                  icon: Icons.workspace_premium_rounded,
+                  onPressed: openPayment)
           ])),
           const SizedBox(height: 22),
           const SectionHeader('Your profile'),
-          _ProfileSetting(
-              icon: Icons.auto_awesome_outlined,
-              title: 'Profile insights',
-              detail: 'See what makes your profile stand out.',
-              onTap: () => _showMessage('Profile insights',
-                  'Your strongest signal is a complete, specific profile with a clear reason to start a conversation.')),
-          _ProfileSetting(
-              icon: Icons.lock_outline,
-              title: 'Privacy & visibility',
-              detail: 'Control what members can see.',
-              onTap: () => _showPrivacy()),
-          _ProfileSetting(
-              icon: Icons.tune,
-              title: 'Match preferences',
-              detail: 'Tell us who you hope to meet.',
-              onTap: () => _showPreferences()),
+          SurfaceCard(
+              child: Column(children: [
+            SettingsRow(
+                icon: Icons.auto_awesome_outlined,
+                title: 'Profile insights',
+                subtitle: 'See what makes your profile stand out.',
+                onTap: () => _showMessage('Profile insights',
+                    'Your strongest signal is a complete, specific profile with a clear reason to start a conversation.')),
+            const Hairline(),
+            SettingsRow(
+                icon: Icons.lock_outline,
+                title: 'Privacy & visibility',
+                subtitle: 'Control what members can see.',
+                onTap: () => _showPrivacy()),
+            const Hairline(),
+            SettingsRow(
+                icon: Icons.tune,
+                title: 'Match preferences',
+                subtitle: 'Tell us who you hope to meet.',
+                onTap: () => _showPreferences()),
+          ])),
           const SizedBox(height: 22),
           const SectionHeader('Settings'),
           SurfaceCard(
               child: Column(children: [
-            SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Notifications',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('New matches, messages, and events',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                value: notifications,
-                activeThumbColor: AppColors.clay,
-                onChanged: toggleNotifications),
-            const Divider(height: 1),
-            SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Nearby introductions',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Share your area with vetted members',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                value: nearby,
-                activeThumbColor: AppColors.clay,
-                onChanged: toggleNearby),
-            const Divider(height: 1),
-            SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Pause profile',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Hide me from new discovery results',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                value: paused,
-                activeThumbColor: AppColors.clay,
-                onChanged: togglePaused)
+            SettingsRow(
+                icon: Icons.palette_outlined,
+                title: 'Appearance',
+                subtitle: 'Light, dark, or match your device',
+                trailing: const ThemeModeSelector()),
+            const Hairline(),
+            SettingsRow(
+                icon: Icons.notifications_none_outlined,
+                title: 'Notifications',
+                subtitle: 'New matches, messages, and events',
+                trailing: Switch(
+                    value: notifications,
+                    activeThumbColor: AppColors.clay,
+                    activeTrackColor: context.palette.brandSoft,
+                    onChanged: toggleNotifications)),
+            const Hairline(),
+            SettingsRow(
+                icon: Icons.near_me_outlined,
+                title: 'Nearby introductions',
+                subtitle: 'Share your area with vetted members',
+                trailing: Switch(
+                    value: nearby,
+                    activeThumbColor: AppColors.clay,
+                    activeTrackColor: context.palette.brandSoft,
+                    onChanged: toggleNearby)),
+            const Hairline(),
+            SettingsRow(
+                icon: Icons.visibility_outlined,
+                title: 'Pause profile',
+                subtitle: 'Hide me from new discovery results',
+                trailing: Switch(
+                    value: paused,
+                    activeThumbColor: AppColors.clay,
+                    activeTrackColor: context.palette.brandSoft,
+                    onChanged: togglePaused)),
           ])),
           const SizedBox(height: 12),
-          _ProfileSetting(
-              icon: Icons.settings_outlined,
-              title: 'Account security',
-              detail: 'Manage sessions and sign-in methods.',
-              onTap: () => _showMessage('Account security',
-                  'Your session is protected by a device-bound refresh token and secure storage.')),
-          _ProfileSetting(
-              icon: Icons.help_outline,
-              title: 'Help & community guidelines',
-              detail: 'We are here to help you date with intention.',
-              onTap: () => _showMessage('Community guidelines',
-                  'Be kind, protect personal information, and report anything that feels unsafe.')),
+          const SectionHeader('Account'),
+          SurfaceCard(
+              child: Column(children: [
+            SettingsRow(
+                icon: Icons.settings_outlined,
+                title: 'Account security',
+                subtitle: 'Manage sessions and sign-in methods.',
+                onTap: () => _showMessage('Account security',
+                    'Your session is protected by a device-bound refresh token and secure storage.')),
+            const Hairline(),
+            SettingsRow(
+                icon: Icons.help_outline,
+                title: 'Help & community guidelines',
+                subtitle: 'We are here to help you date with intention.',
+                onTap: () => _showMessage('Community guidelines',
+                    'Be kind, protect personal information, and report anything that feels unsafe.')),
+          ])),
           const SizedBox(height: 16),
-          TextButton(
-              onPressed: signOut,
-              child: const Text('Sign out',
-                  style: TextStyle(color: AppColors.clay))),
+          GhostButton(onPressed: signOut, expand: true, label: 'Sign out')
         ]);
   }
 
@@ -634,6 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 content: StatefulBuilder(
                     builder: (_, setState) => SwitchListTile(
                         contentPadding: EdgeInsets.zero,
+                        tileColor: Colors.transparent,
                         title: const Text('Show my age'),
                         value: showAge,
                         onChanged: (value) => setState(() => showAge = value))),
@@ -728,6 +805,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ageMax.dispose();
   }
 
+  void _showVoiceIntroSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Voice intros are rolling out soon.')),
+    );
+  }
+
   Future<void> _showMessage(String title, String message) => showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
@@ -740,45 +823,110 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ]));
 }
 
-class _ProfileSetting extends StatelessWidget {
-  const _ProfileSetting(
-      {required this.icon,
-      required this.title,
-      required this.detail,
-      this.onTap});
+/// The member's own avatar, showing a real photo when they have one rather
+/// than always falling back to an initial.
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.letter,
+    required this.size,
+    this.photoUrl,
+  });
 
-  final IconData icon;
-  final String title;
-  final String detail;
-  final VoidCallback? onTap;
+  final String letter;
+  final double size;
+  final String? photoUrl;
 
   @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: SurfaceCard(
-              padding: const EdgeInsets.all(13),
-              child: Row(children: [
-                Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                        color: AppColors.boneDeep, shape: BoxShape.circle),
-                    child: Icon(icon, size: 19, color: AppColors.inkSoft)),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(title,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 3),
-                      Text(detail,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12))
-                    ])),
-                const Icon(Icons.chevron_right, color: AppColors.muted)
-              ]))));
+  Widget build(BuildContext context) {
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: context.palette.line, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Image.network(
+          photoUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              InitialAvatar(letter, size: size, color: AppColors.plum),
+        ),
+      );
+    }
+    return InitialAvatar(letter, size: size, color: AppColors.plum);
+  }
+}
+
+/// Profile completeness as a single measured bar. A pill progress track reads
+/// as a fact about *you*; a percentage chip among other chips read as
+/// decoration.
+class _CompletenessBar extends StatelessWidget {
+  const _CompletenessBar({required this.score});
+
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final fraction = (score.clamp(0, 100) / 100);
+    final complete = score >= 80;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                complete
+                    ? 'Your profile is ready to be seen'
+                    : 'Finish your profile to be discovered',
+                style: inter(12.5,
+                    weight: FontWeight.w600, color: palette.inkSoft),
+              ),
+            ),
+            Text('$score%',
+                style: editorial(15, weight: FontWeight.w700).copyWith(
+                    color: complete ? palette.success : palette.warn)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(NiaRadius.pill),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: fraction),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : NiaMotion.enter,
+            curve: NiaMotion.easeOut,
+            builder: (_, value, __) => Container(
+              // An explicit infinite width is required — a Container inside a
+              // loose constraint would otherwise collapse to zero here and the
+              // track would never paint.
+              width: double.infinity,
+              height: 7,
+              decoration: BoxDecoration(color: palette.line),
+              clipBehavior: Clip.antiAlias,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: value,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: complete
+                        ? null
+                        : const LinearGradient(
+                            colors: [AppColors.gold, AppColors.clay],
+                          ),
+                    color: complete ? palette.success : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

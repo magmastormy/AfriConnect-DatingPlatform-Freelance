@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../core/storage/platform_storage.dart';
 
 class AuthSessionStore {
-  AuthSessionStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+  AuthSessionStore({PlatformStorage? storage})
+      : _storage = storage ?? SecureStorage();
 
   static const _accessKey = 'africonnect.accessToken';
   static const _refreshKey = 'africonnect.refreshToken';
   static const _userKey = 'africonnect.userId';
   static const _deviceKey = 'africonnect.deviceId';
   static const _notificationsKey = 'africonnect.notificationsEnabled';
-  final FlutterSecureStorage _storage;
+  final PlatformStorage _storage;
 
   Future<void> save(
       {required String accessToken,

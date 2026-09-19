@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
+export 'swipe_gesture.dart';
+export 'device_frame.dart';
+
 class SectionHeader extends StatelessWidget {
   const SectionHeader(this.title, {super.key, this.action, this.onAction});
   final String title;
@@ -35,7 +38,7 @@ class StatusPill extends StatelessWidget {
     final palette = context.palette;
     final colors = switch (tone) {
       PillTone.good => (palette.successBg, palette.success),
-      PillTone.brand => (palette.brandSoft, AppColors.clay),
+      PillTone.brand => (palette.brandSoft, palette.brandOn),
       PillTone.warn => (palette.warnBg, palette.warn),
       PillTone.neutral => (palette.surfaceRaised, palette.inkSoft),
     };
@@ -64,6 +67,146 @@ class StatusPill extends StatelessWidget {
 }
 
 enum PillTone { neutral, good, brand, warn }
+
+/// A single row inside a grouped settings card — the Momo-style "leading
+/// outline icon + label + trailing control/chevron" pattern, unified so the
+/// navigation rows and the toggle rows share one visual rhythm.
+///
+/// Tap target is guarded to >=52px (>=48 required). When [onTap] is set and no
+/// [trailing] is supplied, a chevron is drawn and the whole row becomes a
+/// tappable [InkWell]; otherwise the row is inert and defers interaction to the
+/// [trailing] control (e.g. a [Switch] or [ThemeModeSelector]).
+class SettingsRow extends StatelessWidget {
+  const SettingsRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+    this.trailing,
+  });
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final hasTrailing = trailing != null;
+    final showChevron = !hasTrailing && onTap != null;
+    final child = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
+      child: Row(children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: palette.surfaceRaised,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 19, color: palette.inkSoft),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      inter(15.5, weight: FontWeight.w700, color: palette.ink)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 3),
+                Text(subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: inter(12.5, color: palette.muted)),
+              ],
+            ],
+          ),
+        ),
+        if (hasTrailing) ...[
+          const SizedBox(width: 10),
+          trailing!,
+        ] else if (showChevron) ...[
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right, color: palette.muted),
+        ],
+      ]),
+    );
+    if (onTap == null) return child;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(NiaRadius.md),
+      child: child,
+    );
+  }
+}
+
+/// A restrained, honest attribute-chip strip — the Momo profile's
+/// height/star-sign/city row, filtered to Nia's palette and data discipline.
+///
+/// Only real values are shown; an empty or partial profile surfaces a single
+/// brand-tinted "add" chip (no fake placeholders, no badge spam). One accent
+/// per screen is preserved by reserving the brand tint for that single CTA.
+class AttributeChips extends StatelessWidget {
+  const AttributeChips({
+    super.key,
+    required this.chips,
+    this.onAdd,
+    this.addLabel = 'Add your details',
+  });
+  final List<String> chips;
+  final VoidCallback? onAdd;
+  final String addLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final items = chips.where((c) => c.trim().isNotEmpty).toList();
+    final showAdd = onAdd != null && items.length < 3;
+    if (items.isEmpty && !showAdd) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ...items.map((label) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: palette.surfaceRaised,
+                borderRadius: BorderRadius.circular(NiaRadius.pill),
+                border: Border.all(color: palette.line),
+              ),
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: inter(13,
+                      weight: FontWeight.w500, color: palette.inkSoft)),
+            )),
+        if (showAdd)
+          GestureDetector(
+            onTap: onAdd,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: palette.brandSoft,
+                borderRadius: BorderRadius.circular(NiaRadius.pill),
+              ),
+              child: Text(addLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: inter(13,
+                      weight: FontWeight.w600, color: palette.brandOn)),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
 class InitialAvatar extends StatelessWidget {
   const InitialAvatar(this.initial,
@@ -100,10 +243,16 @@ class SurfaceCard extends StatelessWidget {
           border: Border.all(color: context.palette.line),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
+            // Matches the web design token --shadow:
+            //   0 1px 2px rgba(22,19,15,.04), 0 14px 40px rgba(22,19,15,.06)
             BoxShadow(
-                color: context.palette.ink.withValues(alpha: .08),
-                blurRadius: 18,
-                offset: const Offset(0, 7))
+                color: context.palette.ink.withValues(alpha: .04),
+                blurRadius: 2,
+                offset: const Offset(0, 1)),
+            BoxShadow(
+                color: context.palette.ink.withValues(alpha: .06),
+                blurRadius: 40,
+                offset: const Offset(0, 14)),
           ]),
       child: child);
 }

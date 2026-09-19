@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -25,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2200),
     )..repeat();
-    Future<void>.delayed(const Duration(milliseconds: 2450), () {
+    _navigationTimer = Timer(const Duration(milliseconds: 2450), () {
       if (mounted) {
         context.go(AppServices.auth.isAuthenticated ? '/' : '/login');
       }
@@ -35,6 +37,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _navigationTimer?.cancel();
     super.dispose();
   }
 
@@ -83,13 +86,10 @@ class _SplashScreenState extends State<SplashScreen>
                   parent: _controller,
                   curve: const Interval(0.25, 0.7, curve: Curves.easeOut),
                 ),
-                child: const Text(
+                child: Text(
                   'Meet with intention.',
-                  style: TextStyle(
-                    color: Color(0xFFEFD8E0),
-                    fontSize: 14,
-                    letterSpacing: 0.4,
-                  ),
+                  style: inter(14, weight: FontWeight.w500, letterSpacing: 0.4)
+                      .copyWith(color: const Color(0xFFEFD8E0)),
                 ),
               ),
             ],

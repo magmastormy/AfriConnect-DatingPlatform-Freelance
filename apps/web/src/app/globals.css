@@ -39,20 +39,20 @@ html[data-theme='light'] {
   --on-ink-soft: #c9c0b2;
 
   /* Brand */
-  --brand: #c70039;       /* passion red — CTAs */
-  --brand-ink: #900c3f;   /* deeper hover */
-  --brand-strong: #900c3f;
-  --brand-bright: #e0314f;
+  --brand: #df4d72;       /* wine-500 — primary / CTAs (DESIGN_v2 spec) */
+  --brand-ink: #a8244a;   /* wine-700 deeper hover */
+  --brand-strong: #c9305a; /* wine-600 */
+  --brand-bright: #ec7894; /* wine-400 */
   --on-brand: #ffffff;    /* text on a brand-filled surface */
-  --gold: #da07a6;        /* attraction accent */
+  --gold: #d5a520;        /* gold-500 — attraction accent (DESIGN_v2 spec) */
   --green: #1e3d32;       /* deep African green */
 
   /* Romance palette — passion / attraction (brand refresh) */
-  --passion: #c70039;
-  --passion-deep: #900c3f;
-  --plum: #581845;        /* header / footer frame */
+  --passion: #df4d72;     /* wine-500 */
+  --passion-deep: #a8244a; /* wine-700 */
+  --plum: #77203e;        /* wine-900 — header / footer frame */
   --fresh: #daf7a6;        /* success / freshness highlight */
-  --hero-grad: linear-gradient(135deg, #900c3f 0%, #c70039 100%);
+  --hero-grad: linear-gradient(135deg, #a8244a 0%, #df4d72 100%);
 
   /* Status */
   --good: #2f7d4f;
@@ -113,12 +113,12 @@ html[data-theme='dark'] {
   --on-ink: #14120f;
   --on-ink-soft: #4a443c;
 
-  --brand: #e0314f;
-  --brand-ink: #ff5c77;
-  --brand-strong: #c70039;
-  --brand-bright: #ff5c77;
+  --brand: #df4d72;       /* wine-500 (spec primary, both themes) */
+  --brand-ink: #f4a9ba;   /* wine-300 */
+  --brand-strong: #c9305a; /* wine-600 */
+  --brand-bright: #f4a9ba; /* wine-300 */
   --on-brand: #1b1410;
-  --gold: #da07a6;
+  --gold: #d5a520;        /* gold-500 */
   --green: #7fb79f;
 
   --good: #62c48d;
@@ -168,12 +168,12 @@ html[data-theme='dark'] {
     --on-ink: #14120f;
     --on-ink-soft: #4a443c;
 
-    --brand: #e0314f;
-    --brand-ink: #ff5c77;
-    --brand-strong: #c70039;
-    --brand-bright: #ff5c77;
+    --brand: #df4d72;
+    --brand-ink: #f4a9ba;
+    --brand-strong: #c9305a;
+    --brand-bright: #f4a9ba;
     --on-brand: #1b1410;
-    --gold: #da07a6;
+    --gold: #d5a520;
     --green: #7fb79f;
 
     --good: #62c48d;

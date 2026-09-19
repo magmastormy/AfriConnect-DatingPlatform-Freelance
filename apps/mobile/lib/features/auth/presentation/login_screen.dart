@@ -4,6 +4,7 @@ import 'package:clerk_flutter/clerk_flutter.dart';
 
 import '../../../core/services.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/nia_kit.dart';
 import '../../../core/widgets/nia_mark.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -76,8 +77,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
           Row(children: [
             const NiaMark(size: 28),
-            const SizedBox(width: 8),
-            Text('Nia', style: editorial(20, weight: FontWeight.w700))
+            const SizedBox(width: 10),
+            const BrandWordmark(size: 22)
           ]),
           const SizedBox(height: 72),
           Text('Meet with\nintention.',
@@ -86,11 +87,11 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
               otpSent
                   ? 'Enter the six-digit code we sent you.'
-                  : 'A considered community for African professionals ready for something real.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: context.palette.muted, height: 1.5)),
+                  : 'A considered community for African professionals\nready for something real.',
+              style: inter(15,
+                  weight: FontWeight.w400,
+                  color: context.palette.muted,
+                  height: 1.55)),
           const SizedBox(height: 38),
           _FieldLabel(
               label: 'Your email',
@@ -125,18 +126,16 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(error!, style: const TextStyle(color: Color(0xFFB3261E)))
           ],
           const SizedBox(height: 24),
-          SizedBox(
-              height: 54,
-              child: FilledButton(
-                  onPressed: loading ? null : submit,
-                  style: FilledButton.styleFrom(
-                      backgroundColor: context.palette.ink,
-                      foregroundColor: context.palette.background),
-                  child: Text(loading
-                      ? 'Working…'
-                      : otpSent
-                          ? 'Verify and enter'
-                          : 'Send me an OTP'))),
+          PillCta(
+              label: loading
+                  ? 'Working…'
+                  : otpSent
+                      ? 'Verify and enter'
+                      : 'Send me an OTP',
+              style: PillCtaStyle.ink,
+              expand: true,
+              busy: loading,
+              onPressed: loading ? null : submit),
           if (otpSent)
             Center(
                 child: TextButton(
@@ -152,10 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
               'By continuing, you agree to our member terms and privacy promise.',
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: context.palette.muted, height: 1.4)),
+              style: inter(12,
+                  weight: FontWeight.w400,
+                  color: context.palette.muted,
+                  height: 1.45)),
         ])));
   }
 }

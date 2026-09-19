@@ -21,4 +21,4 @@ coverage/
 .env
 *.local.dart
 # Generated Flutter build-time config (carries the obfuscated API mount path)
-.env.flutter.json
+.env.flutter*.json

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/nia_kit.dart';
 import '../data/notification_repository.dart';
 
 class NotificationsSheet extends StatefulWidget {
@@ -111,11 +111,12 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
             children: [
               Center(
                   child: Container(
-                      width: 36,
+                      width: 40,
                       height: 4,
                       decoration: BoxDecoration(
                           color: context.palette.lineStrong,
-                          borderRadius: BorderRadius.circular(99)))),
+                          borderRadius:
+                              BorderRadius.circular(NiaRadius.pill)))),
               const SizedBox(height: 20),
               Row(children: [
                 Expanded(
@@ -124,14 +125,18 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                 if (unread > 0)
                   TextButton(
                       onPressed: markAllRead,
-                      child: const Text('Mark all read'))
+                      child: Text('Mark all read',
+                          style: inter(13, weight: FontWeight.w700)))
               ]),
               const SizedBox(height: 4),
               Text(
                   unread == 0
                       ? 'You are all caught up.'
                       : '$unread updates worth seeing.',
-                  style: TextStyle(color: context.palette.muted)),
+                  style: inter(14,
+                      weight: FontWeight.w400,
+                      color: context.palette.muted,
+                      height: 1.45)),
               const SizedBox(height: 18),
               if (loading)
                 const Expanded(
@@ -147,7 +152,7 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
                 Expanded(
                     child: ListView.separated(
                         itemCount: notifications.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        separatorBuilder: (_, __) => const Hairline(indent: 50),
                         itemBuilder: (context, index) => _NotificationTile(
                             item: notifications[index],
                             onTap: () => markRead(notifications[index])))),
@@ -166,62 +171,78 @@ class _NotificationTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: SurfaceCard(
-          padding: const EdgeInsets.all(13),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: context.palette.successBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  item.isRead
-                      ? Icons.check_rounded
-                      : Icons.auto_awesome_rounded,
-                  color: context.palette.success,
-                  size: 19,
-                ),
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final unread = !item.isRead;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(NiaRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: unread ? palette.brandSoft : palette.surfaceRaised,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+              child: Icon(
+                unread ? Icons.auto_awesome_rounded : Icons.check_rounded,
+                color: unread ? palette.brandOn : palette.muted,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: inter(14.5,
+                              weight:
+                                  unread ? FontWeight.w700 : FontWeight.w600,
+                              color: palette.ink),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // A dot rather than a "New" pill: one notification is one
+                      // row in a list, and a filled pill per row turned the
+                      // accent into noise.
+                      if (unread)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.clay,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                        if (!item.isRead)
-                          const StatusPill('New', tone: PillTone.brand),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.body,
-                      style: TextStyle(
-                        color: context.palette.muted,
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.body,
+                    style: inter(12.5,
+                        weight: FontWeight.w400,
+                        color: palette.muted,
+                        height: 1.45),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 // `DateTime` has no const constructor in Dart, so these cannot be `const`.

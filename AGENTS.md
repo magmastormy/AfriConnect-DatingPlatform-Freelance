@@ -758,3 +758,20 @@ npx hygen module new --name payment
 ---
 
 _End of AGENTS.md — This document is a living contract. Amend via PR with 2 approvals._
+
+<!-- antislop:start -->
+## antislop
+
+For UI, copy, people, mobile layout, or code-comment work, read the antislop core first, then the skill for the task. Skills are installed at user level:
+
+- Core (always): `~/.workbuddy/skills/antislop/SKILL.md`
+- UI / visual: `~/.workbuddy/skills/antislop-ui/SKILL.md`
+- Copy & text: `~/.workbuddy/skills/antislop-copywriting/SKILL.md`
+- People / accessibility: `~/.workbuddy/skills/antislop-human/SKILL.md`
+- Mobile / responsive: `~/.workbuddy/skills/antislop-layoutmobile/SKILL.md`
+- Code comments: `~/.workbuddy/skills/antislop-code/SKILL.md`
+
+Before starting any UI work, ask the user when antislop applies: during the work, or after it is done.
+
+Design-direction authority for this project: `DESIGN_v2.md` (wine `#df4d72` + gold `#d5a520`, Fraunces + Inter).
+<!-- antislop:end -->

@@ -116,6 +116,15 @@ class AuthRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String> getVettingStage() async {
+    try {
+      final data = await _api.get<Map<String, dynamic>>('/applications/me');
+      return data['status'] as String? ?? 'pending';
+    } catch (_) {
+      return 'pending';
+    }
+  }
+
   Future<void> _saveSession(String accessToken, String refreshToken,
       Map<String, dynamic> data) async {
     _api.accessToken = accessToken;

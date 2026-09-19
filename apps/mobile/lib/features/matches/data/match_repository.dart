@@ -14,6 +14,12 @@ class MatchRepository {
   Future<Map<String, dynamic>> superlike(String userId) =>
       _action(userId, 'superlike');
 
+  Future<Map<String, dynamic>> act(String userId, String action) =>
+      _action(userId, action);
+
   Future<Map<String, dynamic>> _action(String userId, String action) =>
       _api.post<Map<String, dynamic>>('/matches/$userId/$action', {});
+
+  Future<Map<String, dynamic>> getSuperlikesReceived() =>
+      _api.get<Map<String, dynamic>>('/matches/superlikes-received');
 }

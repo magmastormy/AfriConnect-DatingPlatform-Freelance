@@ -64,7 +64,7 @@ export function SiteNav() {
       <Link href="/" className="brand" aria-label="Nia home">
         <div className="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="18" fill="#581845" />
+            <circle cx="20" cy="20" r="18" fill="#77203e" />
             <path
               d="M12 28L20 12L28 28"
               stroke="#C70039"

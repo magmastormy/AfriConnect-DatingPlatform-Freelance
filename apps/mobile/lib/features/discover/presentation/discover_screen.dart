@@ -1,9 +1,22 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/api/api_client.dart';
 import '../../../core/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/nia_kit.dart';
 import '../data/discover_card.dart';
+import 'discover_deck.dart';
+import 'match_celebration.dart';
+import 'nearby_section.dart';
+import 'red_note_modal.dart';
+
+enum DiscoverMode { discover, nearby }
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -12,460 +25,844 @@ class DiscoverScreen extends StatefulWidget {
   State<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> {
-  bool nearby = false;
+class _DiscoverScreenState extends State<DiscoverScreen>
+    with TickerProviderStateMixin {
+  DiscoverMode _mode = DiscoverMode.discover;
+  int _superCount = 0;
+  bool _superLoading = false;
+
+  // Discover state
+  List<DiscoverCard> _discoverDeck = [];
+  bool _discoverLoading = true;
+  String? _discoverError;
+
+  // Nearby state
+  List<NearbyProfile> _nearbyProfiles = [];
+  bool _nearbyLoading = false;
+  String? _nearbyError;
+  bool? _nearbyOptIn;
+  bool _locBusy = false;
+  Map<String, dynamic>? _subscription;
+
+  // RedNote modal
+  ProfileRedNote? _redNote;
+  bool _redNoteLoading = false;
+  String? _redNoteError;
+  DiscoverMode? _redNoteSource;
+  String? _unvettedGate;
+
+  // Match celebration
+  String? _celebrateUserId;
+
+  // Animation controllers
+  late final AnimationController _tabController;
 
   @override
   void initState() {
     super.initState();
-    loadNearbyPreference();
+    _tabController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _loadSuperCount();
+    _loadDiscover();
   }
 
-  Future<void> loadNearbyPreference() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSuperCount() async {
+    if (_superLoading) return;
+    setState(() => _superLoading = true);
     try {
-      final profile = await AppServices.account.getProfile();
-      if (mounted) setState(() => nearby = profile['nearbyEnabled'] == true);
+      final data = await AppServices.matches.getSuperlikesReceived();
+      if (mounted) {
+        setState(() => _superCount = data['count'] as int? ?? 0);
+      }
     } catch (_) {
-      // The opt-in card defaults to the safe state when the API is unavailable.
+      // Ignore
+    } finally {
+      if (mounted) setState(() => _superLoading = false);
     }
   }
 
-  Future<void> openNearbySetup() async {
-    var consent = nearby;
-    final enabled = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: context.palette.background,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                    child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: context.palette.lineStrong,
-                            borderRadius: BorderRadius.circular(99)))),
-                const SizedBox(height: 20),
-                Text('Nearby introductions',
-                    style: editorial(27, weight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Text(
-                    'Choose whether vetted members can discover you by area. Your exact location is never shown.',
-                    style:
-                        TextStyle(color: context.palette.muted, height: 1.45)),
-                const SizedBox(height: 14),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Show me nearby',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text('Opt in to local introductions',
-                      style: TextStyle(
-                          color: context.palette.muted, fontSize: 12)),
-                  value: consent,
-                  activeThumbColor: AppColors.clay,
-                  onChanged: (value) => setSheetState(() => consent = value),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                        onPressed: () => Navigator.pop(sheetContext, consent),
-                        child: const Text('Save nearby preference'))),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    if (enabled == null || !mounted) return;
-    final previous = nearby;
-    setState(() => nearby = enabled);
+  Future<void> _loadDiscover() async {
+    setState(() {
+      _discoverLoading = true;
+      _discoverError = null;
+    });
     try {
-      await AppServices.account.updateNearby(enabled);
-    } catch (exception) {
-      if (!mounted) return;
-      setState(() => nearby = previous);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not save nearby preference: $exception')));
+      final cards = await AppServices.discover.getDiscover(limit: 20);
+      if (mounted) {
+        setState(() {
+          _discoverDeck = cards;
+          _discoverLoading = false;
+        });
+        if (cards.isNotEmpty) {
+          AppServices.api.trackProfileView(cards.first.userId);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _discoverError = e.toString();
+          _discoverLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadNearby() async {
+    setState(() {
+      _nearbyLoading = true;
+      _nearbyError = null;
+    });
+    try {
+      final results = await Future.wait([
+        AppServices.api
+            .get<dynamic>('/billing/subscription')
+            .catchError((_) => null),
+        AppServices.nearby.getNearbyStatus(),
+      ]);
+      final sub = results[0] as Map<String, dynamic>?;
+      final me = results[1] as Map<String, dynamic>;
+      final nearbyEnabled = me['nearbyEnabled'] as bool? ?? false;
+
+      if (mounted) {
+        setState(() {
+          _subscription = sub;
+          _nearbyOptIn = nearbyEnabled;
+          _nearbyLoading = false;
+        });
+      }
+
+      if (!nearbyEnabled) {
+        if (mounted) setState(() => _nearbyProfiles = []);
+        return;
+      }
+
+      final profiles = await AppServices.nearby.getNearby();
+      if (mounted) {
+        setState(() => _nearbyProfiles = profiles);
+        if (profiles.isNotEmpty) {
+          AppServices.api.trackProfileView(profiles.first.userId);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _nearbyError = e.toString();
+          _nearbyProfiles = [];
+          _nearbyLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _shareLocation() async {
+    if (_locBusy) return;
+    setState(() => _locBusy = true);
+    try {
+      // Skip location features on web for now
+      if (kIsWeb) {
+        throw Exception(
+            'Location sharing is not available on web. Please use the mobile app.');
+      }
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        final requested = await Geolocator.requestPermission();
+        if (requested == LocationPermission.denied) {
+          throw Exception(
+              'Location permission was denied. Enable it in your device settings, then try again.');
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception(
+            'Location permission is permanently denied. Enable it in your device settings.');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      await AppServices.nearby.shareLocation(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      if (mounted) {
+        setState(() => _nearbyOptIn = true);
+        await _loadNearby();
+      }
+    } catch (e) {
+      final msg = _geolocationMessage(e);
+      if (mounted) {
+        setState(() => _nearbyError = msg);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } finally {
+      if (mounted) setState(() => _locBusy = false);
+    }
+  }
+
+  String _geolocationMessage(dynamic e) {
+    if (e is ApiFailure) return e.message;
+    if (e is Exception) {
+      final msg = e.toString();
+      if (msg.contains('denied') || msg.contains('permission')) {
+        return 'Location permission was denied. Enable it in your device settings, then try again.';
+      }
+      if (msg.contains('timeout')) {
+        return 'Your device took too long to find your location. Check your signal and try again.';
+      }
+      if (msg.contains('unavailable')) {
+        return 'Location is unavailable right now. We\'ll still show members in your city.';
+      }
+      return msg.replaceFirst('Exception: ', '');
+    }
+    return 'Could not get your location.';
+  }
+
+  Future<void> _forgetLocation() async {
+    if (_locBusy) return;
+    setState(() => _locBusy = true);
+    try {
+      await AppServices.nearby.forgetLocation();
+      if (mounted) {
+        setState(() {
+          _nearbyOptIn = false;
+          _nearbyProfiles = [];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to forget location: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locBusy = false);
+    }
+  }
+
+  Future<void> _actOnDiscover(DiscoverCard card, String action) async {
+    try {
+      final result = await AppServices.matches.act(card.userId, action);
+      if (result['mutual'] == true) {
+        _showCelebration(card.userId);
+      } else if (action == 'superlike') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Superlike sent — they\'ll see it when they discover you')),
+          );
+        }
+      }
+      _loadSuperCount();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Action failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _actOnNearby(NearbyProfile profile, String action) async {
+    try {
+      final result = await AppServices.matches.act(profile.userId, action);
+      if (result['mutual'] == true) {
+        _showCelebration(profile.userId);
+      }
+      _loadSuperCount();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Action failed: $e')),
+        );
+      }
+    }
+  }
+
+  void _showCelebration(String userId) {
+    setState(() => _celebrateUserId = userId);
+  }
+
+  void _closeCelebration() {
+    setState(() => _celebrateUserId = null);
+  }
+
+  Future<void> _openRedNote(String userId,
+      {required DiscoverMode source}) async {
+    // Check if user is vetted (can connect)
+    final stage = await AppServices.auth.getVettingStage();
+    final canConnect = stage == 'approved';
+
+    if (!canConnect) {
+      setState(() => _unvettedGate = userId);
+      return;
+    }
+
+    setState(() {
+      _redNoteLoading = true;
+      _redNoteError = null;
+      _redNoteSource = source;
+    });
+
+    try {
+      final view = await AppServices.discover.getProfile(userId);
+      if (mounted) {
+        setState(() {
+          _redNote = view;
+          _redNoteLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _redNoteError = e.toString();
+          _redNoteLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load profile: $e')),
+        );
+      }
+    }
+  }
+
+  void _closeRedNote() {
+    setState(() {
+      _redNote = null;
+      _redNoteSource = null;
+      _redNoteError = null;
+    });
+  }
+
+  Future<void> _handleRedNoteAction(String action) async {
+    if (_redNote == null || _redNoteSource == null) return;
+    try {
+      if (_redNoteSource == DiscoverMode.nearby) {
+        final profile =
+            _nearbyProfiles.firstWhere((p) => p.userId == _redNote!.userId);
+        await _actOnNearby(profile, action);
+      } else {
+        final card =
+            _discoverDeck.firstWhere((c) => c.userId == _redNote!.userId);
+        await _actOnDiscover(card, action);
+      }
+      _closeRedNote();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Action failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _startChat(String userId) async {
+    try {
+      final conversationId = await AppServices.chat.createConversation(userId);
+      if (mounted) {
+        context.go('/messages?conversation=$conversationId');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start chat: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 2, 20, 28),
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Main content
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Hero header — the shell AppBar already shows the "Discover"
+                      // tab label, so this screen leads with the brand promise instead
+                      // of repeating the word.
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              // A hard line break, per the reference rule that
+                              // the break *is* the composition — a two-line
+                              // display headline reads editorial, one long line
+                              // reads like a label.
+                              'Meet with\nintention.',
+                              style: editorial(34, weight: FontWeight.w700)
+                                  .copyWith(height: 1.04),
+                            ),
+                          ),
+                          if (_superCount > 0) ...[
+                            const SizedBox(width: 12),
+                            _SuperlikeBadge(count: _superCount),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Curated introductions from vetted members, chosen with care.',
+                        style: TextStyle(
+                            color: context.palette.muted, height: 1.45),
+                      ),
+                      const SizedBox(height: 20),
+                      // Mode tabs
+                      _ModeTabs(
+                        mode: _mode,
+                        onChanged: (mode) {
+                          setState(() => _mode = mode);
+                          if (mode == DiscoverMode.nearby) _loadNearby();
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Content based on mode
+                      if (_mode == DiscoverMode.discover) ...[
+                        _buildDiscoverContent(),
+                      ] else ...[
+                        _buildNearbyContent(),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // RedNote Modal
+          if (_redNoteLoading) _LoadingOverlay(),
+          if (_redNoteError != null)
+            _ErrorOverlay(
+                message: _redNoteError!,
+                onRetry: () =>
+                    _openRedNote(_redNote!.userId, source: _redNoteSource!)),
+          if (_redNote != null)
+            RedNoteModal(
+              view: _redNote!,
+              canConnect: true,
+              busy: false,
+              onAct: _handleRedNoteAction,
+              onMessage: _startChat,
+              onClose: _closeRedNote,
+            ),
+
+          // Unvetted gate
+          if (_unvettedGate != null)
+            _UnvettedGate(
+              onClose: () => setState(() => _unvettedGate = null),
+              onGetVetted: () {
+                setState(() => _unvettedGate = null);
+                context.push('/get-vetted');
+              },
+            ),
+
+          // Match celebration
+          if (_celebrateUserId != null)
+            MatchCelebration(
+              userId: _celebrateUserId!,
+              onClose: _closeCelebration,
+              onMessage: _startChat,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscoverContent() {
+    if (_discoverLoading && _discoverDeck.isEmpty) {
+      return const _DiscoverSkeletonGrid();
+    }
+
+    if (_discoverError != null) {
+      return _ErrorState(
+        message: _discoverError!,
+        onRetry: _loadDiscover,
+      );
+    }
+
+    if (_discoverDeck.isEmpty) {
+      return _EmptyState(
+        title: 'No introductions right now',
+        message: 'Check back soon — new vetted members join every day.',
+        actionLabel: 'See who liked you',
+        onAction: () => context.go('/matches'),
+      );
+    }
+
+    return Column(
       children: [
-        Text('Good to see you.',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.muted)),
-        const SizedBox(height: 4),
-        Text('A few people worth\nmeeting today.',
-            style: editorial(34, weight: FontWeight.w700)),
-        const SizedBox(height: 22),
-        const _DiscoverDeck(),
-        const SizedBox(height: 22),
-        const SectionHeader('Today in your circle', action: 'See all'),
-        const _InsightStrip(),
-        const SizedBox(height: 24),
-        const SectionHeader('Nearby introductions', action: 'Explore'),
-        SizedBox(
-            height: 170,
-            child: ListView(scrollDirection: Axis.horizontal, children: const [
-              _MiniProfile(
-                  name: 'Ama',
-                  role: 'Product lead',
-                  city: 'Cape Town',
-                  initial: 'A'),
-              _MiniProfile(
-                  name: 'Lebo', role: 'Doctor', city: 'Pretoria', initial: 'L'),
-              _MiniProfile(
-                  name: 'Zola', role: 'Founder', city: 'Durban', initial: 'Z'),
-            ])),
-        const SizedBox(height: 24),
+        DiscoverDeck(
+          cards: _discoverDeck,
+          onAction: _actOnDiscover,
+          onCardTap: (card) =>
+              _openRedNote(card.userId, source: DiscoverMode.discover),
+          onReload: _loadDiscover,
+        ),
+        const SizedBox(height: 20),
+        _NearbyOptInCard(
+          enabled: _nearbyOptIn ?? false,
+          onTap: () => setState(() => _mode = DiscoverMode.nearby),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNearbyContent() {
+    if (_nearbyLoading && _nearbyProfiles.isEmpty && _nearbyOptIn != false) {
+      return const _DiscoverSkeletonGrid();
+    }
+
+    return Column(
+      children: [
+        // Location card
         SurfaceCard(
-            child: Row(children: [
-          const Icon(Icons.location_on_outlined, color: AppColors.clay),
-          const SizedBox(width: 12),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(nearby ? 'Nearby is on' : 'Nearby is opt-in',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                const Text('Share your area to see vetted members around you.',
-                    style: TextStyle(
-                        color: AppColors.muted, fontSize: 12, height: 1.4)),
-              ])),
-          TextButton(
-              onPressed: openNearbySetup,
-              child: Text(nearby ? 'Manage' : 'Set up')),
-        ])),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your location',
+                style: editorial(18, weight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              if (_nearbyOptIn == true) ...[
+                Text(
+                  'You\'re sharing your location. We surface vetted members in your area.',
+                  style: TextStyle(color: context.palette.muted, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _locBusy ? null : _forgetLocation,
+                  child: Text(_locBusy ? 'Working…' : 'Forget my location'),
+                ),
+              ] else ...[
+                Text(
+                  'Share your device location to discover vetted members around you. '
+                  'Your coordinates are stored and cleared the moment you drop the feature.',
+                  style: TextStyle(color: context.palette.muted, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _locBusy ? null : _shareLocation,
+                  child: Text(_locBusy ? 'Locating…' : 'Share my location'),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Nearby profiles
+        if (_nearbyOptIn == true) ...[
+          if (_nearbyError != null)
+            _ErrorState(
+              message: _nearbyError!,
+              onRetry: _loadNearby,
+            )
+          else if (_nearbyProfiles.isEmpty)
+            _EmptyState(
+              title: 'No one nearby',
+              message:
+                  'No vetted members in your area right now. Check back later.',
+              actionLabel: 'Reload',
+              onAction: _loadNearby,
+            )
+          else
+            NearbySection(
+              profiles: _nearbyProfiles,
+              onAction: _actOnNearby,
+              onCardTap: (profile) =>
+                  _openRedNote(profile.userId, source: DiscoverMode.nearby),
+              onReload: _loadNearby,
+              subscription: _subscription,
+            ),
+        ],
       ],
     );
   }
 }
 
-class _DiscoverDeck extends StatefulWidget {
-  const _DiscoverDeck();
-
-  @override
-  State<_DiscoverDeck> createState() => _DiscoverDeckState();
-}
-
-class _DiscoverDeckState extends State<_DiscoverDeck> {
-  static const previewCards = [
-    DiscoverCard(
-        userId: 'preview-nandi',
-        displayName: 'Nandi',
-        age: 31,
-        city: 'Johannesburg',
-        photos: [],
-        headline: 'Architect',
-        score: 94,
-        verified: true),
-    DiscoverCard(
-        userId: 'preview-kabelo',
-        displayName: 'Kabelo',
-        age: 34,
-        city: 'Sandton',
-        photos: [],
-        headline: 'Entrepreneur',
-        score: 91,
-        verified: true),
-    DiscoverCard(
-        userId: 'preview-ama',
-        displayName: 'Ama',
-        age: 29,
-        city: 'Cape Town',
-        photos: [],
-        headline: 'Product lead',
-        score: 88,
-        verified: true),
-  ];
-
-  List<DiscoverCard> cards = const [];
-  int current = 0;
-  double dragX = 0;
-  bool loading = true;
-  bool previewMode = false;
-  bool acting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    loadCards();
-  }
-
-  Future<void> loadCards() async {
-    try {
-      final loaded = await AppServices.discover.getDiscover();
-      if (mounted) setState(() => cards = loaded);
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          cards = previewCards;
-          previewMode = true;
-        });
-      }
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
-  }
-
-  Future<void> settle(String action) async {
-    if (loading || acting || cards.isEmpty) return;
-    final card = cards[current];
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() {
-      acting = true;
-      dragX = 0;
-      current = (current + 1) % cards.length;
-    });
-    if (!previewMode) {
-      try {
-        final data = switch (action) {
-          'like' => await AppServices.matches.like(card.userId),
-          'pass' => await AppServices.matches.pass(card.userId),
-          _ => await AppServices.matches.superlike(card.userId),
-        };
-        if (mounted && data['mutual'] == true) {
-          messenger.showSnackBar(const SnackBar(
-              content: Text('It is a mutual match. Start a conversation.')));
-        }
-      } catch (exception) {
-        if (mounted) {
-          messenger.showSnackBar(
-              SnackBar(content: Text('That action was not saved: $exception')));
-        }
-      }
-    }
-    if (mounted) setState(() => acting = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) return const ShimmerBlock(height: 360, radius: 22);
-    if (cards.isEmpty) {
-      return SurfaceCard(
-          child: Column(children: [
-        const Text('No introductions are waiting right now.'),
-        const SizedBox(height: 12),
-        OutlinedButton(onPressed: loadCards, child: const Text('Refresh deck'))
-      ]));
-    }
-    final card = cards[current];
-    return Column(children: [
-      GestureDetector(
-        onHorizontalDragUpdate: (details) =>
-            setState(() => dragX += details.delta.dx),
-        onHorizontalDragEnd: (_) {
-          if (dragX.abs() > 90) {
-            settle(dragX > 0 ? 'like' : 'pass');
-          } else {
-            setState(() => dragX = 0);
-          }
-        },
-        child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            transform: Matrix4.translationValues(dragX, 0, 0)
-              ..rotateZ(dragX / 1800),
-            child: _DeckCard(card: card)),
-      ),
-      const SizedBox(height: 12),
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        _DeckButton(
-            icon: Icons.close,
-            label: 'Pass',
-            color: AppColors.inkSoft,
-            onTap: () => settle('pass')),
-        const SizedBox(width: 18),
-        _DeckButton(
-            icon: Icons.star,
-            label: 'Superlike',
-            color: AppColors.gold,
-            onTap: () => settle('superlike')),
-        const SizedBox(width: 18),
-        _DeckButton(
-            icon: Icons.favorite,
-            label: 'Like',
-            color: AppColors.clay,
-            onTap: () => settle('like')),
-      ]),
-    ]);
-  }
-}
-
-class _DeckCard extends StatelessWidget {
-  const _DeckCard({required this.card});
-
-  final DiscoverCard card;
+class _SuperlikeBadge extends StatelessWidget {
+  const _SuperlikeBadge({required this.count});
+  final int count;
 
   @override
   Widget build(BuildContext context) => Container(
-        height: 360,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-            color: AppColors.plum, borderRadius: BorderRadius.circular(22)),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(children: [
-          Positioned.fill(child: CustomPaint(painter: _PortraitPainter())),
-          if (card.photos.isNotEmpty)
-            Positioned.fill(
-                child: Image.network(card.photos.first,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink())),
-          Positioned.fill(
-              child: DecoratedBox(
-                  decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                Colors.transparent,
-                Colors.black.withValues(alpha: .82)
-              ])))),
-          Positioned(
-              top: 16,
-              left: 16,
-              child: StatusPill('${card.score ?? 0}% compatibility',
-                  tone: PillTone.good)),
-          Positioned(
-              left: 20,
-              right: 20,
-              bottom: 18,
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${card.displayName}, ${card.age}',
-                        style: editorial(31, weight: FontWeight.w700)
-                            .copyWith(color: Colors.white)),
-                    const SizedBox(height: 4),
-                    Text('${card.headline ?? 'Professional'} - ${card.city}',
-                        style: const TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 6, children: [
-                      if (card.verified)
-                        const StatusPill('Verified', tone: PillTone.good),
-                      if (card.isPremium)
-                        const StatusPill('Premium', tone: PillTone.brand),
-                      ...card.sharedInterests.take(2).map(
-                          (item) => StatusPill(item, tone: PillTone.neutral)),
-                    ]),
-                  ])),
-        ]),
+          color: AppColors.gold.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.gold),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.star, color: AppColors.gold, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              '$count new ${count == 1 ? 'superlike' : 'superlikes'}',
+              style: const TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       );
 }
 
-class _DeckButton extends StatelessWidget {
-  const _DeckButton(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+class _ModeTabs extends StatelessWidget {
+  const _ModeTabs({required this.mode, required this.onChanged});
+  final DiscoverMode mode;
+  final ValueChanged<DiscoverMode> onChanged;
 
-  final IconData icon;
-  final String label;
-  final Color color;
+  @override
+  Widget build(BuildContext context) {
+    // A single sliding segmented control rather than two boxy tabs — the
+    // reference behaviour for a mutually exclusive pair (DESIGN_INSPIRATIONS §2).
+    return SegmentedPill<DiscoverMode>(
+      selected: mode,
+      onChanged: onChanged,
+      options: const [
+        SegmentedOption(value: DiscoverMode.discover, label: 'Curated'),
+        SegmentedOption(value: DiscoverMode.nearby, label: 'Nearby'),
+      ],
+    );
+  }
+}
+
+class _DiscoverSkeletonGrid extends StatelessWidget {
+  const _DiscoverSkeletonGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: 8,
+      itemBuilder: (_, i) => ShimmerBlock(height: 320, radius: 16),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      child: Column(
+        children: [
+          Text(message, style: TextStyle(color: context.palette.muted)),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Text(title,
+              style: editorial(20, weight: FontWeight.w700),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(message,
+              style: TextStyle(color: context.palette.muted),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: onAction, child: Text(actionLabel)),
+        ],
+      ),
+    );
+  }
+}
+
+class _NearbyOptInCard extends StatelessWidget {
+  const _NearbyOptInCard({required this.enabled, required this.onTap});
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        IconButton(
-            onPressed: onTap,
-            icon: Icon(icon, color: color),
-            style: IconButton.styleFrom(
-                backgroundColor: context.palette.surface,
-                side: BorderSide(color: context.palette.line))),
-        Text(label,
-            style: TextStyle(color: context.palette.muted, fontSize: 10))
-      ]);
-}
-
-class _PortraitPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader =
-          const LinearGradient(colors: [Color(0xFFB78368), Color(0xFF5B263B)])
-              .createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, paint);
-    final head = Paint()..color = const Color(0xFFB96548);
-    canvas.drawCircle(
-        Offset(size.width * .54, size.height * .34), size.width * .18, head);
-    canvas.drawOval(
-        Rect.fromCenter(
-            center: Offset(size.width * .54, size.height * .82),
-            width: size.width * .65,
-            height: size.height * .6),
-        head);
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      child: Row(
+        children: [
+          const Icon(Icons.location_on_outlined,
+              color: AppColors.clay, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  enabled ? 'Nearby is on' : 'Nearby introductions',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  enabled
+                      ? 'You\'re seeing vetted members around you.'
+                      : 'Opt in to see vetted members near you.',
+                  style: TextStyle(
+                      color: context.palette.muted, fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+              onPressed: onTap, child: Text(enabled ? 'Manage' : 'Explore')),
+        ],
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _PortraitPainter oldDelegate) => false;
 }
 
-class _InsightStrip extends StatelessWidget {
-  const _InsightStrip();
-
+class _LoadingOverlay extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => SurfaceCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(children: [
-        Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(
-                color: AppColors.successBg, shape: BoxShape.circle),
-            child: const Icon(Icons.auto_awesome, color: AppColors.success)),
-        const SizedBox(width: 12),
-        const Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('3 new introductions',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          SizedBox(height: 3),
-          Text('Your strongest shared value today is ambition.',
-              style: TextStyle(fontSize: 12, color: AppColors.muted))
-        ])),
-        const Icon(Icons.chevron_right, color: AppColors.muted)
-      ]));
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.3),
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
 }
 
-class _MiniProfile extends StatelessWidget {
-  const _MiniProfile(
-      {required this.name,
-      required this.role,
-      required this.city,
-      required this.initial});
-
-  final String name;
-  final String role;
-  final String city;
-  final String initial;
+class _ErrorOverlay extends StatelessWidget {
+  const _ErrorOverlay({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Container(
-      width: 148,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-          color: context.palette.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.palette.line)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        InitialAvatar(initial, size: 48, color: AppColors.plum),
-        const Spacer(),
-        Text(name, style: editorial(20, weight: FontWeight.w700)),
-        Text(role,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12)),
-        Text(city, style: TextStyle(color: context.palette.muted, fontSize: 12))
-      ]));
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.5),
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: context.palette.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(message,
+                  style: TextStyle(color: context.palette.ink),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(onPressed: onRetry, child: const Text('Retry')),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                      onPressed: onRetry, child: const Text('Try again')),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UnvettedGate extends StatelessWidget {
+  const _UnvettedGate({required this.onClose, required this.onGetVetted});
+  final VoidCallback onClose;
+  final VoidCallback onGetVetted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.5),
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: context.palette.surface,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Verification required',
+                  style: editorial(22, weight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              Text(
+                'You\'re previewing members while your profile is still being verified. '
+                'Get vetted to open profiles, like, match and message.',
+                style: TextStyle(color: context.palette.muted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                      child: OutlinedButton(
+                          onPressed: onClose, child: const Text('Close'))),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: FilledButton(
+                          onPressed: onGetVetted,
+                          child: const Text('Get vetted'))),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
