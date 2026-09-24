@@ -60,6 +60,7 @@ class _EventsScreenState extends State<EventsScreen> {
       ];
 
   List<EventItem> events = const [];
+  List<EventItem> attending = const [];
   bool loading = true;
   String? error;
 
@@ -76,7 +77,8 @@ class _EventsScreenState extends State<EventsScreen> {
     });
     try {
       final result = await AppServices.events.upcoming();
-      if (mounted) setState(() => events = result);
+      final mine = await AppServices.events.attending().catchError((_) => <EventItem>[]);
+      if (mounted) setState(() { events = result; attending = mine; });
     } catch (exception) {
       if (mounted) {
         setState(() {
@@ -142,6 +144,23 @@ class _EventsScreenState extends State<EventsScreen> {
               ],
             ),
           ),
+          if (!loading && attending.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            Text("You're attending", style: editorial(22, weight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 116,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: attending.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, index) => SizedBox(
+                  width: 250,
+                  child: _AttendingEventCard(event: attending[index], onTap: () => openEvent(attending[index])),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 26),
           if (loading) const _EventLoadingState(),
           if (!loading && error != null) _EventErrorState(onRetry: loadEvents),
@@ -214,6 +233,40 @@ class _DateTile extends StatelessWidget {
   }
 }
 
+class _AttendingEventCard extends StatelessWidget {
+  const _AttendingEventCard({required this.event, required this.onTap});
+  final EventItem event;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => PressScale(
+        onTap: onTap,
+        child: SurfaceCard(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _DateTile(date: event.startTime, featured: true, size: 62),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const StatusPill('Confirmed', tone: PillTone.good),
+                    const SizedBox(height: 6),
+                    Text(event.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: inter(14, weight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text('${event.city} · ${event.attendeeCount} going', maxLines: 1, overflow: TextOverflow.ellipsis, style: inter(11.5, color: context.palette.muted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 class _EventCard extends StatelessWidget {
   const _EventCard({required this.event, required this.onTap});
   final EventItem event;
@@ -267,7 +320,6 @@ class _EventCard extends StatelessWidget {
                                 weight: FontWeight.w500, color: palette.muted)),
                       ],
                     ),
-                    const SizedBox(height: 2),
                     const SizedBox(height: 10),
                     Row(
                       children: [

@@ -179,8 +179,16 @@ class _NotificationTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(NiaRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: unread ? palette.brandSoft.withValues(alpha: 0.28) : palette.surfaceRaised.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(NiaRadius.md),
+            border: Border.all(color: unread ? palette.brand.withValues(alpha: 0.22) : palette.line),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
@@ -239,6 +247,8 @@ class _NotificationTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

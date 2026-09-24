@@ -75,6 +75,11 @@ class EventRepository {
         .toList();
   }
 
+  Future<List<EventItem>> attending() async {
+    final data = await _api.get<List<dynamic>>('/events/attending');
+    return data.whereType<Map<String, dynamic>>().map(EventItem.fromJson).toList();
+  }
+
   Future<EventItem> detail(String eventId) async {
     final data = await _api.get<Map<String, dynamic>>('/events/$eventId');
     return EventItem.fromJson(data);

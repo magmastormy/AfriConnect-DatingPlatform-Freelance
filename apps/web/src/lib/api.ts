@@ -322,6 +322,8 @@ export const api = {
   createEvent: (body: unknown) => request<EventView>('POST', '/events', body),
   /** Events the calling member created. */
   getMyEvents: () => request<EventView[]>('GET', '/events/mine'),
+  /** Events where the calling member has an active RSVP. */
+  getAttendingEvents: () => request<EventView[]>('GET', '/events/attending'),
   /** Members in the caller's district who opted into WeChat-Nearby (premium). */
   getNearby: (params?: { city?: string; district?: string; limit?: number }) => {
     const qs = new URLSearchParams();

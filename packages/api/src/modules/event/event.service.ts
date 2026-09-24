@@ -10,6 +10,7 @@ export interface IEventService {
   create(input: CreateEventInput, adminId: string): Promise<unknown>;
   submit(input: CreateEventInput, userId: string): Promise<unknown>;
   listMine(userId: string): Promise<unknown[]>;
+  listAttending(userId: string): Promise<unknown[]>;
   update(id: string, data: Record<string, unknown>): Promise<unknown>;
   rsvp(eventId: string, userId: string): Promise<RSVPResult>;
   cancelRsvp(eventId: string, userId: string): Promise<void>;
@@ -139,6 +140,11 @@ export class EventService implements IEventService {
   /** Events created by the calling member, newest first (all statuses). */
   async listMine(userId: string): Promise<unknown[]> {
     const events = await this.repo.listByCreator(userId);
+    return Promise.all(events.map((e) => this.toView(e)));
+  }
+
+  async listAttending(userId: string): Promise<unknown[]> {
+    const events = await this.repo.listByAttendee(userId);
     return Promise.all(events.map((e) => this.toView(e)));
   }
 

@@ -63,6 +63,11 @@ export class EventController {
     res.status(200).json(success(events));
   });
 
+  listAttending = asyncHandler(async (req: Request, res: Response) => {
+    const events = await this.service.listAttending(req.user!.userId);
+    res.status(200).json(success(events));
+  });
+
   update = asyncHandler(async (req: Request, res: Response) => {
     const body = updateEventSchema.parse(req.body);
     const event = await this.service.update(req.params.id, body as Record<string, unknown>);

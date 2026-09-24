@@ -20,6 +20,7 @@ export function eventRoutes(controller: EventController, _service: IEventService
   router.get('/', controller.list);
   router.post('/', vetted, controller.createMine);
   router.get('/mine', vetted, controller.listMine);
+  router.get('/attending', vetted, controller.listAttending);
   router.get('/:id', controller.detail);
 
   router.get('/:id/attendees', vetted, controller.attendees);

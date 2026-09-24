@@ -54,6 +54,7 @@ export default function EventsPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<EventView[]>([]);
   const [myEvents, setMyEvents] = useState<EventView[]>([]);
+  const [attendingEvents, setAttendingEvents] = useState<EventView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -76,11 +77,12 @@ export default function EventsPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [list, mine] = await Promise.all([
+        const [list, mine, attending] = await Promise.all([
           api.get<EventView[]>('/events'),
           api.get<EventView[]>('/events/mine'),
+          api.getAttendingEvents(),
         ]);
-        setEvents(list); setMyEvents(mine);
+        setEvents(list); setMyEvents(mine); setAttendingEvents(attending);
       } catch (e) { setError(e instanceof ApiError ? e.message : 'Failed to load events'); }
       finally { setLoading(false); }
     })();
@@ -187,6 +189,19 @@ export default function EventsPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {attendingEvents.length > 0 && (
+        <section className="events-mine-strip" aria-labelledby="attending-events-title">
+          <div className="events-mine-label" id="attending-events-title">I&apos;m attending</div>
+          <div className="events-mine-scroll">
+            {attendingEvents.map((ev) => (
+              <button key={ev.id} className="events-mine-chip" onClick={() => setDetailEvent(ev)} type="button">
+                <strong>{ev.title}</strong> · {cityLabel(ev.city)} <Badge tone="good">RSVP confirmed</Badge>
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Filters */}
