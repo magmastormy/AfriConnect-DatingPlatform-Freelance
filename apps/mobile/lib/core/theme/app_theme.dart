@@ -3,35 +3,30 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  // Neutral structure — kept from the warm "bone" system for now; a full
-  // re-skin to the DESIGN_v2.md slate palette is a separate, larger pass.
-  static const bone = Color(0xFFF6F1E9);
-  static const boneDeep = Color(0xFFEFE9DD);
-  static const ink = Color(0xFF16130F);
-  static const inkSoft = Color(0xFF4A443C);
-  static const muted = Color(0xFF7A7268);
-  static const white = Color(0xFFFFFDF9);
-  static const line = Color(0xFFE6DDCF);
-  static const lineStrong = Color(0xFFD8CCB8);
+  // Joyful Connections palette.
+  static const bone = Color(0xFFF8F8F8);
+  static const boneDeep = Color(0xFFEEEEEE);
+  static const ink = Color(0xFF1A237E);
+  static const inkSoft = Color(0xFF303F9F);
+  static const muted = Color(0xFF5C6BC0);
+  static const white = Color(0xFFFFFFFF);
+  static const line = Color(0xFFD9DCEF);
+  static const lineStrong = Color(0xFFB9C2E2);
 
-  // Brand — aligned to the DESIGN_v2.md design spec (wine primary + gold accent):
-  //   primary / CTA = wine-500  #df4d72  (was clay #c70039)
-  //   primary-deep  = wine-600  #c9305a  (was clayDark #900c3f)
-  //   plum / deep   = wine-900  #77203e  (was plum #581845)
-  //   attraction    = gold-500  #d5a520  (was magenta #da07a6)
-  static const clay = Color(0xFFDF4D72);
-  static const clayDark = Color(0xFFC9305A);
-  static const plum = Color(0xFF77203E);
-  static const gold = Color(0xFFD5A520);
+  static const clay = Color(0xFF4169E1);
+  static const clayDark = Color(0xFF3158C7);
+  static const plum = Color(0xFF1A237E);
+  static const gold = Color(0xFFFFD700);
+  static const hotPink = Color(0xFFFF69B4);
 
   // Derived brand-on-X colours, named here so the palettes *and* the
   // ColorSchemes can reference a const (field access on a const object is not
   // itself a constant expression).
   /// Wine-700 — text on a pale brand tint, and the hover/deep CTA tone.
-  static const brandOnLight = Color(0xFFA8244A);
+  static const brandOnLight = Color(0xFF1A237E);
 
   /// Wine-300 — the dark-theme counterpart, brightened for legibility.
-  static const brandOnDark = Color(0xFFF4A9BA);
+  static const brandOnDark = Color(0xFFBBDEFB);
 
   /// Text on a brand-filled surface. White reads on wine in light.
   static const onBrandLight = Color(0xFFFFFFFF);
@@ -99,8 +94,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     muted: AppColors.muted,
     line: AppColors.line,
     lineStrong: AppColors.lineStrong,
-    brandSoft: Color(0xFFF7DCE5),
-    brandOn: AppColors.brandOnLight,
+    brandSoft: Color(0xFFDDE6FF),
+    brandOn: AppColors.plum,
     onBrand: AppColors.onBrandLight,
     success: AppColors.success,
     successBg: AppColors.successBg,
@@ -109,21 +104,21 @@ class AppPalette extends ThemeExtension<AppPalette> {
   );
 
   static const dark = AppPalette(
-    background: Color(0xFF14120F),
-    surface: Color(0xFF1C1A16),
-    surfaceRaised: Color(0xFF272319),
-    ink: Color(0xFFF4EFE6),
-    inkSoft: Color(0xFFCFC7BA),
-    muted: Color(0xFF9A9186),
-    line: Color(0xFF322C24),
-    lineStrong: Color(0xFF473E33),
-    brandSoft: Color(0xFF3A1B26),
-    brandOn: AppColors.brandOnDark,
-    onBrand: AppColors.onBrandDark,
-    success: Color(0xFF62C48D),
-    successBg: Color(0xFF17311F),
-    warn: Color(0xFFE3A857),
-    warnBg: Color(0xFF33260F),
+    background: Color(0xFF121212),
+    surface: Color(0xFF212121),
+    surfaceRaised: Color(0xFF2B2B2B),
+    ink: Color(0xFFBBDEFB),
+    inkSoft: Color(0xFF90CAF9),
+    muted: Color(0xFF78909C),
+    line: Color(0xFF373737),
+    lineStrong: Color(0xFF4A4A4A),
+    brandSoft: Color(0xFF1E3A78),
+    brandOn: Color(0xFFBBDEFB),
+    onBrand: Color(0xFFFFFFFF),
+    success: Color(0xFF81C784),
+    successBg: Color(0xFF1B3320),
+    warn: Color(0xFFFFD54F),
+    warnBg: Color(0xFF3B3210),
   );
 
   @override
@@ -255,8 +250,8 @@ abstract final class AppTheme {
         primary: AppColors.clay,
         onPrimary: AppColors.onBrandDark,
         secondary: AppColors.gold,
-        surface: Color(0xFF1C1A16),
-        onSurface: Color(0xFFF4EFE6),
+        surface: Color(0xFF212121),
+        onSurface: Color(0xFFBBDEFB),
       ),
       extensions: const [AppPalette.dark],
       textTheme: _variableWeights(base.textTheme.apply(
@@ -265,8 +260,8 @@ abstract final class AppTheme {
         displayColor: AppPalette.dark.ink,
       )),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF14120F),
-        foregroundColor: Color(0xFFF4EFE6),
+        backgroundColor: Color(0xFF121212),
+        foregroundColor: Color(0xFFBBDEFB),
         elevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
