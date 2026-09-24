@@ -27,6 +27,8 @@ export interface MatchCandidate {
  */
 export interface MatchPreferences {
   genderPreference?: Gender;
+  /** Ordered gender feed preferences for members who do not disclose gender. */
+  genderPreferences?: Gender[];
   educationMin?: EducationLevel;
   professions?: string[];
   ageMin?: number;

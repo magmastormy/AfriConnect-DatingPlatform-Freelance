@@ -112,6 +112,16 @@ function dobForAge(age: number): Date {
   return d;
 }
 
+function effectiveGenderFilter(profile: { gender: string }, prefs: MatchPreferences): Gender | { in: Gender[] } | undefined {
+  if (prefs.genderPreferences?.length) return { in: prefs.genderPreferences };
+  if (prefs.genderPreference) return prefs.genderPreference;
+  if (profile.gender === Gender.Male) return Gender.Female;
+  if (profile.gender === Gender.Female) return Gender.Male;
+  // Do not silently broaden an undisclosed/non-binary feed to everyone. Until
+  // the member ranks men or women, the safe result is an empty feed.
+  return { in: [] };
+}
+
 export class MatchService implements IMatchService {
   constructor(
     private readonly repo: IMatchRepository,
@@ -182,7 +192,7 @@ export class MatchService implements IMatchService {
       isPaused: false,
       isComplete: true,
       NOT: { userId: { in: excludeIds } },
-      gender: prefs.genderPreference ?? undefined,
+      gender: effectiveGenderFilter(viewer, prefs),
       city: prefs.city ?? undefined,
       // Education is a soft preference — scored per-candidate rather than hard
       // filtered here (Prisma enum columns don't support range comparisons).
@@ -529,7 +539,7 @@ export class MatchService implements IMatchService {
       isPaused: false,
       isComplete: true,
       NOT: { userId: { in: excludeIds } },
-      gender: prefs.genderPreference ?? undefined,
+      gender: effectiveGenderFilter(viewer, prefs),
     };
 
     // ── Opt-in Discover filters (narrow the candidate pool up front) ──
