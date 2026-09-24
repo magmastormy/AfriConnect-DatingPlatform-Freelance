@@ -398,6 +398,11 @@ class ActionBubble extends StatelessWidget {
         label: semanticLabel,
         child: Tooltip(
           message: semanticLabel ?? '',
+          preferBelow: false,
+          verticalOffset: 10,
+          waitDuration: const Duration(milliseconds: 350),
+          showDuration: const Duration(seconds: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: InkResponse(
             onTap: enabled ? onTap : null,
             radius: size * 0.62,
@@ -437,10 +442,17 @@ class ActionBubble extends StatelessWidget {
     return Semantics(
       button: true,
       label: semanticLabel,
-      child: _PressScale(
-        enabled: enabled,
-        reduceMotion: reduce,
-        child: GestureDetector(
+      child: Tooltip(
+        message: semanticLabel ?? '',
+        preferBelow: false,
+        verticalOffset: 10,
+        waitDuration: const Duration(milliseconds: 350),
+        showDuration: const Duration(seconds: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: _PressScale(
+          enabled: enabled,
+          reduceMotion: reduce,
+          child: GestureDetector(
           onTap: enabled ? onTap : null,
           child: Container(
             width: size,
@@ -471,6 +483,7 @@ class ActionBubble extends StatelessWidget {
                     semanticLabel: semanticLabel),
           ),
         ),
+      ),
       ),
     );
   }

@@ -371,28 +371,18 @@ class _MatchBentoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Expanded(
-                      child: Text(name,
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: inter(featured ? 17 : 14,
+                            weight: FontWeight.w700, color: palette.ink)),
+                    if (role.trim().isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(role,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: inter(featured ? 17 : 14,
-                              weight: FontWeight.w700, color: palette.ink)),
-                    ),
-                    StatusPill(score, tone: PillTone.good),
-                  ]),
-                  const SizedBox(height: 5),
-                  Text(role.isEmpty ? 'AfriConnect member' : role,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: inter(12,
-                          color: palette.muted, height: 1.3)),
-                  if (featured) ...[
-                    const SizedBox(height: 12),
-                    Text('Mutual interest',
-                        style: inter(12,
-                            weight: FontWeight.w700, color: palette.brand)),
-                  ],
+                          style: inter(12, color: palette.muted)),
+                    ],
                 ],
               ),
             ),

@@ -106,11 +106,7 @@ class _NearbyCard extends StatelessWidget {
         ? profile.displayName
         : profile.fallbackName;
     final distance = _shortDistance(profile.distanceKm);
-    final supporting = profile.headline?.trim().isNotEmpty == true
-        ? profile.headline!.trim()
-        : (profile.profession?.trim().isNotEmpty == true
-            ? profile.profession!.trim()
-            : profile.city.trim());
+    final supporting = profile.profession?.trim() ?? '';
 
     return MediaCard(
       imageUrl: profile.photos.isNotEmpty ? profile.photos.first : null,
