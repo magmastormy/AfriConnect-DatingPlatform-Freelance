@@ -199,8 +199,8 @@ class _Segment extends StatelessWidget {
 ///
 /// Two scrim modes:
 ///  * [brandScrim] `false` → neutral dark gradient, safe for any photo
-///  * [brandScrim] `true`  → wine-tinted gradient, the signature that makes a
-///    photo read as ours rather than stock
+  ///  * [brandScrim] `true`  → Royal Blue-tinted gradient, the signature that
+  ///    makes a photo read as ours rather than stock
 class MediaCard extends StatelessWidget {
   const MediaCard({
     super.key,

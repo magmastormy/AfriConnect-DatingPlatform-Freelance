@@ -179,12 +179,12 @@ class _AppShellState extends State<AppShell>
             child: NavigationBarTheme(
               data: NavigationBarThemeData(
                 indicatorColor: context.palette.brandSoft,
-                // Web: active icon = brand (clay), active label = ink, rest = muted.
+                // Active navigation uses Royal Blue; inactive items stay muted.
                 iconTheme: WidgetStateProperty.resolveWith(
                   (states) => IconThemeData(
                     size: 24,
                     color: states.contains(WidgetState.selected)
-                        ? AppColors.clay
+                        ? context.palette.brandOn
                         : context.palette.muted,
                   ),
                 ),

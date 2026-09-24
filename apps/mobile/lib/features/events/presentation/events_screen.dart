@@ -47,7 +47,7 @@ class _EventsScreenState extends State<EventsScreen> {
             id: 'preview-ambition',
             title: 'Conversations on Ambition',
             description:
-                'A warm salon for honest stories about work and purpose.',
+                'A bright salon for honest stories about work and purpose.',
             eventType: 'Salon',
             city: 'Pretoria',
             venueName: 'Arcadia, shared after RSVP',

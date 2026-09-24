@@ -22,18 +22,17 @@ abstract final class AppColors {
   // Derived brand-on-X colours, named here so the palettes *and* the
   // ColorSchemes can reference a const (field access on a const object is not
   // itself a constant expression).
-  /// Wine-700 — text on a pale brand tint, and the hover/deep CTA tone.
+  /// Dark Navy — text on pale blue brand tints.
   static const brandOnLight = Color(0xFF1A237E);
 
-  /// Wine-300 — the dark-theme counterpart, brightened for legibility.
+  /// Light Blue — the dark-theme counterpart, brightened for legibility.
   static const brandOnDark = Color(0xFFBBDEFB);
 
-  /// Text on a brand-filled surface. White reads on wine in light.
+  /// Text on Royal Blue controls.
   static const onBrandLight = Color(0xFFFFFFFF);
 
-  /// In dark the fill is the same wine, so near-black holds better contrast
-  /// (this is what the web's `--on-brand` does too).
-  static const onBrandDark = Color(0xFF1B1410);
+  /// Text on Royal Blue controls in dark mode.
+  static const onBrandDark = Color(0xFFFFFFFF);
 
   static const success = Color(0xFF2F7D4F);
   static const successBg = Color(0xFFDCF3E4);
@@ -88,7 +87,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   static const light = AppPalette(
     background: AppColors.bone,
     surface: AppColors.white,
-    surfaceRaised: Color(0xFFFAF6EF),
+    surfaceRaised: Color(0xFFFFFFFF),
     ink: AppColors.ink,
     inkSoft: AppColors.inkSoft,
     muted: AppColors.muted,
@@ -297,7 +296,8 @@ abstract final class AppTheme {
 // ---------------------------------------------------------------------------
 // Shape / depth / motion / scrim tokens
 //
-// Derived from DESIGN_INSPIRATIONS.md §8. Before this, the app used ad-hoc radii
+// Shared shape, depth, and motion tokens keep the refreshed interface cohesive.
+// Before this, the app used ad-hoc radii
 // (12/14/16/22/26/28) and one-off shadow literals scattered across screens.
 // Brand colours are deliberately NOT redefined here.
 // ---------------------------------------------------------------------------
