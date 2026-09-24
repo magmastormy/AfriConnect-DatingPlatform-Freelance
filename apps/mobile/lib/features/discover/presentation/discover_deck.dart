@@ -30,45 +30,19 @@ class DiscoverDeck extends StatefulWidget {
   State<DiscoverDeck> createState() => _DiscoverDeckState();
 }
 
-class _DiscoverDeckState extends State<DiscoverDeck>
-    with SingleTickerProviderStateMixin {
+class _DiscoverDeckState extends State<DiscoverDeck> {
   int _current = 0;
   double _dragX = 0;
   bool _acting = false;
-  bool _expanded = false;
-  late final AnimationController _animController;
   final ScrollController _profileScroll = ScrollController();
 
   @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      duration: NiaMotion.base,
-      vsync: this,
-    );
-  }
-
-  @override
   void dispose() {
-    _animController.dispose();
     _profileScroll.dispose();
     super.dispose();
   }
 
   DiscoverCard get _currentCard => widget.cards[_current];
-
-  void _expand() {
-    if (_expanded) return;
-    setState(() => _expanded = true);
-  }
-
-  void _collapse() {
-    if (!_expanded) return;
-    setState(() => _expanded = false);
-    if (_profileScroll.hasClients) _profileScroll.jumpTo(0);
-  }
-
-  void _toggleExpanded() => _expanded ? _collapse() : _expand();
 
   Future<void> _settle(String action) async {
     if (_acting || widget.cards.isEmpty) return;
@@ -80,7 +54,6 @@ class _DiscoverDeckState extends State<DiscoverDeck>
         setState(() {
           _current = (_current + 1) % widget.cards.length;
           _dragX = 0;
-          _expanded = false;
         });
         if (_profileScroll.hasClients) _profileScroll.jumpTo(0);
       }
@@ -125,16 +98,14 @@ class _DiscoverDeckState extends State<DiscoverDeck>
           height: viewport,
           child: Stack(
             children: [
-              // The next card peeks behind, but only while this one is collapsed.
-              if (widget.cards.length > 1 && !_expanded)
+                  // Keep the next introduction subtly visible beneath the readable profile.
+              if (widget.cards.length > 1)
                 Positioned.fill(
                   child: _ProfileCard(
                     card: widget.cards[(_current + 1) % widget.cards.length],
                     behind: true,
-                    expanded: false,
                     heroHeight: viewport,
                     scrollController: null,
-                    onToggle: () {},
                   ),
                 ),
               AnimatedPositioned(
@@ -147,19 +118,17 @@ class _DiscoverDeckState extends State<DiscoverDeck>
                   angle: rotate * 3.14159 / 180,
                   child: SwipeDetector(
                     gesture: SwipeGesture(
-                      // A tap only *expands*; collapse is via the chip so reading
-                      // the profile never collapses it by accident.
+                      // Vertical movement belongs to the profile scroll; horizontal
+                      // movement remains the fast decision gesture.
                       onSwipeLeft: () => _settle('pass'),
                       onSwipeRight: () => _settle('like'),
-                      onTap: _expanded ? null : _expand,
+                      onTap: null,
                       disabled: _acting,
                     ),
                     child: _ProfileCard(
                       card: card,
-                      expanded: _expanded,
-                      heroHeight: viewport * 0.8,
+                      heroHeight: viewport * 0.82,
                       scrollController: _profileScroll,
-                      onToggle: _toggleExpanded,
                     ),
                   ),
                 ),
@@ -198,21 +167,15 @@ class _DiscoverDeckState extends State<DiscoverDeck>
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.card,
-    required this.expanded,
     required this.heroHeight,
     required this.scrollController,
     this.behind = false,
-    this.onToggle = _noop,
   });
 
   final DiscoverCard card;
-  final bool expanded;
   final double heroHeight;
   final ScrollController? scrollController;
   final bool behind;
-  final VoidCallback onToggle;
-
-  static void _noop() {}
 
   @override
   Widget build(BuildContext context) {
@@ -228,19 +191,12 @@ class _ProfileCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            expanded
-                ? _ExpandedProfile(
-                    card: card,
-                    heroHeight: heroHeight,
-                    controller: scrollController,
-                  )
-                : _CollapsedProfile(card: card),
-            if (!behind)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: _ExpandChip(expanded: expanded, onTap: onToggle),
-              ),
+            _ExpandedProfile(
+              card: card,
+              heroHeight: heroHeight,
+              controller: scrollController,
+            ),
+            if (!behind) const _ScrollHint(),
           ],
         ),
       ),
@@ -640,39 +596,75 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Row(
-        // Right-aligned, per the brief: the buttons sit to the right so the
-        // card reads left (identity) → right (decision).
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ActionBubble(
-            icon: Icons.close_rounded,
-            tone: ActionTone.neutral,
-            size: 58,
-            semanticLabel: 'Pass',
-            onTap: busy ? null : onPass,
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ActionBubble(
+              icon: Icons.close_rounded,
+              tone: ActionTone.neutral,
+              size: 44,
+              semanticLabel: 'Pass',
+              onTap: busy ? null : onPass,
+            ),
+            const SizedBox(height: 10),
+            ActionBubble(
+              icon: Icons.star_rounded,
+              tone: ActionTone.gold,
+              size: 42,
+              semanticLabel: 'Superlike',
+              busy: busy,
+              onTap: busy ? null : onSuperlike,
+            ),
+            const SizedBox(height: 10),
+            ActionBubble(
+              icon: Icons.favorite_rounded,
+              tone: ActionTone.brand,
+              size: 50,
+              semanticLabel: 'Like',
+              onTap: busy ? null : onLike,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScrollHint extends StatelessWidget {
+  const _ScrollHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 28, 18, 16),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Color(0xCC16130F)],
+            ),
           ),
-          const SizedBox(width: 16),
-          ActionBubble(
-            icon: Icons.star_rounded,
-            tone: ActionTone.gold,
-            size: 52,
-            semanticLabel: 'Superlike',
-            busy: busy,
-            onTap: busy ? null : onSuperlike,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white, size: 22),
+              const SizedBox(width: 5),
+              Text('Scroll to read their story',
+                  style: inter(11.5,
+                      weight: FontWeight.w700, color: Colors.white)),
+            ],
           ),
-          const SizedBox(width: 16),
-          ActionBubble(
-            icon: Icons.favorite_rounded,
-            tone: ActionTone.brand,
-            size: 68,
-            semanticLabel: 'Like',
-            onTap: busy ? null : onLike,
-          ),
-        ],
+        ),
       ),
     );
   }
