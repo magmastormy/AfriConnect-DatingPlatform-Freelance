@@ -238,28 +238,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ),
 
-        const SizedBox(height: 24),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: SurfaceCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const StatusPill('Private by design', tone: PillTone.good),
-                const SizedBox(height: 10),
-                Text('Conversations are only available after mutual interest.',
-                    style: editorial(17, weight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                Text('Keep it kind, curious, and true to you.',
-                    style: inter(12.5,
-                        weight: FontWeight.w400,
-                        color: context.palette.muted,
-                        height: 1.4)),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }

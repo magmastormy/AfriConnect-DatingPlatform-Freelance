@@ -14,9 +14,10 @@ import '../data/discover_card.dart';
 import 'discover_deck.dart';
 import 'match_celebration.dart';
 import 'nearby_section.dart';
+import '../../matches/presentation/matches_screen.dart';
 import 'red_note_modal.dart';
 
-enum DiscoverMode { discover, nearby }
+enum DiscoverMode { discover, nearby, matches }
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -437,11 +438,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       const SizedBox(height: 20),
 
                       // Content based on mode
-                      if (_mode == DiscoverMode.discover) ...[
-                        _buildDiscoverContent(),
-                      ] else ...[
-                        _buildNearbyContent(),
-                      ],
+if (_mode == DiscoverMode.discover) ...[
+                _buildDiscoverContent(),
+              ] else if (_mode == DiscoverMode.nearby) ...[
+                _buildNearbyContent(),
+              ] else ...[
+                const SizedBox(
+                  height: 760,
+                  child: MatchesScreen(),
+                ),
+              ],
                     ],
                   ),
                 ),
@@ -635,8 +641,9 @@ class _ModeTabs extends StatelessWidget {
       selected: mode,
       onChanged: onChanged,
       options: const [
-        SegmentedOption(value: DiscoverMode.discover, label: 'Curated'),
-        SegmentedOption(value: DiscoverMode.nearby, label: 'Nearby'),
+  SegmentedOption(value: DiscoverMode.discover, label: 'Curated matches'),
+  SegmentedOption(value: DiscoverMode.nearby, label: 'Nearby'),
+  SegmentedOption(value: DiscoverMode.matches, label: 'Matches'),
       ],
     );
   }

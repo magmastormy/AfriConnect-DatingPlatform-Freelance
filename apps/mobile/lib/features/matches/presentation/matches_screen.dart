@@ -317,33 +317,52 @@ class _MatchRow extends StatelessWidget {
       child: PressScale(
         onTap: action,
         child: SurfaceCard(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _MatchAvatar(initial: initial, photoUrl: photoUrl, size: 52),
-              const SizedBox(width: 13),
+              _MatchAvatar(initial: initial, photoUrl: photoUrl, size: 88),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: inter(15.5,
-                            weight: FontWeight.w700, color: palette.ink)),
-                    const SizedBox(height: 3),
-                    Text(role,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: inter(16,
+                                  weight: FontWeight.w700, color: palette.ink)),
+                        ),
+                        StatusPill(score, tone: PillTone.good),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(role.isEmpty ? 'AfriConnect member' : role,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: inter(12.5,
                             weight: FontWeight.w400, color: palette.muted)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.favorite_rounded,
+                            size: 15, color: palette.brand),
+                        const SizedBox(width: 5),
+                        Text('Mutual interest',
+                            style: inter(12,
+                                weight: FontWeight.w600,
+                                color: palette.brand)),
+                        const Spacer(),
+                        Icon(Icons.chevron_right_rounded,
+                            color: palette.lineStrong, size: 20),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              StatusPill(score, tone: PillTone.good),
-              const SizedBox(width: 6),
-              Icon(Icons.chevron_right_rounded,
-                  color: palette.lineStrong, size: 22),
             ],
           ),
         ),

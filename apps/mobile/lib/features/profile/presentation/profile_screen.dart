@@ -485,6 +485,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     AttributeChips(chips: attributeChips, onAdd: editProfile),
                     const SizedBox(height: 18),
                     _CompletenessBar(score: complete),
+                    if (complete < 80) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        'Add a photo, profession, city, and a short bio to help the right people find you.',
+                        style: inter(12.5,
+                            weight: FontWeight.w400,
+                            color: context.palette.muted,
+                            height: 1.4),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: PillCta(
+                          label: 'Finish setup',
+                          onPressed: editProfile,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     Row(children: [
                       StatusPill(
@@ -667,16 +685,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     activeThumbColor: AppColors.clay,
                     activeTrackColor: context.palette.brandSoft,
                     onChanged: toggleNotifications)),
-            const Hairline(),
-            SettingsRow(
-                icon: Icons.near_me_outlined,
-                title: 'Nearby introductions',
-                subtitle: 'Share your area with vetted members',
-                trailing: Switch(
-                    value: nearby,
-                    activeThumbColor: AppColors.clay,
-                    activeTrackColor: context.palette.brandSoft,
-                    onChanged: toggleNearby)),
             const Hairline(),
             SettingsRow(
                 icon: Icons.visibility_outlined,
