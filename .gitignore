@@ -84,3 +84,6 @@ net_tmp.txt
 run_web.bat
 *.bat
 .flutter_tool_state
+*.txt
+*.log
+*.png

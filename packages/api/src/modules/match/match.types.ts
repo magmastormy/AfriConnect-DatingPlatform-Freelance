@@ -61,6 +61,7 @@ export interface DiscoverCard {
   userId: string;
   displayName: string | null;
   headline: string | null;
+  bio: string | null;
   city: City;
   educationLevel: EducationLevel | null;
   profession: string | null;

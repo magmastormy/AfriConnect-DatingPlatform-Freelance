@@ -6,6 +6,7 @@ class DiscoverCard {
     required this.city,
     required this.photos,
     this.headline,
+    this.bio,
     this.score,
     this.verified = false,
     this.isPremium = false,
@@ -22,6 +23,7 @@ class DiscoverCard {
   final String city;
   final List<String> photos;
   final String? headline;
+  final String? bio;
   final int? score;
   final bool verified;
   final bool isPremium;
@@ -41,6 +43,7 @@ class DiscoverCard {
           .whereType<String>()
           .toList(),
       headline: json['headline'] as String?,
+      bio: json['bio'] as String?,
       score: (json['score'] as num?)?.toInt(),
       verified: json['verified'] as bool? ?? false,
       isPremium: json['isPremium'] as bool? ?? false,

@@ -8,6 +8,7 @@ import 'core/theme/app_theme.dart';
 import 'core/widgets/device_frame.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/home/presentation/app_shell.dart';
+import 'features/showcase/interactions_showcase_screen.dart';
 import 'features/splash/presentation/splash_screen.dart';
 
 Future<void> main() async {
@@ -39,6 +40,9 @@ class AfriConnectApp extends StatelessWidget {
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/', builder: (_, __) => const AppShell()),
       GoRoute(path: '/preview', builder: (_, __) => const AppShell()),
+      GoRoute(
+          path: '/showcase',
+          builder: (_, __) => const InteractionsShowcaseScreen()),
     ],
   );
 

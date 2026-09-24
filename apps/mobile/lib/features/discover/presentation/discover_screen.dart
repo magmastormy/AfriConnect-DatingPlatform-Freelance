@@ -25,8 +25,7 @@ class DiscoverScreen extends StatefulWidget {
   State<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen>
-    with TickerProviderStateMixin {
+class _DiscoverScreenState extends State<DiscoverScreen> {
   DiscoverMode _mode = DiscoverMode.discover;
   int _superCount = 0;
   bool _superLoading = false;
@@ -54,24 +53,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   // Match celebration
   String? _celebrateUserId;
 
-  // Animation controllers
-  late final AnimationController _tabController;
-
   @override
   void initState() {
     super.initState();
-    _tabController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
     _loadSuperCount();
     _loadDiscover();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadSuperCount() async {
@@ -87,6 +73,31 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } finally {
       if (mounted) setState(() => _superLoading = false);
     }
+  }
+
+  /// One place turns exceptions into copy a member can act on — raw exception
+  /// text never reaches the UI.
+  String _friendlyError(Object e) {
+    if (e is ApiFailure) return e.message;
+    final raw = e
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|ApiFailure):\s*'), '')
+        .trim();
+    final lower = raw.toLowerCase();
+    if (lower.contains('socket') ||
+        lower.contains('connection') ||
+        lower.contains('network') ||
+        lower.contains('failed host lookup')) {
+      return 'You seem to be offline. Check your connection and try again.';
+    }
+    if (lower.contains('timeout')) {
+      return 'This took too long to load. The API may be waking up — try again in a moment.';
+    }
+    if (lower.contains('404') || lower.contains('not found')) {
+      return 'That member is no longer available.';
+    }
+    if (raw.isEmpty) return 'Something went wrong. Please try again.';
+    return raw;
   }
 
   Future<void> _loadDiscover() async {
@@ -108,7 +119,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _discoverError = e.toString();
+          _discoverError = _friendlyError(e);
           _discoverLoading = false;
         });
       }
@@ -154,7 +165,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _nearbyError = e.toString();
+          _nearbyError = _friendlyError(e);
           _nearbyProfiles = [];
           _nearbyLoading = false;
         });
@@ -245,7 +256,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to forget location: $e')),
+          SnackBar(content: Text(_friendlyError(e))),
         );
       }
     } finally {
@@ -271,7 +282,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Action failed: $e')),
+          SnackBar(content: Text(_friendlyError(e))),
         );
       }
     }
@@ -287,7 +298,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Action failed: $e')),
+          SnackBar(content: Text(_friendlyError(e))),
         );
       }
     }
@@ -329,11 +340,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _redNoteError = e.toString();
+          _redNoteError = _friendlyError(e);
           _redNoteLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load profile: $e')),
+          SnackBar(content: Text(_friendlyError(e))),
         );
       }
     }
@@ -363,7 +374,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Action failed: $e')),
+          SnackBar(content: Text(_friendlyError(e))),
         );
       }
     }
@@ -378,7 +389,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not start chat: $e')),
+          SnackBar(content: Text(_friendlyError(e))),
         );
       }
     }
@@ -398,44 +409,31 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Hero header — the shell AppBar already shows the "Discover"
-                      // tab label, so this screen leads with the brand promise instead
-                      // of repeating the word.
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              // A hard line break, per the reference rule that
-                              // the break *is* the composition — a two-line
-                              // display headline reads editorial, one long line
-                              // reads like a label.
-                              'Meet with\nintention.',
-                              style: editorial(34, weight: FontWeight.w700)
-                                  .copyWith(height: 1.04),
-                            ),
-                          ),
-                          if (_superCount > 0) ...[
-                            const SizedBox(width: 12),
-                            _SuperlikeBadge(count: _superCount),
-                          ],
-                        ],
+                      // 她说-style header: the mode switch is the hero, the brand
+                      // line a quiet echo beneath it. No heavy editorial headline —
+                      // the card itself carries the voice.
+                      Center(
+                        child: _ModeTabs(
+                          mode: _mode,
+                          onChanged: (mode) {
+                            setState(() => _mode = mode);
+                            if (mode == DiscoverMode.nearby) _loadNearby();
+                          },
+                        ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Curated introductions from vetted members, chosen with care.',
-                        style: TextStyle(
-                            color: context.palette.muted, height: 1.45),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          'Love, with intention.',
+                          style: editorial(18, weight: FontWeight.w700)
+                              .copyWith(
+                                  color: context.palette.muted, height: 1.2),
+                        ),
                       ),
-                      const SizedBox(height: 20),
-                      // Mode tabs
-                      _ModeTabs(
-                        mode: _mode,
-                        onChanged: (mode) {
-                          setState(() => _mode = mode);
-                          if (mode == DiscoverMode.nearby) _loadNearby();
-                        },
-                      ),
+                      if (_superCount > 0) ...[
+                        const SizedBox(height: 12),
+                        Center(child: _SuperlikeBadge(count: _superCount)),
+                      ],
                       const SizedBox(height: 20),
 
                       // Content based on mode
@@ -461,7 +459,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           if (_redNote != null)
             RedNoteModal(
               view: _redNote!,
-              canConnect: true,
               busy: false,
               onAct: _handleRedNoteAction,
               onMessage: _startChat,
@@ -472,10 +469,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           if (_unvettedGate != null)
             _UnvettedGate(
               onClose: () => setState(() => _unvettedGate = null),
-              onGetVetted: () {
-                setState(() => _unvettedGate = null);
-                context.push('/get-vetted');
-              },
             ),
 
           // Match celebration
@@ -516,8 +509,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         DiscoverDeck(
           cards: _discoverDeck,
           onAction: _actOnDiscover,
-          onCardTap: (card) =>
-              _openRedNote(card.userId, source: DiscoverMode.discover),
           onReload: _loadDiscover,
         ),
         const SizedBox(height: 20),
@@ -558,8 +549,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                 ),
               ] else ...[
                 Text(
-                  'Share your device location to discover vetted members around you. '
-                  'Your coordinates are stored and cleared the moment you drop the feature.',
+                  'Share your location to see vetted members around you. '
+                  'We delete your coordinates the moment you turn it off.',
                   style: TextStyle(color: context.palette.muted, height: 1.4),
                 ),
                 const SizedBox(height: 12),
@@ -583,15 +574,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           else if (_nearbyProfiles.isEmpty)
             _EmptyState(
               title: 'No one nearby',
-              message:
-                  'No vetted members in your area right now. Check back later.',
-              actionLabel: 'Reload',
+              message: 'No vetted members in your area yet.',
+              actionLabel: 'Check again',
               onAction: _loadNearby,
             )
           else
             NearbySection(
               profiles: _nearbyProfiles,
-              onAction: _actOnNearby,
               onCardTap: (profile) =>
                   _openRedNote(profile.userId, source: DiscoverMode.nearby),
               onReload: _loadNearby,
@@ -612,7 +601,7 @@ class _SuperlikeBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: AppColors.gold.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(NiaRadius.pill),
           border: Border.all(color: AppColors.gold),
         ),
         child: Row(
@@ -658,18 +647,12 @@ class _DiscoverSkeletonGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: 8,
-      itemBuilder: (_, i) => ShimmerBlock(height: 320, radius: 16),
-    );
+    // A single tall shimmer shaped like the collapsed profile card — the deck's
+    // first card is what will arrive, so the placeholder foreshadows it rather
+    // than implying a grid. 她说 loads one big card, not a wall of tiles.
+    final viewport =
+        (MediaQuery.sizeOf(context).height * 0.62).clamp(380.0, 560.0);
+    return ShimmerBlock(height: viewport, radius: NiaRadius.xl);
   }
 }
 
@@ -707,20 +690,36 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SurfaceCard(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          Text(title,
-              style: editorial(20, weight: FontWeight.w700),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text(message,
-              style: TextStyle(color: context.palette.muted),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          FilledButton(onPressed: onAction, child: Text(actionLabel)),
-        ],
+    final palette = context.palette;
+    // 她说-style empty state: a single calm icon, centered, never a busy card.
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: palette.brandSoft,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.favorite_border_rounded,
+                  size: 32, color: palette.brandOn),
+            ),
+            const SizedBox(height: 20),
+            Text(title,
+                style: editorial(22, weight: FontWeight.w700),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(message,
+                style: TextStyle(color: palette.muted, height: 1.5),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 22),
+            FilledButton(onPressed: onAction, child: Text(actionLabel)),
+          ],
+        ),
       ),
     );
   }
@@ -736,8 +735,8 @@ class _NearbyOptInCard extends StatelessWidget {
     return SurfaceCard(
       child: Row(
         children: [
-          const Icon(Icons.location_on_outlined,
-              color: AppColors.clay, size: 28),
+          Icon(Icons.location_on_outlined,
+              color: Theme.of(context).colorScheme.primary, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -791,7 +790,7 @@ class _ErrorOverlay extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: context.palette.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(NiaRadius.xl),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -800,14 +799,10 @@ class _ErrorOverlay extends StatelessWidget {
                   style: TextStyle(color: context.palette.ink),
                   textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton(onPressed: onRetry, child: const Text('Retry')),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                      onPressed: onRetry, child: const Text('Try again')),
-                ],
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                    onPressed: onRetry, child: const Text('Try again')),
               ),
             ],
           ),
@@ -818,9 +813,8 @@ class _ErrorOverlay extends StatelessWidget {
 }
 
 class _UnvettedGate extends StatelessWidget {
-  const _UnvettedGate({required this.onClose, required this.onGetVetted});
+  const _UnvettedGate({required this.onClose});
   final VoidCallback onClose;
-  final VoidCallback onGetVetted;
 
   @override
   Widget build(BuildContext context) {
@@ -832,32 +826,26 @@ class _UnvettedGate extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: context.palette.surface,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(NiaRadius.xl),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Verification required',
+              Text('Almost there',
                   style: editorial(22, weight: FontWeight.w700)),
               const SizedBox(height: 12),
               Text(
-                'You\'re previewing members while your profile is still being verified. '
-                'Get vetted to open profiles, like, match and message.',
+                'You can preview members while your profile is being '
+                'verified. Once you\'re vetted, profiles open up and you '
+                'can like, match and message.',
                 style: TextStyle(color: context.palette.muted),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                      child: OutlinedButton(
-                          onPressed: onClose, child: const Text('Close'))),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: FilledButton(
-                          onPressed: onGetVetted,
-                          child: const Text('Get vetted'))),
-                ],
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                    onPressed: onClose, child: const Text('Got it')),
               ),
             ],
           ),

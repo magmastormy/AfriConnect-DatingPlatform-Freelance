@@ -4,29 +4,20 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/nia_kit.dart';
 import '../data/discover_card.dart';
 
-/// Nearby members, presented as a horizontally scrolling rail of photo cards
-/// rather than a 2-up grid.
-///
-/// Why the rail (DESIGN_INSPIRATIONS §5, ref 4): proximity is a *browsing*
-/// context, not a decision context. A rail lets the eye sweep several people at
-/// once, keeps each photo large enough to actually read a face, and leaves the
-/// vertical axis free for the location controls above it. The 2-up grid forced
-/// each photo down to a thumbnail while still consuming two rows of height.
-///
-/// The map view in the reference is deliberately not built here — it needs a
-/// tile provider. The rail is the part that carries the value.
+/// Nearby members, presented as a two-column photo grid — the classic 她说 /
+/// Tantan "附近" layout. Each tile is a full-bleed photograph with the name and
+/// distance overlaid on a bottom scrim, and tapping it opens the full profile
+/// (the RedNote modal). 她说's nearby view is a grid of faces, not a rail.
 class NearbySection extends StatelessWidget {
   const NearbySection({
     super.key,
     required this.profiles,
-    required this.onAction,
     required this.onCardTap,
     required this.onReload,
     this.subscription,
   });
 
   final List<NearbyProfile> profiles;
-  final Future<void> Function(NearbyProfile, String) onAction;
   final void Function(NearbyProfile) onCardTap;
   final VoidCallback onReload;
   final Map<String, dynamic>? subscription;
@@ -58,28 +49,10 @@ class NearbySection extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-
-        // The rail is full-bleed: it breaks out of the screen's 20px gutter so
-        // the cards can run to the edge, which is what signals "scroll me".
-        SizedBox(
-          height: 252,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: profiles.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final profile = profiles[index];
-              return _NearbyCard(
-                profile: profile,
-                onTap: () => onCardTap(profile),
-                onLike: () => onAction(profile, 'like'),
-              );
-            },
-          ),
+        _NearbyGrid(
+          profiles: profiles,
+          onCardTap: onCardTap,
         ),
-
         if (!isPremium && profiles.isNotEmpty) ...[
           const SizedBox(height: 16),
           _UpsellNote(count: profiles.length),
@@ -89,16 +62,45 @@ class NearbySection extends StatelessWidget {
   }
 }
 
-class _NearbyCard extends StatelessWidget {
-  const _NearbyCard({
-    required this.profile,
-    required this.onTap,
-    required this.onLike,
+/// The 2-up grid of nearby photo tiles. Kept as its own widget so the
+/// `GridView` can be `shrinkWrap`ped inside the screen's scrolling column.
+class _NearbyGrid extends StatelessWidget {
+  const _NearbyGrid({
+    required this.profiles,
+    required this.onCardTap,
   });
+
+  final List<NearbyProfile> profiles;
+  final void Function(NearbyProfile) onCardTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.76,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: profiles.length,
+      itemBuilder: (context, index) {
+        final profile = profiles[index];
+        return _NearbyCard(
+          profile: profile,
+          onTap: () => onCardTap(profile),
+        );
+      },
+    );
+  }
+}
+
+class _NearbyCard extends StatelessWidget {
+  const _NearbyCard({required this.profile, required this.onTap});
 
   final NearbyProfile profile;
   final VoidCallback onTap;
-  final VoidCallback onLike;
 
   @override
   Widget build(BuildContext context) {
@@ -112,77 +114,41 @@ class _NearbyCard extends StatelessWidget {
             ? profile.profession!.trim()
             : profile.city.trim());
 
-    return SizedBox(
-      width: 172,
-      child: MediaCard(
-        imageUrl: profile.photos.isNotEmpty ? profile.photos.first : null,
-        brandScrim: true,
-        radius: NiaRadius.lg,
-        scrimStart: 0.42,
-        onTap: onTap,
-        padding: const EdgeInsets.fromLTRB(13, 13, 13, 14),
-        topLeft: [
-          if (distance != null)
-            MediaBadge(label: distance, icon: Icons.near_me_rounded),
-        ],
-        topRight: [
-          // A quick affirmative without leaving the rail. It sits on the photo
-          // rather than below it so the card keeps a single content block.
-          _RailLikeButton(onTap: onLike, name: name),
-        ],
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    return MediaCard(
+      imageUrl: profile.photos.isNotEmpty ? profile.photos.first : null,
+      brandScrim: true,
+      radius: NiaRadius.lg,
+      scrimStart: 0.42,
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 14),
+      topLeft: [
+        if (distance != null)
+          MediaBadge(label: distance, icon: Icons.near_me_rounded),
+      ],
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: editorial(19, weight: FontWeight.w700)
+                .copyWith(color: Colors.white, height: 1.1),
+          ),
+          if (supporting.isNotEmpty) ...[
+            const SizedBox(height: 3),
             Text(
-              name,
+              supporting,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: editorial(21, weight: FontWeight.w700)
-                  .copyWith(color: Colors.white, height: 1.1),
+              style: inter(12,
+                  weight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.78),
+                  height: 1.3),
             ),
-            if (supporting.isNotEmpty) ...[
-              const SizedBox(height: 3),
-              Text(
-                supporting,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: inter(12,
-                    weight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.78),
-                    height: 1.3),
-              ),
-            ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RailLikeButton extends StatelessWidget {
-  const _RailLikeButton({required this.onTap, required this.name});
-  final VoidCallback onTap;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Like $name',
-      child: Material(
-        color: Colors.white.withValues(alpha: 0.18),
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: 36,
-            height: 36,
-            child: Icon(Icons.favorite_rounded,
-                size: 18, color: Colors.white.withValues(alpha: 0.95)),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -196,7 +162,7 @@ class _UpsellNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.warnBg,
         borderRadius: BorderRadius.circular(NiaRadius.sm),
@@ -211,11 +177,6 @@ class _UpsellNote extends StatelessWidget {
               style: inter(12.5,
                   weight: FontWeight.w500, color: palette.warn, height: 1.4),
             ),
-          ),
-          TextButton(
-            onPressed: () {},
-            child: Text('Upgrade',
-                style: inter(13, weight: FontWeight.w700, color: palette.warn)),
           ),
         ],
       ),
