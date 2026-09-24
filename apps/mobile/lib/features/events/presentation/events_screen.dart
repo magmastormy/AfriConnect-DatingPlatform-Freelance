@@ -268,9 +268,30 @@ class _EventCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text('${event.capacity} places',
-                        style: inter(12,
-                            weight: FontWeight.w500, color: palette.inkSoft)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: LinearProgressIndicator(
+                              minHeight: 6,
+                              value: event.capacity == 0
+                                  ? 0
+                                  : (event.attendeeCount / event.capacity)
+                                      .clamp(0.0, 1.0),
+                              backgroundColor: palette.line,
+                              valueColor: AlwaysStoppedAnimation(palette.brand),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('${event.attendeeCount}/${event.capacity}',
+                            style: inter(11,
+                                weight: FontWeight.w700,
+                                color: palette.inkSoft)),
+                      ],
+                    ),
                   ],
                 ),
               ),

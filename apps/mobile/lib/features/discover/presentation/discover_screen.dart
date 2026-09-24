@@ -413,24 +413,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       // 她说-style header: the mode switch is the hero, the brand
                       // line a quiet echo beneath it. No heavy editorial headline —
                       // the card itself carries the voice.
-                      Center(
-                        child: _ModeTabs(
-                          mode: _mode,
-                          onChanged: (mode) {
-                            setState(() => _mode = mode);
-                            if (mode == DiscoverMode.nearby) _loadNearby();
-                          },
-                        ),
+                      _ModeTabs(
+                        mode: _mode,
+                        onChanged: (mode) {
+                          setState(() => _mode = mode);
+                          if (mode == DiscoverMode.nearby) _loadNearby();
+                        },
                       ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: Text(
-                          'Love, with intention.',
-                          style: editorial(18, weight: FontWeight.w700)
-                              .copyWith(
-                                  color: context.palette.muted, height: 1.2),
-                        ),
-                      ),
+                      const SizedBox(height: 18),
                       if (_superCount > 0) ...[
                         const SizedBox(height: 12),
                         Center(child: _SuperlikeBadge(count: _superCount)),
@@ -635,16 +625,64 @@ class _ModeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A single sliding segmented control rather than two boxy tabs — the
-    // reference behaviour for a mutually exclusive pair (DESIGN_INSPIRATIONS §2).
-    return SegmentedPill<DiscoverMode>(
-      selected: mode,
-      onChanged: onChanged,
-      options: const [
-  SegmentedOption(value: DiscoverMode.discover, label: 'Curated matches'),
-  SegmentedOption(value: DiscoverMode.nearby, label: 'Nearby'),
-  SegmentedOption(value: DiscoverMode.matches, label: 'Matches'),
-      ],
+    final palette = context.palette;
+    final tabs = [
+      (DiscoverMode.discover, 'Curated', '12'),
+      (DiscoverMode.nearby, 'Nearby', '09'),
+      (DiscoverMode.matches, 'Matches', '03'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.surfaceRaised,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.line),
+      ),
+      child: Row(
+        children: [
+          for (final tab in tabs)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(tab.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: mode == tab.$1 ? palette.surface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: mode == tab.$1
+                        ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 3))]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(tab.$2,
+                            overflow: TextOverflow.ellipsis,
+                            style: inter(12.5,
+                                weight: FontWeight.w700,
+                                color: mode == tab.$1 ? palette.ink : palette.muted)),
+                      ),
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: palette.lineStrong),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(tab.$3,
+                            style: inter(10,
+                                weight: FontWeight.w700, color: palette.muted)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

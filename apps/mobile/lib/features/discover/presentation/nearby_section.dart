@@ -75,23 +75,21 @@ class _NearbyGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.76,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: profiles.length,
-      itemBuilder: (context, index) {
-        final profile = profiles[index];
-        return _NearbyCard(
-          profile: profile,
-          onTap: () => onCardTap(profile),
-        );
-      },
+    final width = MediaQuery.sizeOf(context).width;
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        for (var index = 0; index < profiles.length; index++)
+          SizedBox(
+            width: index == 0 ? width - 40 : (width - 52) / 2,
+            height: index == 0 ? 250 : 190,
+            child: _NearbyCard(
+              profile: profiles[index],
+              onTap: () => onCardTap(profiles[index]),
+            ),
+          ),
+      ],
     );
   }
 }

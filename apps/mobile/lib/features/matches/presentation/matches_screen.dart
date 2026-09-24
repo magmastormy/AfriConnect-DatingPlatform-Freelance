@@ -159,13 +159,14 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   onReset: () => setState(() => filter = MatchFilter.all),
                 ),
               if (!loading && matches.isNotEmpty)
-                ...shown.map((match) => _MatchRow(
-                      name: _name(match),
-                      role: _role(match),
-                      photoUrl: _photoOf(match),
-                      score: '${_scoreOf(match)}%',
-                      action: () => openConversation(match),
-                    )),
+                _MatchBentoGrid(
+                  matches: shown,
+                  nameOf: _name,
+                  roleOf: _role,
+                  photoOf: _photoOf,
+                  scoreOf: _scoreOf,
+                  onTap: openConversation,
+                ),
               if (!loading && matches.isEmpty) ...[
                 _MatchPreviewRow(),
                 const SizedBox(height: 26),
@@ -284,6 +285,116 @@ class _NoMatchesInSegment extends StatelessWidget {
             PillCta(
               label: 'Show every one',
               onPressed: onReset,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchBentoGrid extends StatelessWidget {
+  const _MatchBentoGrid({
+    required this.matches,
+    required this.nameOf,
+    required this.roleOf,
+    required this.photoOf,
+    required this.scoreOf,
+    required this.onTap,
+  });
+
+  final List<Map<String, dynamic>> matches;
+  final String Function(Map<String, dynamic>) nameOf;
+  final String Function(Map<String, dynamic>) roleOf;
+  final String? Function(Map<String, dynamic>) photoOf;
+  final int Function(Map<String, dynamic>) scoreOf;
+  final Future<void> Function(Map<String, dynamic>) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (var index = 0; index < matches.length; index++)
+          SizedBox(
+            width: index == 0
+                ? double.infinity
+                : (MediaQuery.sizeOf(context).width - 50) / 2,
+            child: _MatchBentoCard(
+              name: nameOf(matches[index]),
+              role: roleOf(matches[index]),
+              photoUrl: photoOf(matches[index]),
+              score: '${scoreOf(matches[index])}%',
+              featured: index == 0,
+              onTap: () => onTap(matches[index]),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MatchBentoCard extends StatelessWidget {
+  const _MatchBentoCard({
+    required this.name,
+    required this.role,
+    required this.score,
+    required this.onTap,
+    this.photoUrl,
+    this.featured = false,
+  });
+
+  final String name;
+  final String role;
+  final String score;
+  final String? photoUrl;
+  final bool featured;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return PressScale(
+      onTap: onTap,
+      child: SurfaceCard(
+        padding: EdgeInsets.all(featured ? 14 : 10),
+        child: Row(
+          children: [
+            _MatchAvatar(
+              initial: name.isEmpty ? 'M' : name[0].toUpperCase(),
+              photoUrl: photoUrl,
+              size: featured ? 104 : 62,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: inter(featured ? 17 : 14,
+                              weight: FontWeight.w700, color: palette.ink)),
+                    ),
+                    StatusPill(score, tone: PillTone.good),
+                  ]),
+                  const SizedBox(height: 5),
+                  Text(role.isEmpty ? 'AfriConnect member' : role,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: inter(12,
+                          color: palette.muted, height: 1.3)),
+                  if (featured) ...[
+                    const SizedBox(height: 12),
+                    Text('Mutual interest',
+                        style: inter(12,
+                            weight: FontWeight.w700, color: palette.brand)),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

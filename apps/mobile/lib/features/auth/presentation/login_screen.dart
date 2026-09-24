@@ -148,6 +148,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () => context.go('/preview'),
                   child: const Text('Preview the mobile experience'))),
           const SizedBox(height: 8),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.palette.surfaceRaised,
+              borderRadius: BorderRadius.circular(NiaRadius.md),
+              border: Border.all(color: context.palette.line),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.verified_user_outlined,
+                    size: 18, color: context.palette.brand),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Your profile is private until you choose to connect. We use your email and mobile number to keep the community real.',
+                    style: inter(12,
+                        weight: FontWeight.w500,
+                        color: context.palette.muted,
+                        height: 1.45),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           Text(
               'By continuing, you agree to our member terms and privacy promise.',
               textAlign: TextAlign.center,
