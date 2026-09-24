@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
             email: email.text.trim(),
             phone: phone.text.trim(),
             code: code.text.trim());
-        if (mounted) context.go('/');
+        if (mounted) context.go('/onboarding');
       }
     } catch (e) {
       setState(() => error = e.toString());

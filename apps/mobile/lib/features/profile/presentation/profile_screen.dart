@@ -720,20 +720,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showPrivacy() async {
-    var showAge = profile?['privacy'] is Map<String, dynamic>
-        ? (profile!['privacy'] as Map<String, dynamic>)['showAge'] != false
-        : true;
+    final privacy = profile?['privacy'] as Map<String, dynamic>? ?? {};
+    var showAge = privacy['showAge'] != false;
+    var showGender = privacy['showGender'] != false;
+    var showInterests = privacy['showInterests'] != false;
+    var showWork = privacy['showWork'] != false;
     await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
                 title: const Text('Privacy & visibility'),
                 content: StatefulBuilder(
-                    builder: (_, setState) => SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        tileColor: Colors.transparent,
-                        title: const Text('Show my age'),
-                        value: showAge,
-                        onChanged: (value) => setState(() => showAge = value))),
+                    builder: (_, setState) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _privacySwitch('Show my age', showAge, (value) => setState(() => showAge = value)),
+                            _privacySwitch('Show my gender', showGender, (value) => setState(() => showGender = value)),
+                            _privacySwitch('Show my interests', showInterests, (value) => setState(() => showInterests = value)),
+                            _privacySwitch('Show my work details', showWork, (value) => setState(() => showWork = value)),
+                          ],
+                        )),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
@@ -742,7 +747,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () async {
                         try {
                           await AppServices.account
-                              .updatePrivacy({'showAge': showAge});
+                              .updatePrivacy({
+                                'showAge': showAge,
+                                'showGender': showGender,
+                                'showInterests': showInterests,
+                                'showWork': showWork,
+                              });
                           if (dialogContext.mounted) {
                             Navigator.pop(dialogContext);
                           }
@@ -757,6 +767,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: const Text('Save'))
                 ]));
   }
+
+  SwitchListTile _privacySwitch(String title, bool value, ValueChanged<bool> onChanged) => SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        tileColor: Colors.transparent,
+        title: Text(title),
+        value: value,
+        onChanged: onChanged);
 
   Future<void> _showPreferences() async {
     final ageMin = TextEditingController(
