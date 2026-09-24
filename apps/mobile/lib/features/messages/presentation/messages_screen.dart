@@ -133,6 +133,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           .copyWith(height: 1.05),
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: context.palette.brandSoft.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.forum_outlined,
+                        color: context.palette.brand, size: 22),
+                  ),
                   const SizedBox(width: 12),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),

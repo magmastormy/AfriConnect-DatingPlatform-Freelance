@@ -92,9 +92,18 @@ class _MatchesScreenState extends State<MatchesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('The people who\nchose you back.',
-                  style: editorial(32, weight: FontWeight.w700)
-                      .copyWith(height: 1.05)),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text('The people who\nchose you back.',
+                        style: editorial(32, weight: FontWeight.w700)
+                            .copyWith(height: 1.05)),
+                  ),
+                  Icon(Icons.auto_awesome,
+                      color: context.palette.brand, size: 26),
+                ],
+              ),
               const SizedBox(height: 10),
               Text(
                 'Mutual interest opens the door to a thoughtful conversation.',

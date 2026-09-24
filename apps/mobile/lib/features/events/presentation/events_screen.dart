@@ -113,15 +113,35 @@ class _EventsScreenState extends State<EventsScreen> {
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: [
-          Text('Find your people\nin the real world.',
-              style: editorial(34, weight: FontWeight.w700)
-                  .copyWith(height: 1.04)),
-          const SizedBox(height: 10),
-          Text('Small rooms, good energy, and invitations worth accepting.',
-              style: inter(14,
-                  weight: FontWeight.w400,
-                  color: context.palette.muted,
-                  height: 1.45)),
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [context.palette.brandSoft, context.palette.surfaceRaised],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(NiaRadius.lg),
+              border: Border.all(color: context.palette.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.local_activity_outlined,
+                    color: context.palette.brand, size: 26),
+                const SizedBox(height: 14),
+                Text('Find your people\nin the real world.',
+                    style: editorial(34, weight: FontWeight.w700)
+                        .copyWith(height: 1.04)),
+                const SizedBox(height: 10),
+                Text('Small rooms, good energy, and invitations worth accepting.',
+                    style: inter(14,
+                        weight: FontWeight.w400,
+                        color: context.palette.muted,
+                        height: 1.45)),
+              ],
+            ),
+          ),
           const SizedBox(height: 26),
           if (loading) const _EventLoadingState(),
           if (!loading && error != null) _EventErrorState(onRetry: loadEvents),

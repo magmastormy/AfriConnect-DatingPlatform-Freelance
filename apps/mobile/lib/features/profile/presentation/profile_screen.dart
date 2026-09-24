@@ -441,8 +441,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Identity hero. Every other tab opens with a display headline and
           // one supporting line; "You" opened with whatever settings happened
           // to come first, which gave it no top at all.
-          SurfaceCard(
+          Container(
               padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    context.palette.surfaceRaised,
+                    context.palette.brandSoft.withValues(alpha: 0.34),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(NiaRadius.lg),
+                border: Border.all(color: context.palette.line),
+              ),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
