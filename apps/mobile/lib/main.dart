@@ -62,6 +62,12 @@ class AfriConnectApp extends StatelessWidget {
           darkTheme: AppTheme.dark,
           themeMode: AppServices.theme.mode,
           routerConfig: _router,
+          scrollbarTheme: const ScrollbarThemeData(
+            thumbVisibility: WidgetStatePropertyAll(false),
+            trackVisibility: WidgetStatePropertyAll(false),
+            thickness: WidgetStatePropertyAll(0),
+            radius: Radius.zero,
+          ),
           builder: (context, child) => DeviceFrameWrapper(child: child!),
         );
         if (publishableKey.isEmpty) return app;
